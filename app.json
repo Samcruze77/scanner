@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Document Scanner",
+    "slug": "document-scanner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.documentscanner"
+    },
+    "android": {
+      "package": "com.anonymous.documentscanner"
+    },
+    "web": {}
+  }
+}
