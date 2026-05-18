@@ -1,0 +1,26 @@
+FROM node:20-bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libreoffice \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    poppler-utils \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY src ./src
+
+ENV NODE_ENV=production
+ENV SERVICE_NAME=document-converter-worker
+ENV UPLOAD_DIR=/tmp/uploads
+ENV OUTPUT_DIR=/tmp/outputs
+
+RUN mkdir -p /tmp/uploads /tmp/outputs && chown -R node:node /app /tmp/uploads /tmp/outputs
+USER node
+
+CMD ["node", "src/worker.js"]

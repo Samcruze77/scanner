@@ -1,11 +1,19 @@
 import "react-native-gesture-handler";
-import React, { useMemo } from "react";
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import * as DocumentPicker from "expo-document-picker";
+import ConverterStack from "./src/navigation/ConverterStack";
+import RootNavigator from "./src/navigation/RootNavigator";
+import ProfileScreen from "./src/screens/auth/ProfileScreen";
+import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
+import { registerBackgroundConversionTasks } from "./src/services/backgroundTasks";
+import { addNotificationResponseListener, registerForPushNotifications } from "./src/services/notificationService";
 
 const historyData = [
   { id: "1", name: "Invoice_042.pdf", date: "Apr 14, 2026", pages: 3, size: "1.2 MB" },
@@ -15,6 +23,38 @@ const historyData = [
 ];
 
 function DashboardScreen({ navigation }) {
+  const [isPickingFile, setIsPickingFile] = useState(false);
+
+  const handleUpload = async () => {
+    try {
+      setIsPickingFile(true);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["image/*", "application/pdf"],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      const picked = result.assets[0];
+      navigation.navigate("ScanPreview", {
+        doc: {
+          uri: picked.uri,
+          name: picked.name || "Uploaded Document",
+          mimeType: picked.mimeType || "application/octet-stream",
+          size: picked.size,
+          source: "Upload",
+        },
+      });
+    } catch (error) {
+      Alert.alert("Upload failed", "Unable to pick a file. Please try again.");
+    } finally {
+      setIsPickingFile(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <Text style={styles.heading}>Dashboard</Text>
@@ -26,7 +66,7 @@ function DashboardScreen({ navigation }) {
         <TouchableOpacity
           style={styles.primaryButton}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate("ScanPreview")}
+          onPress={() => navigation.navigate("CameraCapture")}
         >
           <Text style={styles.primaryButtonText}>Scan New Document</Text>
         </TouchableOpacity>
@@ -34,15 +74,15 @@ function DashboardScreen({ navigation }) {
 
       <Text style={styles.sectionLabel}>Quick Actions</Text>
       <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.actionCard} activeOpacity={0.85} onPress={() => navigation.navigate("ScanPreview")}>
+        <TouchableOpacity style={styles.actionCard} activeOpacity={0.85} onPress={() => navigation.navigate("CameraCapture")}>
           <Text style={styles.actionIcon}>+ </Text>
           <Text style={styles.actionTitle}>New Scan</Text>
           <Text style={styles.actionText}>Open camera scanner</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionCard} activeOpacity={0.85} onPress={() => navigation.navigate("DocumentDetail")}>
+        <TouchableOpacity style={styles.actionCard} activeOpacity={0.85} onPress={handleUpload}>
           <Text style={styles.actionIcon}>[ ] </Text>
           <Text style={styles.actionTitle}>Import File</Text>
-          <Text style={styles.actionText}>Use existing image/PDF</Text>
+          <Text style={styles.actionText}>{isPickingFile ? "Opening picker..." : "Use existing image/PDF"}</Text>
         </TouchableOpacity>
       </View>
 
@@ -64,24 +104,93 @@ function DashboardScreen({ navigation }) {
   );
 }
 
-function ScanPreviewScreen({ navigation }) {
+function CameraCaptureScreen({ navigation }) {
+  const [permission, requestPermission] = useCameraPermissions();
+  const [isCapturing, setIsCapturing] = useState(false);
+  const cameraRef = useRef(null);
+
+  const handleCapture = async () => {
+    if (!cameraRef.current || isCapturing) {
+      return;
+    }
+
+    try {
+      setIsCapturing(true);
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
+      navigation.navigate("ScanPreview", {
+        doc: {
+          uri: photo.uri,
+          name: `Scan_${Date.now()}.jpg`,
+          mimeType: "image/jpeg",
+          size: undefined,
+          source: "Camera",
+        },
+      });
+    } catch (error) {
+      Alert.alert("Capture failed", "Unable to capture photo. Please try again.");
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  if (!permission) {
+    return (
+      <View style={styles.cameraStateContainer}>
+        <Text style={styles.cameraStateText}>Loading camera permission...</Text>
+      </View>
+    );
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.cameraStateContainer}>
+        <Text style={styles.cameraStateText}>Camera access is required to scan documents.</Text>
+        <TouchableOpacity style={styles.primaryButtonSolid} activeOpacity={0.85} onPress={requestPermission}>
+          <Text style={styles.primaryButtonSolidText}>Allow Camera Access</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.cameraScreen}>
+      <CameraView ref={cameraRef} style={styles.cameraView} facing="back" />
+      <View style={styles.cameraActionBar}>
+        <TouchableOpacity style={styles.cameraCaptureButton} activeOpacity={0.85} onPress={handleCapture}>
+          <Ionicons name={isCapturing ? "hourglass-outline" : "camera"} size={24} color="#FFFFFF" />
+          <Text style={styles.cameraCaptureText}>{isCapturing ? "Capturing..." : "Capture"}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+function ScanPreviewScreen({ navigation, route }) {
+  const doc = route.params?.doc;
+  const isImage = doc?.mimeType?.startsWith("image/");
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <Text style={styles.heading}>Scan Preview</Text>
-      <Text style={styles.subheading}>Mock preview screen for scanned document before saving/export.</Text>
+      <Text style={styles.subheading}>Review document before continuing to details.</Text>
 
       <View style={styles.previewFrame}>
-        <Text style={styles.previewFrameText}>Document Preview Placeholder</Text>
+        {isImage && doc?.uri ? (
+          <Image source={{ uri: doc.uri }} style={styles.previewImage} resizeMode="cover" />
+        ) : (
+          <Text style={styles.previewFrameText}>{doc?.name || "Document Preview Placeholder"}</Text>
+        )}
       </View>
+      <Text style={styles.previewMeta}>Source: {doc?.source || "Unknown"}{doc?.name ? `  -  ${doc.name}` : ""}</Text>
 
       <View style={styles.previewActions}>
-        <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.85} onPress={() => navigation.goBack()}>
           <Text style={styles.secondaryButtonText}>Retake</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.primaryButtonSolid}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate("DocumentDetail")}
+          onPress={() => navigation.navigate("DocumentDetail", { doc })}
         >
           <Text style={styles.primaryButtonSolidText}>Continue</Text>
         </TouchableOpacity>
@@ -90,17 +199,20 @@ function ScanPreviewScreen({ navigation }) {
   );
 }
 
-function DocumentDetailScreen() {
+function DocumentDetailScreen({ route }) {
+  const doc = route.params?.doc;
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <Text style={styles.heading}>Document Detail</Text>
-      <Text style={styles.subheading}>Frontend-only metadata and action layout.</Text>
+      <Text style={styles.subheading}>Captured/uploaded document metadata and action layout.</Text>
 
       <View style={styles.detailCard}>
-        <Text style={styles.detailName}>Invoice_042.pdf</Text>
-        <Text style={styles.detailMeta}>Created: Apr 14, 2026</Text>
-        <Text style={styles.detailMeta}>Pages: 3</Text>
-        <Text style={styles.detailMeta}>Size: 1.2 MB</Text>
+        <Text style={styles.detailName}>{doc?.name || "Untitled Document"}</Text>
+        <Text style={styles.detailMeta}>Created: {new Date().toLocaleDateString()}</Text>
+        <Text style={styles.detailMeta}>Type: {doc?.mimeType || "unknown"}</Text>
+        <Text style={styles.detailMeta}>Size: {doc?.size ? `${Math.round(doc.size / 1024)} KB` : "N/A"}</Text>
+        <Text style={styles.detailMeta}>Source: {doc?.source || "Unknown"}</Text>
       </View>
 
       <Text style={styles.sectionLabel}>Actions</Text>
@@ -146,6 +258,21 @@ function HistoryScreen() {
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
+
+function openNotificationResult(data) {
+  if (!navigationRef.isReady() || !data?.jobId) return;
+  navigationRef.navigate("Main", {
+    screen: "Converter",
+    params: {
+      screen: "FilePreview",
+      params: {
+        jobId: data.jobId,
+        ...(data.result || {}),
+      },
+    },
+  });
+}
 
 function DashboardStackNavigator() {
   return (
@@ -158,28 +285,27 @@ function DashboardStackNavigator() {
       }}
     >
       <DashboardStack.Screen name="DashboardHome" component={DashboardScreen} options={{ title: "Dashboard", headerShown: false }} />
+      <DashboardStack.Screen name="CameraCapture" component={CameraCaptureScreen} options={{ title: "Camera Scanner" }} />
       <DashboardStack.Screen name="ScanPreview" component={ScanPreviewScreen} options={{ title: "Scan Preview" }} />
       <DashboardStack.Screen name="DocumentDetail" component={DocumentDetailScreen} options={{ title: "Document Detail" }} />
     </DashboardStack.Navigator>
   );
 }
 
-export default function App() {
+function RootTabs() {
+  const { colors, isDark } = useTheme();
+
   return (
-    <NavigationContainer>
-      <ExpoStatusBar style="dark" />
-      <StatusBar barStyle="dark-content" />
+    <>
+      <ExpoStatusBar style={isDark ? "light" : "dark"} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
-          tabBarStyle: styles.tabBar,
+          tabBarStyle: [styles.tabBar, { backgroundColor: colors.tabBar, borderTopColor: colors.border }],
           tabBarLabelStyle: styles.tabLabel,
-          tabBarActiveTintColor: "#1D4ED8",
-          tabBarInactiveTintColor: "#6B7280",
-          tabBarIcon: ({ focused, color }) => {
-            const iconName = focused ? "ellipse" : "ellipse-outline";
-            return <Ionicons name={iconName} size={18} color={color} />;
-          },
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
         }}
       >
         <Tab.Screen
@@ -190,14 +316,49 @@ export default function App() {
           }}
         />
         <Tab.Screen
+          name="Converter"
+          component={ConverterStack}
+          options={{
+            tabBarIcon: ({ color, size }) => <Ionicons name="swap-horizontal" size={size} color={color} />,
+          }}
+        />
+        <Tab.Screen
           name="History"
           component={HistoryScreen}
           options={{
             tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />,
           }}
         />
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            headerShown: true,
+            headerStyle: { backgroundColor: colors.card },
+            headerTintColor: colors.text,
+            title: "Profile",
+            tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
+          }}
+        />
       </Tab.Navigator>
-    </NavigationContainer>
+    </>
+  );
+}
+
+export default function App() {
+  useEffect(() => {
+    registerBackgroundConversionTasks().catch(() => {});
+    registerForPushNotifications().catch(() => {});
+    const subscription = addNotificationResponseListener(openNotificationResult);
+    return () => subscription.remove();
+  }, []);
+
+  return (
+    <ThemeProvider>
+      <NavigationContainer ref={navigationRef}>
+        <RootNavigator AuthenticatedComponent={RootTabs} />
+      </NavigationContainer>
+    </ThemeProvider>
   );
 }
 
@@ -370,10 +531,22 @@ const styles = StyleSheet.create({
     height: 280,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%",
   },
   previewFrameText: {
     color: "#1E3A8A",
     fontWeight: "600",
+    textAlign: "center",
+    paddingHorizontal: 16,
+  },
+  previewMeta: {
+    marginTop: 10,
+    color: "#475569",
+    fontSize: 12,
   },
   previewActions: {
     marginTop: 20,
@@ -438,5 +611,43 @@ const styles = StyleSheet.create({
   actionChipText: {
     color: "#374151",
     fontWeight: "600",
+  },
+  cameraScreen: {
+    flex: 1,
+    backgroundColor: "#0F172A",
+  },
+  cameraView: {
+    flex: 1,
+  },
+  cameraActionBar: {
+    padding: 20,
+    backgroundColor: "#0F172A",
+  },
+  cameraCaptureButton: {
+    borderRadius: 14,
+    backgroundColor: "#1D4ED8",
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  cameraCaptureText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  cameraStateContainer: {
+    flex: 1,
+    backgroundColor: "#F4F6FA",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    gap: 14,
+  },
+  cameraStateText: {
+    color: "#334155",
+    fontSize: 15,
+    textAlign: "center",
   },
 });

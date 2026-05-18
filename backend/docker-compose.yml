@@ -1,0 +1,90 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: document-converter-api:local
+    ports:
+      - "4000:4000"
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      SERVICE_NAME: document-converter-api
+      PORT: 4000
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:4000}
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/converter
+      UPLOAD_DIR: /tmp/uploads
+      OUTPUT_DIR: /tmp/outputs
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads:/tmp/uploads
+      - outputs:/tmp/outputs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    image: document-converter-worker:local
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      SERVICE_NAME: document-converter-worker
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/converter
+      UPLOAD_DIR: /tmp/uploads
+      OUTPUT_DIR: /tmp/outputs
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads:/tmp/uploads
+      - outputs:/tmp/outputs
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: converter
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d converter"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  uploads:
+  outputs:
+  pgdata:

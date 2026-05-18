@@ -1,5 +1,11 @@
 node_modules/
+.DS_Store
+.env
 .expo/
+backend/uploads/temp/*
+backend/uploads/output/*
+!backend/uploads/temp/.gitkeep
+!backend/uploads/output/.gitkeep
 .expo-shared/
 npm-debug.*
 yarn-debug.*

@@ -2,9 +2,10 @@
   "expo": {
     "name": "Document Scanner",
     "slug": "document-scanner",
+    "scheme": "documentscanner",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
@@ -14,8 +15,15 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.documentscanner"
+      "bundleIdentifier": "com.anonymous.documentscanner",
+      "usesAppleSignIn": true
     },
+    "plugins": [
+      "expo-apple-authentication",
+      "expo-notifications",
+      "expo-background-fetch",
+      "expo-task-manager"
+    ],
     "android": {
       "package": "com.anonymous.documentscanner"
     },
