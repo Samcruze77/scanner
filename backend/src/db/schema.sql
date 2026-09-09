@@ -81,6 +81,39 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS signatures (
+  id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
+  signature_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS documents (
+  id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
+  filename TEXT,
+  file_size BIGINT,
+  file_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS document_pages (
+  id VARCHAR(36) PRIMARY KEY,
+  document_id VARCHAR(36) REFERENCES documents(id) ON DELETE CASCADE,
+  page_number INT NOT NULL,
+  image_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS exports (
+  id VARCHAR(36) PRIMARY KEY,
+  document_id VARCHAR(36) REFERENCES documents(id) ON DELETE CASCADE,
+  user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
+  export_url TEXT,
+  format VARCHAR(10),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_history_user_created ON conversion_history(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_history_job ON conversion_history(job_id);
 CREATE INDEX IF NOT EXISTS idx_conversion_jobs_user ON conversion_jobs(user_id, queued_at DESC);
@@ -88,3 +121,4 @@ CREATE INDEX IF NOT EXISTS idx_conversion_jobs_status ON conversion_jobs(status,
 CREATE INDEX IF NOT EXISTS idx_file_metadata_job ON file_metadata(job_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_push_tokens_user ON push_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_signatures_user_created ON signatures(user_id, created_at DESC);

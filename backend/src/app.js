@@ -17,6 +17,8 @@ const billingRoutes = require("./routes/billing.routes");
 const stripeWebhook = require("./routes/billing.webhook");
 const analyticsRoutes = require("./routes/analytics.routes");
 const notificationsRoutes = require("./routes/notifications.routes");
+const signatureRoutes = require("./routes/signature.routes");
+const documentRoutes = require("./routes/document.routes");
 
 const app = express();
 
@@ -59,6 +61,8 @@ app.use("/billing", billingRoutes);
 app.use("/analytics", analyticsRoutes);
 app.use("/files", filesRoutes);
 app.use("/notifications", notificationsRoutes);
+app.use("/signatures", signatureRoutes);
+app.use("/documents", documentRoutes);
 
 app.use(errorHandler);
 

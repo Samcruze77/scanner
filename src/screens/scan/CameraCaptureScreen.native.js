@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Camera } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
+import { cropImageDocument } from "../../services/imageCropper";
 
 export default function CameraCaptureScreen({ navigation }) {
   const [permission, setPermission] = useState(null);
@@ -26,14 +27,16 @@ export default function CameraCaptureScreen({ navigation }) {
     try {
       setIsCapturing(true);
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
+      const doc = await cropImageDocument({
+        uri: photo.uri,
+        name: `Scan_${Date.now()}.jpg`,
+        mimeType: "image/jpeg",
+        size: undefined,
+        source: "Camera",
+      });
+
       navigation.navigate("ScanPreview", {
-        doc: {
-          uri: photo.uri,
-          name: `Scan_${Date.now()}.jpg`,
-          mimeType: "image/jpeg",
-          size: undefined,
-          source: "Camera",
-        },
+        doc,
       });
     } catch {
       Alert.alert("Capture failed", "Unable to capture photo. Please try again.");

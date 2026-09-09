@@ -1,0 +1,38 @@
+generator client { 
+   provider = "prisma-client-js" 
+ } 
+ 
+ datasource db { 
+   provider = "postgresql" 
+   url      = env("DATABASE_URL") 
+   directUrl = env("DIRECT_URL")
+ } 
+ 
+ model User { 
+   id        String   @id @default(cuid()) 
+   email     String   @unique 
+   createdAt DateTime @default(now()) 
+ 
+   documents Document[] 
+ } 
+ 
+ model Document { 
+   id          String   @id @default(cuid()) 
+   userId      String 
+   name        String 
+   originalUrl String 
+   outputUrl   String? 
+   status      String 
+ 
+   createdAt DateTime @default(now()) 
+ 
+   user User @relation(fields: [userId], references: [id]) 
+ } 
+ 
+ model Subscription { 
+   id        String @id @default(cuid()) 
+   userId    String @unique 
+   plan      String 
+ 
+   createdAt DateTime @default(now()) 
+ }

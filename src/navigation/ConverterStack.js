@@ -5,6 +5,8 @@ import ConvertToolScreen from "../screens/converter/ConvertToolScreen";
 import ConversionHistoryScreen from "../screens/converter/ConversionHistoryScreen";
 import FilePreviewScreen from "../screens/converter/FilePreviewScreen";
 import OcrScreen from "../screens/converter/OcrScreen";
+import SignatureScreen from "../screens/converter/SignatureScreen";
+import DocumentEditorScreen from "../screens/converter/DocumentEditorScreen";
 import NotificationSettingsScreen from "../screens/converter/NotificationSettingsScreen";
 import { useTheme } from "../theme/ThemeContext";
 
@@ -28,6 +30,8 @@ export default function ConverterStack() {
       <Stack.Screen name="ConversionHistory" component={ConversionHistoryScreen} options={{ title: "History" }} />
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: "Notifications" }} />
       <Stack.Screen name="FilePreview" component={FilePreviewScreen} options={{ title: "Preview" }} />
+      <Stack.Screen name="Signature" component={SignatureScreen} options={{ title: "Sign Document" }} />
+      <Stack.Screen name="DocumentEditor" component={DocumentEditorScreen} options={{ title: "Edit Document" }} />
     </Stack.Navigator>
   );
 }

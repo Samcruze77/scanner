@@ -11,3 +11,5 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 dist/
+
+/src/generated/prisma

@@ -1,19 +1,27 @@
 import "react-native-gesture-handler";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
-import { Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Animated, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import CameraCaptureScreen from "./src/screens/scan/CameraCaptureScreen";
 import ConverterStack from "./src/navigation/ConverterStack";
 import RootNavigator from "./src/navigation/RootNavigator";
 import ProfileScreen from "./src/screens/auth/ProfileScreen";
+import Header from "./src/components/scanner/Header";
+import ScanButton from "./src/components/scanner/ScanButton";
+import ActionCard from "./src/components/scanner/ActionCard";
+import RecentScans from "./src/components/scanner/RecentScans";
+import BottomNav from "./src/components/scanner/BottomNav";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
+import { useAuthStore } from "./src/store/authStore";
 import { registerBackgroundConversionTasks } from "./src/services/backgroundTasks";
+import { cropImageDocument } from "./src/services/imageCropper";
 import { addNotificationResponseListener, registerForPushNotifications } from "./src/services/notificationService";
 
 const historyData = [
@@ -25,6 +33,15 @@ const historyData = [
 
 function DashboardScreen({ navigation }) {
   const [isPickingFile, setIsPickingFile] = useState(false);
+  const introAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(introAnim, {
+      toValue: 1,
+      duration: 420,
+      useNativeDriver: true,
+    }).start();
+  }, [introAnim]);
 
   const handleUpload = async () => {
     try {
@@ -40,14 +57,16 @@ function DashboardScreen({ navigation }) {
       }
 
       const picked = result.assets[0];
+      const doc = await cropImageDocument({
+        uri: picked.uri,
+        name: picked.name || "Uploaded Document",
+        mimeType: picked.mimeType || "application/octet-stream",
+        size: picked.size,
+        source: "Upload",
+      });
+
       navigation.navigate("ScanPreview", {
-        doc: {
-          uri: picked.uri,
-          name: picked.name || "Uploaded Document",
-          mimeType: picked.mimeType || "application/octet-stream",
-          size: picked.size,
-          source: "Upload",
-        },
+        doc,
       });
     } catch (error) {
       Alert.alert("Upload failed", "Unable to pick a file. Please try again.");
@@ -57,51 +76,83 @@ function DashboardScreen({ navigation }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <Text style={styles.heading}>Dashboard</Text>
-      <Text style={styles.subheading}>Scan, organize, and export your documents quickly.</Text>
-
-      <View style={styles.heroCard}>
-        <Text style={styles.heroTitle}>Ready to Scan</Text>
-        <Text style={styles.heroText}>Capture receipts, invoices, IDs, and notes in seconds.</Text>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate("CameraCapture")}
+    <View style={styles.homeShell}>
+      <Header navigation={navigation} />
+      <ScrollView contentContainerStyle={styles.homeContent} showsVerticalScrollIndicator={false}>
+        <Animated.View
+          style={{
+            opacity: introAnim,
+            transform: [
+              {
+                translateY: introAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [12, 0],
+                }),
+              },
+            ],
+          }}
         >
-          <Text style={styles.primaryButtonText}>Scan New Document</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.heroIntro}>
+            <Text style={styles.kicker}>Document scanner</Text>
+            <Text style={styles.heading}>Scan, organize, and export in seconds.</Text>
+            <Text style={styles.subheading}>A clean workspace for receipts, IDs, notes, contracts, and every paper trail in between.</Text>
+          </View>
 
-      <Text style={styles.sectionLabel}>Quick Actions</Text>
-      <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.actionCard} activeOpacity={0.85} onPress={() => navigation.navigate("CameraCapture")}>
-          <Text style={styles.actionIcon}>+ </Text>
-          <Text style={styles.actionTitle}>New Scan</Text>
-          <Text style={styles.actionText}>Open camera scanner</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionCard} activeOpacity={0.85} onPress={handleUpload}>
-          <Text style={styles.actionIcon}>[ ] </Text>
-          <Text style={styles.actionTitle}>Import File</Text>
-          <Text style={styles.actionText}>{isPickingFile ? "Opening picker..." : "Use existing image/PDF"}</Text>
-        </TouchableOpacity>
-      </View>
+          <ScanButton onPress={() => navigation.navigate("CameraCapture")} />
 
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>24</Text>
-          <Text style={styles.statLabel}>Total Scans</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>11</Text>
-          <Text style={styles.statLabel}>This Month</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>8.6MB</Text>
-          <Text style={styles.statLabel}>Storage Used</Text>
-        </View>
-      </View>
-    </ScrollView>
+          <View style={styles.metricsRow}>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricValue}>24</Text>
+              <Text style={styles.metricLabel}>Scans</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricValue}>11</Text>
+              <Text style={styles.metricLabel}>This month</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricValue}>8.6MB</Text>
+              <Text style={styles.metricLabel}>Storage</Text>
+            </View>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>Quick Tools</Text>
+          </View>
+          <View style={styles.actionGrid}>
+            <ActionCard
+              icon="images-outline"
+              title="Import from Gallery"
+              description={isPickingFile ? "Opening picker..." : "Use an image or PDF already on your device"}
+              accent="#059669"
+              onPress={handleUpload}
+            />
+            <ActionCard
+              icon="text-outline"
+              title="OCR Text"
+              description="Extract searchable text from scanned pages"
+              accent="#7C3AED"
+              onPress={() => navigation.getParent()?.navigate("Tools", { screen: "Ocr" })}
+            />
+            <ActionCard
+              icon="document-attach-outline"
+              title="Convert to PDF"
+              description="Package images and files into polished PDFs"
+              accent="#EA580C"
+              onPress={() => navigation.getParent()?.navigate("Tools", { screen: "ConvertTool", params: { toolId: "image-to-pdf" } })}
+            />
+            <ActionCard
+              icon="folder-open-outline"
+              title="Recent Scans"
+              description="Jump back into your latest documents"
+              accent="#2563EB"
+              onPress={() => navigation.getParent()?.navigate("Scans")}
+            />
+          </View>
+
+          <RecentScans items={historyData.slice(0, 3)} />
+        </Animated.View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -196,6 +247,31 @@ function HistoryScreen() {
   );
 }
 
+function ProfileGateway({ navigation }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  if (isAuthenticated) {
+    return <ProfileScreen />;
+  }
+
+  return (
+    <View style={styles.profilePrompt}>
+      <View style={styles.profilePromptIcon}>
+        <Ionicons name="person-outline" size={36} color="#2563EB" />
+      </View>
+      <Text style={styles.profilePromptTitle}>Your scanning workspace</Text>
+      <Text style={styles.profilePromptText}>Sign in to sync scans, protect documents, and keep conversion history across devices.</Text>
+      <TouchableOpacity style={styles.profilePrimary} activeOpacity={0.85} onPress={() => navigation.navigate("Login")}>
+        <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
+        <Text style={styles.profilePrimaryText}>Login</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.profileSecondary} activeOpacity={0.85} onPress={() => navigation.navigate("Register")}>
+        <Text style={styles.profileSecondaryText}>Create account</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
 const navigationRef = createNavigationContainerRef();
@@ -203,7 +279,7 @@ const navigationRef = createNavigationContainerRef();
 function openNotificationResult(data) {
   if (!navigationRef.isReady() || !data?.jobId) return;
   navigationRef.navigate("Main", {
-    screen: "Converter",
+    screen: "Tools",
     params: {
       screen: "FilePreview",
       params: {
@@ -240,44 +316,40 @@ function RootTabs() {
       <ExpoStatusBar style={isDark ? "light" : "dark"} />
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <Tab.Navigator
+        tabBar={(props) => <BottomNav {...props} />}
         screenOptions={{
           headerShown: false,
-          tabBarStyle: [styles.tabBar, { backgroundColor: colors.tabBar, borderTopColor: colors.border }],
-          tabBarLabelStyle: styles.tabLabel,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
         }}
       >
         <Tab.Screen
-          name="Dashboard"
+          name="Home"
           component={DashboardStackNavigator}
           options={{
-            tabBarIcon: ({ color, size }) => <Ionicons name="grid" size={size} color={color} />,
+            title: "Home",
           }}
         />
         <Tab.Screen
-          name="Converter"
-          component={ConverterStack}
-          options={{
-            tabBarIcon: ({ color, size }) => <Ionicons name="swap-horizontal" size={size} color={color} />,
-          }}
-        />
-        <Tab.Screen
-          name="History"
+          name="Scans"
           component={HistoryScreen}
           options={{
-            tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />,
+            title: "Scans",
+          }}
+        />
+        <Tab.Screen
+          name="Tools"
+          component={ConverterStack}
+          options={{
+            title: "Tools",
           }}
         />
         <Tab.Screen
           name="Profile"
-          component={ProfileScreen}
+          component={ProfileGateway}
           options={{
-            headerShown: true,
-            headerStyle: { backgroundColor: colors.card },
-            headerTintColor: colors.text,
+            headerShown: false,
             title: "Profile",
-            tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
           }}
         />
       </Tab.Navigator>
@@ -297,9 +369,11 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <NavigationContainer ref={navigationRef}>
-        <RootNavigator AuthenticatedComponent={RootTabs} />
-      </NavigationContainer>
+      <SafeAreaProvider>
+        <NavigationContainer ref={navigationRef}>
+          <RootNavigator AuthenticatedComponent={RootTabs} />
+        </NavigationContainer>
+      </SafeAreaProvider>
     </ThemeProvider>
   );
 }
@@ -308,6 +382,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F4F6FA",
+  },
+  homeShell: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  homeContent: {
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 28,
+    backgroundColor: "#F8FAFC",
+  },
+  heroIntro: {
+    paddingTop: 2,
+  },
+  kicker: {
+    color: "#2563EB",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0,
+    textTransform: "uppercase",
+    marginBottom: 8,
   },
   scrollContent: {
     padding: 20,
@@ -323,6 +418,47 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     color: "#6B7280",
+  },
+  metricsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 18,
+  },
+  metricCard: {
+    flex: 1,
+    minHeight: 74,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  metricValue: {
+    color: "#111827",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  metricLabel: {
+    marginTop: 3,
+    color: "#6B7280",
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  sectionHeader: {
+    marginTop: 26,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  actionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 12,
   },
   heroCard: {
     marginTop: 22,
@@ -553,5 +689,70 @@ const styles = StyleSheet.create({
   actionChipText: {
     color: "#374151",
     fontWeight: "600",
+  },
+  profilePrompt: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  profilePromptIcon: {
+    width: 86,
+    height: 86,
+    borderRadius: 30,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  profilePromptTitle: {
+    color: "#111827",
+    fontSize: 24,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  profilePromptText: {
+    marginTop: 8,
+    color: "#6B7280",
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
+    maxWidth: 360,
+  },
+  profilePrimary: {
+    marginTop: 24,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#2563EB",
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    alignSelf: "stretch",
+    maxWidth: 360,
+  },
+  profilePrimaryText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  profileSecondary: {
+    marginTop: 12,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "stretch",
+    maxWidth: 360,
+  },
+  profileSecondaryText: {
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: "800",
   },
 });

@@ -8,11 +8,13 @@
     "dev": "nodemon src/index.js",
     "dev:worker": "nodemon src/worker.js",
     "migrate": "node src/db/migrate.js",
+    "db:setup": "node src/db/setup.js && npm run migrate",
     "dev:standalone": "USE_MEMORY_DB=true SKIP_REDIS=true NODE_ENV=development node src/index.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.758.0",
     "@aws-sdk/s3-request-presigner": "^3.758.0",
+    "@neondatabase/serverless": "^1.1.0",
     "apple-signin-auth": "^1.7.8",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.41.2",
@@ -43,6 +45,8 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "@prisma/client": "^7.8.0",
+    "nodemon": "^3.1.9",
+    "prisma": "^7.8.0"
   }
 }

@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { downloadConvertedFile, fetchJob } from "../../services/conversionService";
 import { useTheme } from "../../theme/ThemeContext";
 
-export default function FilePreviewScreen({ route }) {
+export default function FilePreviewScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { toolTitle, jobId } = route.params || {};
   const [jobResult, setJobResult] = useState(route.params || {});
@@ -25,17 +25,19 @@ export default function FilePreviewScreen({ route }) {
   }, [downloadUrl, jobId]);
 
   const handleDownload = async () => {
-    if (!downloadUrl || !fileName) {
+    if (!downloadUrl) {
       Alert.alert("Still processing", "The conversion result is not ready yet.");
-      return;
+      return null;
     }
     try {
       setLoading(true);
       const uri = await downloadConvertedFile(downloadUrl, fileName);
       setLocalUri(uri);
       Alert.alert("Downloaded", "File saved locally and ready to share.");
+      return uri;
     } catch (error) {
       Alert.alert("Download failed", error.message || "Unable to download file.");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -43,14 +45,17 @@ export default function FilePreviewScreen({ route }) {
 
   const handleShare = async () => {
     try {
-      if (!localUri) {
-        await handleDownload();
-      }
       if (!(await Sharing.isAvailableAsync())) {
         Alert.alert("Sharing unavailable", "Sharing is not supported on this device.");
         return;
       }
-      await Sharing.shareAsync(localUri || downloadUrl);
+      if (!localUri) {
+        const downloadedUri = await handleDownload();
+        if (!downloadedUri) return;
+        await Sharing.shareAsync(downloadedUri);
+        return;
+      }
+      await Sharing.shareAsync(localUri);
     } catch (error) {
       Alert.alert("Share failed", error.message || "Unable to share file.");
     }
@@ -84,7 +89,7 @@ export default function FilePreviewScreen({ route }) {
       </View>
 
       <TouchableOpacity style={[styles.btn, { backgroundColor: colors.primary }]} onPress={handleDownload} disabled={loading}>
-        {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Download File</Text>}
+        {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Download</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.btnOutline, { borderColor: colors.primary }]} onPress={handleShare}>
@@ -94,6 +99,34 @@ export default function FilePreviewScreen({ route }) {
       <TouchableOpacity style={[styles.btnOutline, { borderColor: colors.border }]} onPress={handleOpen}>
         <Text style={[styles.btnOutlineText, { color: colors.text }]}>Open in Browser</Text>
       </TouchableOpacity>
+
+      {mimeType === "application/pdf" && (
+        <TouchableOpacity
+          style={[styles.btnOutline, { borderColor: colors.primary, marginTop: 12 }]}
+          onPress={async () => {
+            const uri = localUri || (await handleDownload());
+            if (uri) {
+              navigation.navigate("Signature", { fileUri: uri, fileName });
+            }
+          }}
+        >
+          <Text style={[styles.btnOutlineText, { color: colors.primary }]}>Sign Document</Text>
+        </TouchableOpacity>
+      )}
+
+      {mimeType === "application/pdf" && (
+        <TouchableOpacity
+          style={[styles.btnOutline, { borderColor: colors.primary, marginTop: 12 }]}
+          onPress={async () => {
+            const uri = localUri || (await handleDownload());
+            if (uri) {
+              navigation.navigate("DocumentEditor", { fileUri: uri, fileName });
+            }
+          }}
+        >
+          <Text style={[styles.btnOutlineText, { color: colors.primary }]}>Edit Document</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }

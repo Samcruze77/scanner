@@ -5,12 +5,24 @@ import { useAuthStore } from "../store/authStore";
 import { useTheme } from "../theme/ThemeContext";
 import AuthStack from "./AuthStack";
 import BiometricUnlockScreen from "../screens/auth/BiometricUnlockScreen";
+import LoginScreen from "../screens/auth/LoginScreen";
+import RegisterScreen from "../screens/auth/RegisterScreen";
+import ForgotPasswordScreen from "../screens/auth/ForgotPasswordScreen";
+import VerifyOtpScreen from "../screens/auth/VerifyOtpScreen";
 
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator({ AuthenticatedComponent }) {
   const { colors } = useTheme();
-  const { isAuthenticated, isLoading, needsBiometricUnlock, bootstrap, skipBiometricUnlock } = useAuthStore();
+  const {
+    isAuthenticated,
+    isLoading,
+    needsBiometricUnlock,
+    pendingEmail,
+    pendingOtpPurpose,
+    bootstrap,
+    skipBiometricUnlock,
+  } = useAuthStore();
   const [bioKey, setBioKey] = useState(0);
 
   useEffect(() => {
@@ -38,12 +50,24 @@ export default function RootNavigator({ AuthenticatedComponent }) {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {isAuthenticated && AuthenticatedComponent ? (
+    <Stack.Navigator initialRouteName="Main" screenOptions={{ headerShown: false }}>
+      {AuthenticatedComponent ? (
         <Stack.Screen name="Main" component={AuthenticatedComponent} />
-      ) : (
-        <Stack.Screen name="Auth" component={AuthStack} />
-      )}
+      ) : null}
+      {!isAuthenticated ? (
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: true, title: "Sign Up" }} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: true, title: "Forgot Password" }} />
+          <Stack.Screen
+            name="VerifyOtp"
+            component={VerifyOtpScreen}
+            options={{ headerShown: true, title: "Verify OTP" }}
+            initialParams={{ email: pendingEmail, purpose: pendingOtpPurpose }}
+          />
+          <Stack.Screen name="Auth" component={AuthStack} />
+        </>
+      ) : null}
     </Stack.Navigator>
   );
 }

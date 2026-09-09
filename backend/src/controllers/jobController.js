@@ -14,6 +14,7 @@ const TYPE_VALIDATORS = {
   "pdf-merge": (req) => validateMultiple(req.files, ["pdf"], 2, 20),
   "pdf-split": (req) => validateMime(req.file, ["pdf"]),
   "pdf-compress": (req) => validateMime(req.file, ["pdf"]),
+  "pdf-sign": (req) => validateMime(req.file, ["pdf"]),
   ocr: (req) => validateMime(req.file, ["pdf", "image"]),
 };
 
@@ -57,6 +58,14 @@ async function submitJob(req, res, next) {
       plan: req.user?.plan || "free",
       historyId,
       pageRanges: req.body.pages || req.body.pageRanges,
+      signature: req.body.signature,
+      signaturePlacement: {
+        page: req.body.signaturePage,
+        x: req.body.signatureX,
+        y: req.body.signatureY,
+        width: req.body.signatureWidth,
+        height: req.body.signatureHeight,
+      },
       language: req.body.language || "eng",
       exportFormat: req.body.exportFormat || "txt",
       mimeType: req.file?.mimetype || req.files?.[0]?.mimetype,

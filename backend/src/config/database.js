@@ -23,7 +23,7 @@ if (env.useMemoryDb) {
 } else {
   pool = new Pool({
     connectionString: env.databaseUrl,
-    ssl: env.nodeEnv === "production" ? { rejectUnauthorized: false } : false,
+    ssl: { rejectUnauthorized: false }, // Neon requires SSL
   });
 }
 

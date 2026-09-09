@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system";
 import { getApiBaseUrl } from "./api";
 import { getToken } from "./authApi";
@@ -38,6 +39,32 @@ async function pollJob(jobId, onProgress, onJobUpdate) {
   throw new Error("Conversion timed out.");
 }
 
+async function submitWithFetch({ endpoint, token, tool, files, pageRanges, language, exportFormat, onUploadProgress }) {
+  const formData = new FormData();
+  if (pageRanges) formData.append("pages", pageRanges);
+  if (language) formData.append("language", language);
+  if (exportFormat) formData.append("exportFormat", exportFormat);
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    // Use the safer version to convert uri to blob
+    const response = await fetch(file.uri);
+    const blob = await response.blob();
+    
+    formData.append(tool.fieldName, blob, file.name || `file_${i}`);
+  }
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const body = await response.json();
+  if (response.ok) return body;
+  throw new Error(body.message || "Upload failed");
+}
+
 async function submitWithXhr({ endpoint, token, tool, files, pageRanges, language, exportFormat, onUploadProgress }) {
   const formData = new FormData();
 
@@ -53,31 +80,36 @@ async function submitWithXhr({ endpoint, token, tool, files, pageRanges, languag
     });
   });
 
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", endpoint);
-    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+  try {
+    return await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", endpoint);
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) onUploadProgress?.(event.loaded / event.total * 0.4);
-    };
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) onUploadProgress?.(event.loaded / event.total * 0.4);
+      };
 
-    xhr.onload = () => {
-      try {
-        const body = JSON.parse(xhr.responseText || "{}");
-        if (xhr.status >= 200 && xhr.status < 300) resolve(body);
-        else reject(new Error(body.message || "Upload failed"));
-      } catch (e) {
-        reject(e);
-      }
-    };
-    xhr.onerror = () => reject(new Error("Network error"));
-    xhr.send(formData);
-  });
+      xhr.onload = () => {
+        try {
+          const body = JSON.parse(xhr.responseText || "{}");
+          if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+          else reject(new Error(body.message || "Upload failed"));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      xhr.onerror = () => reject(new Error("Network error"));
+      xhr.send(formData);
+    });
+  } catch (error) {
+    console.warn("XHR upload failed, trying safer fetch version:", error);
+    return submitWithFetch({ endpoint, token, tool, files, pageRanges, language, exportFormat, onUploadProgress });
+  }
 }
 
 async function submitWithBackgroundUpload({ endpoint, token, tool, files, pageRanges, language, exportFormat, onUploadProgress }) {
-  if (files.length !== 1 || !FileSystem.createUploadTask) {
+  if (Platform.OS === "web" || files.length !== 1 || !FileSystem.createUploadTask) {
     return submitWithXhr({ endpoint, token, tool, files, pageRanges, language, exportFormat, onUploadProgress });
   }
 
@@ -172,8 +204,15 @@ export async function uploadAndConvertWithJob({
   return { ...submitResponse, result, jobId };
 }
 
+function getDownloadFileName(downloadUrl, fileName) {
+  if (fileName) return fileName;
+
+  const urlFileName = downloadUrl.split("?")[0].split("/").pop();
+  return urlFileName || `document-${Date.now()}`;
+}
+
 export async function downloadConvertedFile(downloadUrl, fileName) {
-  const target = `${FileSystem.documentDirectory}${fileName}`;
+  const target = `${FileSystem.documentDirectory}${getDownloadFileName(downloadUrl, fileName)}`;
   const result = await FileSystem.downloadAsync(downloadUrl, target);
   return result.uri;
 }

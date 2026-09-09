@@ -63,6 +63,41 @@ async function compressPdf(inputPath) {
   };
 }
 
+function decodeSignaturePng(signature) {
+  if (!signature) {
+    throw new Error("Signature is required.");
+  }
+
+  const base64 = String(signature).replace(/^data:image\/png;base64,/, "");
+  return Buffer.from(base64, "base64");
+}
+
+async function signPdf(inputPath, signature, options = {}) {
+  const pdfBytes = await fs.promises.readFile(inputPath);
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const pages = pdfDoc.getPages();
+  const pageIndex = Math.max(0, Math.min(Number(options.page || 1) - 1, pages.length - 1));
+  const page = pages[pageIndex];
+
+  const pngImage = await pdfDoc.embedPng(decodeSignaturePng(signature));
+  page.drawImage(pngImage, {
+    x: Number(options.x ?? 100),
+    y: Number(options.y ?? 100),
+    width: Number(options.width ?? 150),
+    height: Number(options.height ?? 50),
+  });
+
+  const outputPath = buildOutputPath("pdf");
+  const signed = await pdfDoc.save({ useObjectStreams: true });
+  await fs.promises.writeFile(outputPath, signed);
+
+  return {
+    outputPath,
+    fileName: getFileNameFromPath(outputPath),
+    mimeType: "application/pdf",
+  };
+}
+
 async function imagesToPdf(imagePaths) {
   const pdfDoc = await PDFDocument.create();
 
@@ -97,5 +132,6 @@ module.exports = {
   mergePdfs,
   splitPdf,
   compressPdf,
+  signPdf,
   imagesToPdf,
 };
