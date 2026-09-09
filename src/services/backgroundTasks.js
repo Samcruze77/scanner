@@ -1,23 +1,33 @@
-import * as BackgroundFetch from "expo-background-fetch";
-import * as TaskManager from "expo-task-manager";
+import { Platform } from "react-native";
 import { AppState } from "react-native";
-import { processOfflineQueue } from "./offlineQueue";
 
 const CONVERSION_BACKGROUND_TASK = "document-converter-background-queue";
 let appStateSubscription;
-
-TaskManager.defineTask(CONVERSION_BACKGROUND_TASK, async () => {
-  try {
-    const result = await processOfflineQueue();
-    return result.processed > 0
-      ? BackgroundFetch.BackgroundFetchResult.NewData
-      : BackgroundFetch.BackgroundFetchResult.NoData;
-  } catch {
-    return BackgroundFetch.BackgroundFetchResult.Failed;
-  }
-});
+let taskDefined = false;
 
 export async function registerBackgroundConversionTasks() {
+  if (Platform.OS === "web") return false;
+
+  const [{ default: BackgroundFetch }, { default: TaskManager }, { processOfflineQueue }] = await Promise.all([
+    import("expo-background-fetch"),
+    import("expo-task-manager"),
+    import("./offlineQueue"),
+  ]);
+
+  if (!taskDefined) {
+    TaskManager.defineTask(CONVERSION_BACKGROUND_TASK, async () => {
+      try {
+        const result = await processOfflineQueue();
+        return result.processed > 0
+          ? BackgroundFetch.BackgroundFetchResult.NewData
+          : BackgroundFetch.BackgroundFetchResult.NoData;
+      } catch {
+        return BackgroundFetch.BackgroundFetchResult.Failed;
+      }
+    });
+    taskDefined = true;
+  }
+
   const status = await BackgroundFetch.getStatusAsync();
   if (
     status === BackgroundFetch.BackgroundFetchStatus.Restricted ||

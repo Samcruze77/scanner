@@ -1,13 +1,14 @@
 import "react-native-gesture-handler";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Platform } from "react-native";
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { CameraView, useCameraPermissions } from "expo-camera";
 import * as DocumentPicker from "expo-document-picker";
+import CameraCaptureScreen from "./src/screens/scan/CameraCaptureScreen";
 import ConverterStack from "./src/navigation/ConverterStack";
 import RootNavigator from "./src/navigation/RootNavigator";
 import ProfileScreen from "./src/screens/auth/ProfileScreen";
@@ -101,67 +102,6 @@ function DashboardScreen({ navigation }) {
         </View>
       </View>
     </ScrollView>
-  );
-}
-
-function CameraCaptureScreen({ navigation }) {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [isCapturing, setIsCapturing] = useState(false);
-  const cameraRef = useRef(null);
-
-  const handleCapture = async () => {
-    if (!cameraRef.current || isCapturing) {
-      return;
-    }
-
-    try {
-      setIsCapturing(true);
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
-      navigation.navigate("ScanPreview", {
-        doc: {
-          uri: photo.uri,
-          name: `Scan_${Date.now()}.jpg`,
-          mimeType: "image/jpeg",
-          size: undefined,
-          source: "Camera",
-        },
-      });
-    } catch (error) {
-      Alert.alert("Capture failed", "Unable to capture photo. Please try again.");
-    } finally {
-      setIsCapturing(false);
-    }
-  };
-
-  if (!permission) {
-    return (
-      <View style={styles.cameraStateContainer}>
-        <Text style={styles.cameraStateText}>Loading camera permission...</Text>
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.cameraStateContainer}>
-        <Text style={styles.cameraStateText}>Camera access is required to scan documents.</Text>
-        <TouchableOpacity style={styles.primaryButtonSolid} activeOpacity={0.85} onPress={requestPermission}>
-          <Text style={styles.primaryButtonSolidText}>Allow Camera Access</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.cameraScreen}>
-      <CameraView ref={cameraRef} style={styles.cameraView} facing="back" />
-      <View style={styles.cameraActionBar}>
-        <TouchableOpacity style={styles.cameraCaptureButton} activeOpacity={0.85} onPress={handleCapture}>
-          <Ionicons name={isCapturing ? "hourglass-outline" : "camera"} size={24} color="#FFFFFF" />
-          <Text style={styles.cameraCaptureText}>{isCapturing ? "Capturing..." : "Capture"}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
   );
 }
 
@@ -347,6 +287,8 @@ function RootTabs() {
 
 export default function App() {
   useEffect(() => {
+    if (Platform.OS === "web") return undefined;
+
     registerBackgroundConversionTasks().catch(() => {});
     registerForPushNotifications().catch(() => {});
     const subscription = addNotificationResponseListener(openNotificationResult);
@@ -611,43 +553,5 @@ const styles = StyleSheet.create({
   actionChipText: {
     color: "#374151",
     fontWeight: "600",
-  },
-  cameraScreen: {
-    flex: 1,
-    backgroundColor: "#0F172A",
-  },
-  cameraView: {
-    flex: 1,
-  },
-  cameraActionBar: {
-    padding: 20,
-    backgroundColor: "#0F172A",
-  },
-  cameraCaptureButton: {
-    borderRadius: 14,
-    backgroundColor: "#1D4ED8",
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  cameraCaptureText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  cameraStateContainer: {
-    flex: 1,
-    backgroundColor: "#F4F6FA",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-    gap: 14,
-  },
-  cameraStateText: {
-    color: "#334155",
-    fontSize: 15,
-    textAlign: "center",
   },
 });

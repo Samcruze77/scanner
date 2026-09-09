@@ -3,6 +3,19 @@ import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./secur
 
 let refreshPromise = null;
 
+async function apiFetch(path, options = {}) {
+  const url = path.startsWith("http") ? path : `${getApiBaseUrl()}${path}`;
+  try {
+    return await fetch(url, options);
+  } catch {
+    const error = new Error(
+      `Cannot reach the API at ${getApiBaseUrl()}. Start the backend: cd backend && docker compose up -d`
+    );
+    error.code = "NETWORK_ERROR";
+    throw error;
+  }
+}
+
 async function parseResponse(response) {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -21,7 +34,7 @@ async function refreshAccessToken() {
     const refreshToken = await getRefreshToken();
     if (!refreshToken) throw new Error("No refresh token");
 
-    const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+    const response = await apiFetch("/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
@@ -50,7 +63,7 @@ export async function authFetch(path, options = {}, retry = true) {
     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
 
-  const response = await fetch(`${getApiBaseUrl()}${path}`, { ...options, headers });
+  const response = await apiFetch(path, { ...options, headers });
 
   if (response.status === 401 && retry && (await getRefreshToken())) {
     try {
@@ -88,7 +101,7 @@ export async function restoreSession() {
 }
 
 export async function login(email, password) {
-  const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
+  const response = await apiFetch("/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -102,7 +115,7 @@ export async function login(email, password) {
 }
 
 export async function register(fullName, email, password) {
-  const response = await fetch(`${getApiBaseUrl()}/auth/register`, {
+  const response = await apiFetch("/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fullName, email, password }),
@@ -171,7 +184,7 @@ export async function setBiometricPreference(enabled) {
 }
 
 export async function loginWithGoogle(idToken) {
-  const response = await fetch(`${getApiBaseUrl()}/auth/google`, {
+  const response = await apiFetch("/auth/google", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ idToken }),
@@ -185,7 +198,7 @@ export async function loginWithGoogle(idToken) {
 }
 
 export async function loginWithApple(identityToken, fullName) {
-  const response = await fetch(`${getApiBaseUrl()}/auth/apple`, {
+  const response = await apiFetch("/auth/apple", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ identityToken, fullName }),
@@ -199,7 +212,7 @@ export async function loginWithApple(identityToken, fullName) {
 }
 
 export async function resetPassword(email, code, newPassword) {
-  const response = await fetch(`${getApiBaseUrl()}/auth/reset-password`, {
+  const response = await apiFetch("/auth/reset-password", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, code, newPassword }),

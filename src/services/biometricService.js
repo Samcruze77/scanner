@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 import { getRefreshToken, getItem, setItem } from "./secureStorage";
 
@@ -48,6 +49,7 @@ export async function authenticateWithBiometrics(promptMessage = "Unlock Documen
 }
 
 export async function shouldPromptBiometricUnlock() {
+  if (Platform.OS === "web") return false;
   const enabled = await isBiometricUnlockEnabled();
   const refreshToken = await getRefreshToken();
   return enabled && !!refreshToken;

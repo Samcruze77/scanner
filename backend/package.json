@@ -7,7 +7,8 @@
     "worker": "node src/worker.js",
     "dev": "nodemon src/index.js",
     "dev:worker": "nodemon src/worker.js",
-    "migrate": "node src/db/migrate.js"
+    "migrate": "node src/db/migrate.js",
+    "dev:standalone": "USE_MEMORY_DB=true SKIP_REDIS=true NODE_ENV=development node src/index.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.758.0",
@@ -33,6 +34,7 @@
     "pdf-parse": "^1.1.1",
     "pdf-to-img": "^3.0.0",
     "pg": "^8.13.3",
+    "pg-mem": "^3.0.14",
     "sharp": "^0.33.5",
     "socket.io": "^4.8.3",
     "stripe": "^17.7.0",

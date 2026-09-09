@@ -7,13 +7,15 @@ import { getToken } from "./authApi";
 
 const SETTINGS_KEY = "@notification_settings";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 export async function requestNotificationPermissions() {
   const { status: existing } = await Notifications.getPermissionsAsync();

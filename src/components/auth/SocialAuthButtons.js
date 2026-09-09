@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../theme/ThemeContext";
 import {
@@ -10,7 +10,7 @@ import {
   useGoogleAuthRequest,
 } from "../../services/socialAuth";
 
-export default function SocialAuthButtons({ onSuccess, loading, setLoading }) {
+function GoogleAuthButton({ onSuccess, loading, setLoading }) {
   const { colors } = useTheme();
   const [request, response, promptGoogle] = useGoogleAuthRequest();
 
@@ -30,22 +30,36 @@ export default function SocialAuthButtons({ onSuccess, loading, setLoading }) {
         setLoading?.(false);
       }
     })();
-  }, [response]);
+  }, [response, onSuccess, setLoading]);
 
   const onGoogle = async () => {
-    if (!isGoogleConfigured()) {
-      Alert.alert(
-        "Google not configured",
-        "Add EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID (and iOS/Android IDs) to your .env file."
-      );
-      return;
-    }
     try {
       await promptGoogle();
     } catch (error) {
       Alert.alert("Google Sign-In", error.message);
     }
   };
+
+  return (
+    <TouchableOpacity
+      style={[styles.btn, { backgroundColor: colors.card, borderColor: colors.border }]}
+      onPress={onGoogle}
+      disabled={loading || !request}
+    >
+      <Ionicons name="logo-google" size={20} color="#DB4437" />
+      <Text style={[styles.btnText, { color: colors.text }]}>Google</Text>
+    </TouchableOpacity>
+  );
+}
+
+export default function SocialAuthButtons({ onSuccess, loading, setLoading }) {
+  const { colors } = useTheme();
+  const showGoogle = isGoogleConfigured();
+  const showApple = isAppleSignInAvailable();
+
+  if (!showGoogle && !showApple) {
+    return null;
+  }
 
   const onApple = async () => {
     try {
@@ -65,16 +79,9 @@ export default function SocialAuthButtons({ onSuccess, loading, setLoading }) {
     <View style={styles.wrap}>
       <Text style={[styles.or, { color: colors.textMuted }]}>or continue with</Text>
 
-      <TouchableOpacity
-        style={[styles.btn, { backgroundColor: colors.card, borderColor: colors.border }]}
-        onPress={onGoogle}
-        disabled={loading || !request}
-      >
-        <Ionicons name="logo-google" size={20} color="#DB4437" />
-        <Text style={[styles.btnText, { color: colors.text }]}>Google</Text>
-      </TouchableOpacity>
+      {showGoogle ? <GoogleAuthButton onSuccess={onSuccess} loading={loading} setLoading={setLoading} /> : null}
 
-      {isAppleSignInAvailable() ? (
+      {showApple ? (
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={onApple}

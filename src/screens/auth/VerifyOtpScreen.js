@@ -11,6 +11,7 @@ export default function VerifyOtpScreen({ navigation, route }) {
   const { verifyOtp, resendOtp, resetPassword, isLoading, error, clearError } = useAuthStore();
   const email = route.params?.email || "";
   const purpose = route.params?.purpose || "email_verify";
+  const devCode = route.params?.devCode;
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [errors, setErrors] = useState({});
@@ -60,6 +61,12 @@ export default function VerifyOtpScreen({ navigation, route }) {
 
       {error ? <Text style={[styles.banner, { color: colors.error, backgroundColor: colors.errorBg }]}>{error}</Text> : null}
 
+      {devCode ? (
+        <Text style={[styles.devBanner, { color: colors.text, backgroundColor: colors.primarySoft }]}>
+          Development code: {devCode}
+        </Text>
+      ) : null}
+
       <AuthInput label="OTP Code" value={code} onChangeText={setCode} error={errors.code} keyboardType="number-pad" placeholder="123456" />
 
       {isPasswordReset ? (
@@ -92,5 +99,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: "800" },
   subtitle: { marginTop: 8, marginBottom: 24, fontSize: 15, lineHeight: 22 },
   banner: { padding: 12, borderRadius: 10, marginBottom: 16 },
+  devBanner: { padding: 12, borderRadius: 10, marginBottom: 16, fontWeight: "700", textAlign: "center" },
   footer: { marginTop: 24, alignItems: "center" },
 });

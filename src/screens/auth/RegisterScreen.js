@@ -34,8 +34,12 @@ export default function RegisterScreen({ navigation }) {
     if (Object.values(nextErrors).some(Boolean)) return;
 
     try {
-      await register(fullName.trim(), email.trim(), password);
-      navigation.navigate("VerifyOtp", { email: email.trim(), purpose: "email_verify" });
+      const data = await register(fullName.trim(), email.trim(), password);
+      navigation.navigate("VerifyOtp", {
+        email: email.trim(),
+        purpose: "email_verify",
+        devCode: data?.devCode,
+      });
     } catch {
       /* store error */
     }

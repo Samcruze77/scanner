@@ -1,0 +1,21 @@
+{
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "lang": "en",
+  "name": "Document Scanner",
+  "short_name": "Document Scanner",
+  "start_url": "/?utm_source=web_app_manifest",
+  "orientation": "portrait",
+  "related_applications": [
+    {
+      "platform": "itunes",
+      "id": "com.anonymous.documentscanner"
+    },
+    {
+      "platform": "play",
+      "url": "http://play.google.com/store/apps/details?id=com.anonymous.documentscanner",
+      "id": "com.anonymous.documentscanner"
+    }
+  ],
+  "prefer_related_applications": true
+}

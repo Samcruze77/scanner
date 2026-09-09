@@ -25,6 +25,8 @@ module.exports = {
   },
   redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
   databaseUrl: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/converter",
+  useMemoryDb: process.env.USE_MEMORY_DB === "true",
+  skipRedis: process.env.SKIP_REDIS === "true",
   queueConcurrency: Number(process.env.QUEUE_CONCURRENCY || 3),
   jobTimeoutMs: Number(process.env.JOB_TIMEOUT_MS || 300000),
   jobAttempts: Number(process.env.JOB_ATTEMPTS || 3),

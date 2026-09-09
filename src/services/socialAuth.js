@@ -10,17 +10,22 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_IOS_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
 const GOOGLE_ANDROID_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 const GOOGLE_EXPO_ID = process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID;
+const GOOGLE_WEB_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
 export function useGoogleAuthRequest() {
   return Google.useAuthRequest({
     expoClientId: GOOGLE_EXPO_ID,
     iosClientId: GOOGLE_IOS_ID,
     androidClientId: GOOGLE_ANDROID_ID,
+    webClientId: GOOGLE_WEB_ID,
   });
 }
 
 export function isGoogleConfigured() {
-  return !!(GOOGLE_EXPO_ID || GOOGLE_IOS_ID || GOOGLE_ANDROID_ID);
+  if (Platform.OS === "web") return !!GOOGLE_WEB_ID;
+  if (Platform.OS === "ios") return !!(GOOGLE_IOS_ID || GOOGLE_EXPO_ID);
+  if (Platform.OS === "android") return !!(GOOGLE_ANDROID_ID || GOOGLE_EXPO_ID);
+  return !!(GOOGLE_EXPO_ID || GOOGLE_IOS_ID || GOOGLE_ANDROID_ID || GOOGLE_WEB_ID);
 }
 
 export async function signInWithGoogleIdToken(idToken) {

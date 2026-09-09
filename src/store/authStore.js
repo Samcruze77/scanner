@@ -79,7 +79,10 @@ export const useAuthStore = create((set, get) => ({
         isAuthenticated: false,
         isLoading: false,
       });
-      return data;
+      return {
+        ...data,
+        devCode: data?.otp?.devCode,
+      };
     } catch (error) {
       set({ error: error.message, isLoading: false });
       throw error;
