@@ -1,4 +1,5 @@
 import type { ScannerPage } from "@/utils/scanner/page";
+import { AnnotationOverlay } from "./AnnotationOverlay";
 
 export function PageThumbnail({
   page,
@@ -33,6 +34,7 @@ export function PageThumbnail({
           alt={`Page ${index + 1}`}
           className="aspect-[3/4] w-full object-cover"
         />
+        <AnnotationOverlay page={page} fit="cover" />
         {processing && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50 px-1 text-center text-xs font-medium text-white">
             {page.statusLabel ?? "Processing…"}

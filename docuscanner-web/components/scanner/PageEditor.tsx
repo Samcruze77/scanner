@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ScannerPage } from "@/utils/scanner/page";
 import { ENHANCEMENT_MODES, type EnhancementMode } from "@/utils/scanner/enhance";
+import { AnnotationOverlay } from "./AnnotationOverlay";
 
 // A range slider that only asks for a re-render when the user lets go. The
 // page is re-rendered from the original on every commit, so doing that on each
@@ -54,6 +55,7 @@ export function PageEditor({
   onClose,
   onRotate,
   onAdjustCrop,
+  onAnnotate,
   onToggleCrop,
   onEnhancementChange,
   onAdjustmentChange,
@@ -67,6 +69,7 @@ export function PageEditor({
   onClose: () => void;
   onRotate: (direction: "left" | "right") => void;
   onAdjustCrop: () => void;
+  onAnnotate: () => void;
   onToggleCrop: () => void;
   onEnhancementChange: (mode: EnhancementMode) => void;
   onAdjustmentChange: (patch: { brightness?: number; contrast?: number }) => void;
@@ -124,12 +127,17 @@ export function PageEditor({
             collapse to 0px (hiding the preview entirely) whenever the editor
             is taller than the screen. It should scroll instead. */}
         <div className="relative mb-4 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
-          {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL */}
-          <img
-            src={page.processedDataUrl}
-            alt={`Page ${index + 1} preview`}
-            className="max-h-[45vh] w-full object-contain"
-          />
+          {/* The wrapper is exactly as big as the image, so marks drawn over it
+              (see AnnotationOverlay) line up with the page. */}
+          <div className="relative mx-auto w-fit max-w-full">
+            {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL */}
+            <img
+              src={page.processedDataUrl}
+              alt={`Page ${index + 1} preview`}
+              className="block max-h-[45vh] w-auto max-w-full"
+            />
+            <AnnotationOverlay page={page} />
+          </div>
           {processing && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-medium text-white">
               {page.statusLabel ?? "Processing…"}
@@ -228,6 +236,20 @@ export function PageEditor({
               disabled={processing}
               onCommit={(contrast) => onAdjustmentChange({ contrast })}
             />
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Annotate</p>
+            <button
+              type="button"
+              onClick={onAnnotate}
+              disabled={processing}
+              className="min-h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
+            >
+              {page.annotations.length > 0
+                ? `Edit text, signature & marks (${page.annotations.length})`
+                : "Add text, signature & marks"}
+            </button>
           </div>
 
           {onExtractText && (

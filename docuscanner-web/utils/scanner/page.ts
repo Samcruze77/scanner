@@ -1,6 +1,7 @@
 import type { CapturedImage } from "./image";
 import type { Quad } from "./geometry";
 import type { EnhancementMode } from "./enhance";
+import type { Annotation } from "./annotations";
 
 export type PageRotation = 0 | 90 | 180 | 270;
 export type PageStatus = "detecting" | "processing" | "ready" | "error";
@@ -31,9 +32,17 @@ export interface ScannerPage {
   contrast: number;
 
   // Cached render of the above, shown in thumbnails and used for the PDF.
+  // Deliberately WITHOUT annotations: the clean page is what OCR reads and what
+  // crop/rotate/enhance re-derive, so those keep working exactly as before.
   processedDataUrl: string;
   processedWidth: number;
   processedHeight: number;
+
+  // Text, pen, highlights, stamps and signatures drawn on top of the page, in
+  // coordinates normalized to the processed image (see annotations.ts). They
+  // belong to the page, so they follow it when pages are reordered, and are
+  // flattened into the image only when the PDF is created.
+  annotations: Annotation[];
 
   status: PageStatus;
   statusLabel: string | null;
@@ -56,6 +65,7 @@ export function createInitialPage(captured: CapturedImage, options: { skipDetect
     processedDataUrl: captured.dataUrl,
     processedWidth: captured.width,
     processedHeight: captured.height,
+    annotations: [],
     // Pages rendered from a PDF are already flat and square-on, so there is
     // no perspective to detect; they go straight to "ready" (the user can
     // still crop them by hand).

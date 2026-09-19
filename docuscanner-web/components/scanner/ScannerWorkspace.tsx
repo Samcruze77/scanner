@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AdSlot } from "@/components/ads/AdSlot";
@@ -10,6 +11,9 @@ import { detectPageQuad, renderPage } from "@/utils/scanner/pageProcessing";
 import { createPdfFromPages } from "@/utils/scanner/pdf";
 import { downloadBlob } from "@/utils/convert/download";
 import { importPdfPages } from "@/utils/scanner/pdfImport";
+import { rotateAnnotations, type Annotation } from "@/utils/scanner/annotations";
+import { annotationBounds } from "@/utils/scanner/annotationRender";
+import type { SignatureImage } from "@/utils/scanner/signature";
 import { isPdfFile, PdfError } from "@/utils/pdf/pdfjs";
 import { validateImageFile } from "@/utils/scanner/validation";
 import { cameraErrorMessage, pdfImportErrorMessage, uploadErrorMessage } from "@/utils/scanner/errorMessages";
@@ -33,6 +37,14 @@ import { ErrorBanner } from "./ErrorBanner";
 import { OcrPanel } from "./OcrPanel";
 import { useOcr } from "./useOcr";
 
+// The annotation editor (toolbar, drawing surface, signature dialog) is only
+// needed once someone taps Annotate, so it loads on demand instead of adding to
+// the scanner's first load.
+const AnnotationEditor = dynamic(() => import("./AnnotationEditor").then((m) => m.AnnotationEditor), {
+  ssr: false,
+  loading: () => null,
+});
+
 type Mode = "idle" | "camera";
 
 // A page whose detected boundary covers at least this much confidence gets
@@ -48,6 +60,11 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
   const [pages, setPages] = useState<ScannerPage[]>([]);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [croppingPageId, setCroppingPageId] = useState<string | null>(null);
+  const [annotatingPageId, setAnnotatingPageId] = useState<string | null>(null);
+  // The most recent signature, kept in memory only so it can be placed on more
+  // pages without redrawing. Never stored or uploaded; gone on reload.
+  const [lastSignature, setLastSignature] = useState<SignatureImage | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pdfImport, setPdfImport] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
@@ -270,6 +287,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
     setPages((prev) => prev.filter((p) => p.id !== id));
     setEditingPageId((current) => (current === id ? null : current));
     setCroppingPageId((current) => (current === id ? null : current));
+    setAnnotatingPageId((current) => (current === id ? null : current));
     void trackFeatureUsed("remove_page");
   }
 
@@ -289,12 +307,32 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
   const editingPage = pages.find((p) => p.id === editingPageId) ?? null;
   const editingIndex = editingPage ? pages.findIndex((p) => p.id === editingPage.id) : -1;
 
+  // Marks are positioned on the page as it looks after rotation, so turning the
+  // page has to turn their positions with it or they'd end up in the wrong place.
+  function annotationsAfterRotation(page: ScannerPage, delta: number): Annotation[] {
+    const turn = ((delta % 360) + 360) % 360;
+    if (turn === 0 || page.annotations.length === 0) return page.annotations;
+    return rotateAnnotations(page.annotations, turn as 90 | 180 | 270, page.processedWidth, page.processedHeight, (a) =>
+      annotationBounds(a, page.processedWidth, page.processedHeight),
+    );
+  }
+
+  // A different crop changes the page's shape and content position, which can't
+  // be mapped onto existing marks, so say so rather than leave them silently off.
+  function noteCropChange(page: ScannerPage) {
+    if (page.annotations.length > 0) {
+      setNotice(
+        "You changed the crop. Your text, signature and marks kept their place on the page, so open Annotate to check they still line up.",
+      );
+    }
+  }
+
   function handleEditorRotate(direction: "left" | "right") {
     if (!editingPage) return;
     const delta = direction === "right" ? 90 : -90;
     const rotation = ((((editingPage.rotation + delta) % 360) + 360) % 360) as PageRotation;
     void trackFeatureUsed("rotate_page");
-    void reprocessPage(editingPage, { rotation });
+    void reprocessPage(editingPage, { rotation, annotations: annotationsAfterRotation(editingPage, delta) });
   }
 
   function handleEditorToggleCrop() {
@@ -304,6 +342,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
       void trackFeatureUsed("auto_crop");
       void trackFeatureUsed("perspective_correction");
     }
+    noteCropChange(editingPage);
     void reprocessPage(editingPage, { cropEnabled });
   }
 
@@ -321,7 +360,9 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
 
   function handleEditorReset() {
     if (!editingPage) return;
+    if (editingPage.cropEnabled) noteCropChange(editingPage);
     void reprocessPage(editingPage, {
+      annotations: annotationsAfterRotation(editingPage, -editingPage.rotation),
       cropEnabled: false,
       // Back to what auto-detection found, discarding any manual crop.
       quad: editingPage.detectedQuad,
@@ -339,7 +380,22 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
     const page = croppingPage;
     setCroppingPageId(null);
     void trackFeatureUsed("manual_crop");
+    noteCropChange(page);
     void reprocessPage(page, { quad, cropEnabled: true });
+  }
+
+  const annotatingPage = pages.find((p) => p.id === annotatingPageId) ?? null;
+  const annotatingIndex = annotatingPage ? pages.findIndex((p) => p.id === annotatingPage.id) : -1;
+
+  function handleAnnotationsDone(annotations: Annotation[]) {
+    if (!annotatingPage) return;
+    const page = annotatingPage;
+    setAnnotatingPageId(null);
+    // Nothing changed: leave the page (and any PDF already made) alone.
+    if (annotations === page.annotations) return;
+    // The PDF made earlier no longer matches this page.
+    setPdfBlob(null);
+    updatePageFields(page.id, { annotations });
   }
 
   const anyPageProcessing =
@@ -414,6 +470,8 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
     setPages([]);
     setEditingPageId(null);
     setCroppingPageId(null);
+    setAnnotatingPageId(null);
+    setNotice(null);
     setPdfBlob(null);
     setSaveNotice(null);
     setError(null);
@@ -434,6 +492,22 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
       />
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {notice && (
+        <div
+          role="status"
+          className="flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+        >
+          <span>{notice}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            aria-label="Dismiss notice"
+            className="shrink-0 rounded p-1 hover:opacity-70"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {mode === "camera" ? (
         <CameraCapture
@@ -557,6 +631,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
           onClose={() => setEditingPageId(null)}
           onRotate={handleEditorRotate}
           onAdjustCrop={() => setCroppingPageId(editingPage.id)}
+          onAnnotate={() => setAnnotatingPageId(editingPage.id)}
           onToggleCrop={handleEditorToggleCrop}
           onEnhancementChange={handleEditorEnhancementChange}
           onAdjustmentChange={handleEditorAdjustmentChange}
@@ -564,6 +639,18 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
           onRemove={() => handleRemovePage(editingPage.id)}
           onExtractText={ocrEnabled ? handleExtractPageText : undefined}
           extractTextDisabled={ocr.running}
+        />
+      )}
+
+      {annotatingPage && (
+        <AnnotationEditor
+          key={annotatingPage.id}
+          page={annotatingPage}
+          index={annotatingIndex}
+          lastSignature={lastSignature}
+          onSignatureUsed={setLastSignature}
+          onTrack={(feature) => void trackFeatureUsed(feature)}
+          onDone={handleAnnotationsDone}
         />
       )}
 
