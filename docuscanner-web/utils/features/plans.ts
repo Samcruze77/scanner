@@ -11,6 +11,8 @@ import type { User } from "@supabase/supabase-js";
 export type PlanId = "free" | "premium";
 
 export type FeatureId =
+  | "convert.excel_to_pdf"
+  | "convert.pdf_to_excel"
   | "ocr.basic"
   | "ocr.advanced"
   | "ocr.batch"
@@ -27,6 +29,12 @@ interface FeatureDefinition {
 export const PREMIUM_ENABLED = false;
 
 export const FEATURES: Record<FeatureId, FeatureDefinition> = {
+  // Free: both run entirely in the browser (no server cost, files never leave
+  // the device). PDF -> Excel reads digital PDFs with real columns; scanned
+  // pages go through basic OCR and come out one line per row. Column detection
+  // for scanned tables stays reserved as `ocr.table_extraction` below.
+  "convert.excel_to_pdf": { minPlan: "free", implemented: true },
+  "convert.pdf_to_excel": { minPlan: "free", implemented: true },
   // Free at launch: in-browser Tesseract, English, page-by-page.
   "ocr.basic": { minPlan: "free", implemented: true },
   // Reserved for the paid tier (~6-8 months post launch): higher-accuracy

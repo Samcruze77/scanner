@@ -28,6 +28,18 @@ export function Header() {
             Scan
           </Link>
           <Link
+            href="/convert/excel-to-pdf"
+            className="rounded-md px-3 py-2 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-white"
+          >
+            Excel to PDF
+          </Link>
+          <Link
+            href="/convert/pdf-to-excel"
+            className="rounded-md px-3 py-2 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-white"
+          >
+            PDF to Excel
+          </Link>
+          <Link
             href="/history"
             className="rounded-md px-3 py-2 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-white"
           >

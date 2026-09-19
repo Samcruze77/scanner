@@ -4,11 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AdSlot } from "@/components/ads/AdSlot";
 import { fileToCapturedImage, type CapturedImage } from "@/utils/scanner/image";
+import type { Quad } from "@/utils/scanner/geometry";
 import { createInitialPage, type PageRotation, type ScannerPage } from "@/utils/scanner/page";
 import { detectPageQuad, renderPage } from "@/utils/scanner/pageProcessing";
 import { createPdfFromPages } from "@/utils/scanner/pdf";
+import { importPdfPages } from "@/utils/scanner/pdfImport";
+import { isPdfFile, PdfError } from "@/utils/pdf/pdfjs";
 import { validateImageFile } from "@/utils/scanner/validation";
-import { cameraErrorMessage, uploadErrorMessage } from "@/utils/scanner/errorMessages";
+import { cameraErrorMessage, pdfImportErrorMessage, uploadErrorMessage } from "@/utils/scanner/errorMessages";
 import { saveDocumentToAccount } from "@/utils/documents/save";
 import { getUserPlan, isFeatureAvailable } from "@/utils/features/plans";
 import type { EnhancementMode } from "@/utils/scanner/enhance";
@@ -24,6 +27,7 @@ import {
 import { CameraCapture } from "./CameraCapture";
 import { PageList } from "./PageList";
 import { PageEditor } from "./PageEditor";
+import { CropEditor } from "./CropEditor";
 import { ErrorBanner } from "./ErrorBanner";
 import { OcrPanel } from "./OcrPanel";
 import { useOcr } from "./useOcr";
@@ -42,6 +46,8 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
   const [mode, setMode] = useState<Mode>(initialMode === "camera" ? "camera" : "idle");
   const [pages, setPages] = useState<ScannerPage[]>([]);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [croppingPageId, setCroppingPageId] = useState<string | null>(null);
+  const [pdfImport, setPdfImport] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [creatingPdf, setCreatingPdf] = useState(false);
@@ -97,9 +103,10 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
       }
 
       const cropEnabled = confidence >= AUTO_CROP_CONFIDENCE_THRESHOLD;
-      const withDetection: ScannerPage = { ...page, quad, quadConfidence: confidence, cropEnabled };
+      const withDetection: ScannerPage = { ...page, quad, detectedQuad: quad, quadConfidence: confidence, cropEnabled };
       updatePageFields(page.id, {
         quad,
+        detectedQuad: quad,
         quadConfidence: confidence,
         cropEnabled,
         status: "processing",
@@ -140,6 +147,8 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
   // function, so there's nothing impure happening inside a setState updater.
   const reprocessPage = useCallback(
     async (page: ScannerPage, patch: Partial<ScannerPage>) => {
+      // Any edit makes a previously generated PDF out of date.
+      setPdfBlob(null);
       const target: ScannerPage = { ...page, ...patch };
       updatePageFields(page.id, { ...patch, status: "processing", statusLabel: "Processing…" });
       try {
@@ -195,8 +204,33 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
 
   function handleCameraCapture(captured: CapturedImage) {
     const initial = createInitialPage(captured);
+    setPdfBlob(null);
     setPages((prev) => [...prev, initial]);
     void runDetectionAndRender(initial);
+  }
+
+  // Renders each page of an uploaded PDF into the workspace, so it can be
+  // cropped, rotated, enhanced and reordered like any scanned photo.
+  async function importPdf(file: File) {
+    setPdfImport({ done: 0, total: 0 });
+    try {
+      markScanStarted("upload");
+      void trackDocumentUploaded(file.type || "application/pdf", file.size);
+      const count = await importPdfPages(file, {
+        onPage: (captured, pageNumber, pageCount) => {
+          setPdfBlob(null);
+          setPages((prev) => [...prev, createInitialPage(captured, { skipDetection: true })]);
+          setPdfImport({ done: pageNumber, total: pageCount });
+        },
+      });
+      void trackFeatureUsed("pdf_import", { pageCount: count });
+    } catch (err) {
+      const code = err instanceof PdfError ? err.code : "pdf_failed";
+      setError(pdfImportErrorMessage(code));
+      void trackError("pdf_import", code);
+    } finally {
+      setPdfImport(null);
+    }
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -205,6 +239,10 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
     if (files.length === 0) return;
 
     for (const file of files) {
+      if (isPdfFile(file)) {
+        await importPdf(file);
+        continue;
+      }
       const validationError = validateImageFile(file);
       if (validationError) {
         setError(uploadErrorMessage(validationError));
@@ -214,6 +252,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
       try {
         const captured = await fileToCapturedImage(file);
         const initial = createInitialPage(captured);
+        setPdfBlob(null);
         setPages((prev) => [...prev, initial]);
         markScanStarted("upload");
         void trackDocumentUploaded(file.type, file.size);
@@ -226,12 +265,15 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
   }
 
   function handleRemovePage(id: string) {
+    setPdfBlob(null);
     setPages((prev) => prev.filter((p) => p.id !== id));
     setEditingPageId((current) => (current === id ? null : current));
+    setCroppingPageId((current) => (current === id ? null : current));
     void trackFeatureUsed("remove_page");
   }
 
   function handleMovePage(id: string, direction: "up" | "down") {
+    setPdfBlob(null);
     setPages((prev) => {
       const index = prev.findIndex((p) => p.id === id);
       const swapWith = direction === "up" ? index - 1 : index + 1;
@@ -270,12 +312,37 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
     void reprocessPage(editingPage, { enhancement });
   }
 
-  function handleEditorReset() {
+  function handleEditorAdjustmentChange(patch: { brightness?: number; contrast?: number }) {
     if (!editingPage) return;
-    void reprocessPage(editingPage, { cropEnabled: false, rotation: 0, enhancement: "original" });
+    void trackFeatureUsed("brightness_contrast");
+    void reprocessPage(editingPage, patch);
   }
 
-  const anyPageProcessing = pages.some((p) => p.status === "detecting" || p.status === "processing");
+  function handleEditorReset() {
+    if (!editingPage) return;
+    void reprocessPage(editingPage, {
+      cropEnabled: false,
+      // Back to what auto-detection found, discarding any manual crop.
+      quad: editingPage.detectedQuad,
+      rotation: 0,
+      enhancement: "original",
+      brightness: 0,
+      contrast: 0,
+    });
+  }
+
+  const croppingPage = pages.find((p) => p.id === croppingPageId) ?? null;
+
+  function handleCropApply(quad: Quad) {
+    if (!croppingPage) return;
+    const page = croppingPage;
+    setCroppingPageId(null);
+    void trackFeatureUsed("manual_crop");
+    void reprocessPage(page, { quad, cropEnabled: true });
+  }
+
+  const anyPageProcessing =
+    pdfImport !== null || pages.some((p) => p.status === "detecting" || p.status === "processing");
 
   async function handleCreatePdf() {
     if (pages.length === 0 || creatingPdf || anyPageProcessing) return;
@@ -352,6 +419,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
     ocr.reset();
     setPages([]);
     setEditingPageId(null);
+    setCroppingPageId(null);
     setPdfBlob(null);
     setSaveNotice(null);
     setError(null);
@@ -364,11 +432,11 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,application/pdf,.pdf"
         multiple
         onChange={handleFileChange}
         className="sr-only"
-        aria-label="Upload document photo"
+        aria-label="Upload document photo or PDF"
       />
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
@@ -393,7 +461,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
             onClick={handleUploadClick}
             className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700"
           >
-            Upload photo
+            Upload photo or PDF
           </button>
         </div>
       )}
@@ -467,7 +535,14 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
         )}
       </div>
 
-      {anyPageProcessing && pages.length > 0 && !pdfBlob && (
+      {pdfImport && (
+        <p role="status" className="text-sm text-zinc-500">
+          {pdfImport.total > 0
+            ? `Importing PDF… page ${pdfImport.done} of ${pdfImport.total}`
+            : "Opening PDF…"}
+        </p>
+      )}
+      {anyPageProcessing && !pdfImport && pages.length > 0 && !pdfBlob && (
         <p className="text-sm text-zinc-500">Finishing page processing…</p>
       )}
       {saveNotice && (
@@ -487,13 +562,19 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
           index={editingIndex}
           onClose={() => setEditingPageId(null)}
           onRotate={handleEditorRotate}
+          onAdjustCrop={() => setCroppingPageId(editingPage.id)}
           onToggleCrop={handleEditorToggleCrop}
           onEnhancementChange={handleEditorEnhancementChange}
+          onAdjustmentChange={handleEditorAdjustmentChange}
           onResetToOriginal={handleEditorReset}
           onRemove={() => handleRemovePage(editingPage.id)}
           onExtractText={ocrEnabled ? handleExtractPageText : undefined}
           extractTextDisabled={ocr.running}
         />
+      )}
+
+      {croppingPage && (
+        <CropEditor page={croppingPage} onApply={handleCropApply} onCancel={() => setCroppingPageId(null)} />
       )}
 
       {ocrEnabled && ocr.panelOpen && <OcrPanel ocr={ocr} pages={pages} />}

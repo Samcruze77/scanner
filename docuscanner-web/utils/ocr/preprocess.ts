@@ -21,6 +21,8 @@ export function ocrSourceKey(page: ScannerPage): string {
     page.enhancement,
     page.rotation,
     page.cropEnabled ? 1 : 0,
+    page.brightness,
+    page.contrast,
   ].join(":");
 }
 

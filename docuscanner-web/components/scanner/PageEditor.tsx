@@ -1,16 +1,62 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ScannerPage } from "@/utils/scanner/page";
 import { ENHANCEMENT_MODES, type EnhancementMode } from "@/utils/scanner/enhance";
+
+// A range slider that only asks for a re-render when the user lets go. The
+// page is re-rendered from the original on every commit, so doing that on each
+// tick of a drag would make it stutter. While dragging, the value shown is
+// local; once committed, the page's own value is the source of truth again.
+function AdjustmentSlider({
+  label,
+  value,
+  disabled,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  disabled: boolean;
+  onCommit: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState<number | null>(null);
+  const shown = draft ?? value;
+
+  function commit() {
+    if (draft !== null && draft !== value) onCommit(draft);
+    setDraft(null);
+  }
+
+  return (
+    <label className="flex items-center gap-3 text-sm">
+      <span className="w-20 shrink-0 font-medium">{label}</span>
+      <input
+        type="range"
+        min={-100}
+        max={100}
+        step={5}
+        value={shown}
+        disabled={disabled}
+        onChange={(e) => setDraft(Number(e.target.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
+        className="h-11 min-w-0 flex-1 disabled:opacity-50"
+      />
+      <span className="w-10 shrink-0 text-right tabular-nums text-zinc-500">{shown > 0 ? `+${shown}` : shown}</span>
+    </label>
+  );
+}
 
 export function PageEditor({
   page,
   index,
   onClose,
   onRotate,
+  onAdjustCrop,
   onToggleCrop,
   onEnhancementChange,
+  onAdjustmentChange,
   onResetToOriginal,
   onRemove,
   onExtractText,
@@ -20,8 +66,10 @@ export function PageEditor({
   index: number;
   onClose: () => void;
   onRotate: (direction: "left" | "right") => void;
+  onAdjustCrop: () => void;
   onToggleCrop: () => void;
   onEnhancementChange: (mode: EnhancementMode) => void;
+  onAdjustmentChange: (patch: { brightness?: number; contrast?: number }) => void;
   onResetToOriginal: () => void;
   onRemove: () => void;
   onExtractText?: () => void;
@@ -41,7 +89,12 @@ export function PageEditor({
   }, []);
 
   const hasQuad = page.quad !== null;
-  const isModified = page.cropEnabled || page.rotation !== 0 || page.enhancement !== "original";
+  const isModified =
+    page.cropEnabled ||
+    page.rotation !== 0 ||
+    page.enhancement !== "original" ||
+    page.brightness !== 0 ||
+    page.contrast !== 0;
 
   return (
     <div
@@ -67,7 +120,10 @@ export function PageEditor({
           </button>
         </div>
 
-        <div className="relative mb-4 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
+        {/* shrink-0: this is a flex item with overflow-hidden, which lets it
+            collapse to 0px (hiding the preview entirely) whenever the editor
+            is taller than the screen. It should scroll instead. */}
+        <div className="relative mb-4 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
           {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL */}
           <img
             src={page.processedDataUrl}
@@ -84,18 +140,30 @@ export function PageEditor({
         <div className="space-y-4">
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Crop</p>
-            {hasQuad ? (
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={onToggleCrop}
+                onClick={onAdjustCrop}
                 disabled={processing}
                 className="min-h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
               >
-                {page.cropEnabled ? "Use original (remove crop)" : "Use detected crop"}
+                Adjust crop
               </button>
-            ) : (
-              <p className="text-sm text-zinc-500">
-                No document boundary detected -- keeping the original framing.
+              {hasQuad && (
+                <button
+                  type="button"
+                  onClick={onToggleCrop}
+                  disabled={processing}
+                  className="min-h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
+                >
+                  {page.cropEnabled ? "Remove crop" : "Use crop"}
+                </button>
+              )}
+            </div>
+            {!hasQuad && (
+              <p className="mt-2 text-sm text-zinc-500">
+                No document boundary was detected, so the original framing is kept. Use Adjust crop to
+                set it yourself.
               </p>
             )}
           </div>
@@ -144,6 +212,22 @@ export function PageEditor({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">Adjust</p>
+            <AdjustmentSlider
+              label="Brightness"
+              value={page.brightness}
+              disabled={processing}
+              onCommit={(brightness) => onAdjustmentChange({ brightness })}
+            />
+            <AdjustmentSlider
+              label="Contrast"
+              value={page.contrast}
+              disabled={processing}
+              onCommit={(contrast) => onAdjustmentChange({ contrast })}
+            />
           </div>
 
           {onExtractText && (

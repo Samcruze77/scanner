@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdSlot } from "@/components/ads/AdSlot";
+import { CONVERT_TOOLS } from "@/components/convert/tools";
 import { HomeAuthCta } from "@/components/home/HomeAuthCta";
 
 const FEATURES = [
@@ -8,8 +9,8 @@ const FEATURES = [
     body: "Capture pages with your phone or laptop camera, right in the browser.",
   },
   {
-    title: "Multi-page documents",
-    body: "Add, remove, and reorder pages before you create the final PDF.",
+    title: "Crop, edit and reorder",
+    body: "Drag the corners to crop exactly, then rotate, enhance and reorder pages. Import an existing PDF to edit it too.",
   },
   {
     title: "Free, no account required",
@@ -62,6 +63,25 @@ export default function Home() {
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{feature.body}</p>
           </div>
         ))}
+      </section>
+
+      <section className="mx-auto w-full max-w-5xl px-4 pb-14">
+        <h2 className="mb-1 text-xl font-semibold">Convert your files</h2>
+        <p className="mb-5 text-sm text-zinc-600 dark:text-zinc-400">
+          Free, and it all happens in your browser, so your files are never uploaded.
+        </p>
+        <div className="grid gap-6 sm:grid-cols-2">
+          {CONVERT_TOOLS.map((tool) => (
+            <Link
+              key={tool.href}
+              href={tool.href}
+              className="rounded-lg border border-zinc-200 p-5 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+            >
+              <h3 className="font-semibold">{tool.title}</h3>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{tool.body}</p>
+            </Link>
+          ))}
+        </div>
       </section>
 
       <section className="mx-auto w-full max-w-5xl px-4 pb-16 text-center">

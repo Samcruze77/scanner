@@ -80,7 +80,12 @@ export interface RenderResult {
 }
 
 export async function renderPage(page: ScannerPage, onProgress?: ProgressCallback): Promise<RenderResult> {
-  const noOpChange = !page.cropEnabled && page.rotation === 0 && page.enhancement === "original";
+  const noOpChange =
+    !page.cropEnabled &&
+    page.rotation === 0 &&
+    page.enhancement === "original" &&
+    page.brightness === 0 &&
+    page.contrast === 0;
   if (noOpChange) {
     return { dataUrl: page.originalDataUrl, width: page.originalWidth, height: page.originalHeight };
   }
@@ -108,14 +113,16 @@ export async function renderPage(page: ScannerPage, onProgress?: ProgressCallbac
     canvas = rotateCanvas(canvas, page.rotation);
   }
 
-  if (page.enhancement !== "original") {
+  const hasAdjustments = page.brightness !== 0 || page.contrast !== 0;
+  if (page.enhancement !== "original" || hasAdjustments) {
     onProgress?.("Enhancing page…");
     await yieldToBrowser();
-    const { applyEnhancement } = await import("./enhance");
+    const { applyAdjustments, applyEnhancement } = await import("./enhance");
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (ctx) {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       applyEnhancement(imageData, page.enhancement);
+      applyAdjustments(imageData, page.brightness, page.contrast);
       ctx.putImageData(imageData, 0, 0);
     }
   }

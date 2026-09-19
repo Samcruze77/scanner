@@ -12,6 +12,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 const ITEMS = [
   { href: "/", label: "Home", icon: "🏠" },
   { href: "/scan", label: "Scan", icon: "📷" },
+  { href: "/convert", label: "Convert", icon: "🔄" },
   { href: "/history", label: "History", icon: "🗂" },
 ] as const;
 
@@ -26,7 +27,8 @@ export function MobileActionBar() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {ITEMS.map((item) => {
-        const active = pathname === item.href;
+        // The Convert tab covers the hub and both tools beneath it.
+        const active = item.href === "/convert" ? pathname.startsWith("/convert") : pathname === item.href;
         return (
           <Link
             key={item.href}

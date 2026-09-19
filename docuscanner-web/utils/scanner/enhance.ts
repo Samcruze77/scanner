@@ -65,6 +65,34 @@ function binarize(imageData: ImageData): void {
   }
 }
 
+// Manual brightness/contrast, both -100..100 (0 = no change). Uses the
+// standard contrast curve pivoting on mid-grey, then a brightness offset, via
+// a 256-entry lookup table so it's one pass over the pixels. Mutates in place.
+//
+// The slider range maps to +/-150 of the curve's 255-wide scale rather than
+// the full +/-255: at full scale, moderate slider values already turn a page
+// solid white or black, which makes the slider feel broken.
+const ADJUSTMENT_SCALE = 1.5;
+
+export function applyAdjustments(imageData: ImageData, brightness: number, contrast: number): ImageData {
+  if (brightness === 0 && contrast === 0) return imageData;
+
+  const c = Math.max(-100, Math.min(100, contrast)) * ADJUSTMENT_SCALE;
+  const offset = Math.max(-100, Math.min(100, brightness)) * ADJUSTMENT_SCALE;
+  const factor = (259 * (c + 255)) / (255 * (259 - c));
+
+  const lut = new Uint8ClampedArray(256);
+  for (let v = 0; v < 256; v++) lut[v] = factor * (v - 128) + 128 + offset;
+
+  const { data } = imageData;
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = lut[data[i]];
+    data[i + 1] = lut[data[i + 1]];
+    data[i + 2] = lut[data[i + 2]];
+  }
+  return imageData;
+}
+
 // Mutates imageData in place and returns it, for convenient chaining.
 export function applyEnhancement(imageData: ImageData, mode: EnhancementMode): ImageData {
   switch (mode) {

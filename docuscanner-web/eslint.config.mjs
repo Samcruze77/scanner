@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored OCR runtime copied in by scripts/copy-ocr-assets.mjs.
     "public/ocr/**",
+    // Vendored PDF.js runtime copied in by scripts/copy-pdf-assets.mjs.
+    "public/pdfjs/**",
   ]),
 ]);
 
