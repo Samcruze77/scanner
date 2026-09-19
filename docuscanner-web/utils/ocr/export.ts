@@ -2,6 +2,8 @@
 
 // Everything here runs locally; extracted text is never uploaded.
 
+import { downloadBlob } from "@/utils/convert/download";
+
 export async function copyTextToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -27,12 +29,7 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
 }
 
 export function downloadTextFile(text: string, filename: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  // Same save-as-file behaviour as every other download in the app (a text
+  // blob would otherwise open in a tab on some browsers). The bytes stay UTF-8.
+  downloadBlob(new Blob([text], { type: "text/plain;charset=utf-8" }), filename);
 }

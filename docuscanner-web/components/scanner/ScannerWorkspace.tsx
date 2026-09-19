@@ -8,6 +8,7 @@ import type { Quad } from "@/utils/scanner/geometry";
 import { createInitialPage, type PageRotation, type ScannerPage } from "@/utils/scanner/page";
 import { detectPageQuad, renderPage } from "@/utils/scanner/pageProcessing";
 import { createPdfFromPages } from "@/utils/scanner/pdf";
+import { downloadBlob } from "@/utils/convert/download";
 import { importPdfPages } from "@/utils/scanner/pdfImport";
 import { isPdfFile, PdfError } from "@/utils/pdf/pdfjs";
 import { validateImageFile } from "@/utils/scanner/validation";
@@ -368,14 +369,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
 
   function handleDownload() {
     if (!pdfBlob) return;
-    const url = URL.createObjectURL(pdfBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "document.pdf";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    downloadBlob(pdfBlob, "document.pdf");
     void trackDocumentDownloaded("pdf");
   }
 
