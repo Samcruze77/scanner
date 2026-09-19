@@ -119,6 +119,20 @@ export function annotationBounds(annotation: Annotation, pageWidthPx: number, pa
   }
 }
 
+// Like annotationBounds, but for text it is the box the letters actually fill
+// (text is left-aligned, so a wide box is mostly empty). Used to keep text on
+// the same spot of the document when the page is turned or cropped.
+export function annotationContentBounds(annotation: Annotation, pageWidthPx: number, pageHeightPx: number): Bounds {
+  if (annotation.type !== "text") return annotationBounds(annotation, pageWidthPx, pageHeightPx);
+  const layout = layoutText(annotation, pageWidthPx);
+  const ctx = getMeasureContext();
+  ctx.font = fontFor(annotation, layout.fontPx);
+  let widest = 0;
+  for (const line of layout.lines) widest = Math.max(widest, ctx.measureText(line).width);
+  const w = Math.min(annotation.w, Math.max(widest / pageWidthPx, annotation.size / 2));
+  return { x: annotation.x, y: annotation.y, w, h: layout.heightPx / pageHeightPx };
+}
+
 function distanceToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
   const dx = bx - ax;
   const dy = by - ay;

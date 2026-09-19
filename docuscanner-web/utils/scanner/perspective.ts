@@ -33,7 +33,9 @@ function solveLinearSystem(A: number[][], b: number[]): number[] | null {
 }
 
 // Solves for h such that, for each i: src[i] == H * dst[i] (H has h33 = 1).
-function solveHomography(dst: Point[], src: Point[]): number[] | null {
+// Also used (as a pure function) by annotationRemap.ts to keep marks attached
+// to the same spot on the document when the crop changes.
+export function solveHomography(dst: Point[], src: Point[]): number[] | null {
   const A: number[][] = [];
   const b: number[] = [];
   for (let i = 0; i < 4; i++) {

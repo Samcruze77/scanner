@@ -46,15 +46,16 @@ export function PageThumbnail({
           </span>
         )}
       </button>
-      <div className="flex items-center justify-between gap-1 text-xs text-zinc-500">
+      <div className="flex flex-col gap-1 text-xs text-zinc-500">
         <span>Page {index + 1}</span>
-        <div className="flex gap-1">
+        {/* Three 44px targets don't fit beside the label in a half-width card on a phone, so they get their own row and share its width. */}
+        <div className="grid grid-cols-3 gap-1">
           <button
             type="button"
             onClick={onMoveUp}
             disabled={index === 0}
             aria-label={`Move page ${index + 1} earlier`}
-            className="flex h-11 w-11 items-center justify-center rounded-md border border-zinc-200 disabled:opacity-30 dark:border-zinc-800"
+            className="flex h-11 min-w-0 items-center justify-center rounded-md border border-zinc-200 disabled:opacity-30 dark:border-zinc-800"
           >
             ↑
           </button>
@@ -63,7 +64,7 @@ export function PageThumbnail({
             onClick={onMoveDown}
             disabled={index === total - 1}
             aria-label={`Move page ${index + 1} later`}
-            className="flex h-11 w-11 items-center justify-center rounded-md border border-zinc-200 disabled:opacity-30 dark:border-zinc-800"
+            className="flex h-11 min-w-0 items-center justify-center rounded-md border border-zinc-200 disabled:opacity-30 dark:border-zinc-800"
           >
             ↓
           </button>
@@ -71,7 +72,7 @@ export function PageThumbnail({
             type="button"
             onClick={onRemove}
             aria-label={`Remove page ${index + 1}`}
-            className="flex h-11 w-11 items-center justify-center rounded-md border border-red-200 text-red-600 dark:border-red-900 dark:text-red-400"
+            className="flex h-11 min-w-0 items-center justify-center rounded-md border border-red-200 text-red-600 dark:border-red-900 dark:text-red-400"
           >
             ✕
           </button>

@@ -16,7 +16,12 @@ export function cameraErrorMessage(reason: string): string {
 }
 
 const UPLOAD_ERROR_MESSAGES: Record<string, string> = {
-  unsupported_file_type: "That file type isn't supported. Please upload a photo (JPG, PNG, etc.) or a PDF.",
+  unsupported_file_type:
+    "That file type isn't supported. Please upload a PDF, Word (.docx), Excel (.xlsx), CSV or an image (JPG, PNG, etc.).",
+  legacy_word:
+    "Older .doc files aren't supported. Open it in Word and use Save As to save it as .docx, then upload it again.",
+  legacy_excel:
+    "Older .xls files aren't supported. Open it in Excel and use Save As to save it as .xlsx, then upload it again.",
   file_too_large: "That file is too large. Please use an image under 25MB.",
   image_decode_failed: "That image couldn't be read. Try a different file.",
 };

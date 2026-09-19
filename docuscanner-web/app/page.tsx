@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AdSlot } from "@/components/ads/AdSlot";
 import { CONVERT_TOOLS } from "@/components/convert/tools";
 import { HomeAuthCta } from "@/components/home/HomeAuthCta";
+import { SUPPORTED_FORMATS } from "@/utils/scanner/documentTypes";
 
 const FEATURES = [
   {
@@ -9,8 +10,8 @@ const FEATURES = [
     body: "Capture pages with your phone or laptop camera, right in the browser.",
   },
   {
-    title: "Crop, edit and reorder",
-    body: "Drag the corners to crop exactly, then rotate, enhance and reorder pages. Import an existing PDF to edit it too.",
+    title: "Edit, sign and reorder",
+    body: "Crop, enhance and reorder pages, add text and your signature, and bring in PDF, Word, Excel or CSV files too.",
   },
   {
     title: "Free, no account required",
@@ -48,7 +49,8 @@ export default function Home() {
           </Link>
         </div>
 
-        <p className="mt-4 text-sm text-zinc-500">Free to use. Supported by ads.</p>
+        <p className="mt-4 text-sm text-zinc-500">{SUPPORTED_FORMATS}</p>
+        <p className="mt-1 text-sm text-zinc-500">Free to use. Supported by ads.</p>
       </section>
 
       <div className="mx-auto w-full max-w-5xl space-y-3 px-4">

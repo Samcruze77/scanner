@@ -13,6 +13,8 @@ export type PlanId = "free" | "premium";
 export type FeatureId =
   | "convert.excel_to_pdf"
   | "convert.pdf_to_excel"
+  | "convert.word_to_pdf"
+  | "convert.pdf_to_word"
   | "ocr.basic"
   | "ocr.advanced"
   | "ocr.batch"
@@ -35,6 +37,9 @@ export const FEATURES: Record<FeatureId, FeatureDefinition> = {
   // for scanned tables stays reserved as `ocr.table_extraction` below.
   "convert.excel_to_pdf": { minPlan: "free", implemented: true },
   "convert.pdf_to_excel": { minPlan: "free", implemented: true },
+  // Word conversions also run entirely in the browser and stay free.
+  "convert.word_to_pdf": { minPlan: "free", implemented: true },
+  "convert.pdf_to_word": { minPlan: "free", implemented: true },
   // Free at launch: in-browser Tesseract, English, page-by-page.
   "ocr.basic": { minPlan: "free", implemented: true },
   // Reserved for the paid tier (~6-8 months post launch): higher-accuracy

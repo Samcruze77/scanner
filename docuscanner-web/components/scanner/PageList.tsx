@@ -15,7 +15,7 @@ export function PageList({
   if (pages.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700">
-        No pages yet. Use the camera, or upload a photo or PDF, to add your first page.
+        No pages yet. Use the camera, or upload a document (PDF, Word, Excel, CSV or image), to add your first page.
       </p>
     );
   }

@@ -5,7 +5,7 @@ import { CONVERT_TOOLS, SCAN_TOOL } from "@/components/convert/tools";
 
 export const metadata: Metadata = {
   title: "Document tools - DocuScanner",
-  description: "Scan to PDF, convert Excel to PDF, and convert PDF to Excel. Free, in your browser.",
+  description: "Scan, edit and sign documents, and convert between Word, PDF and Excel. Free, in your browser.",
 };
 
 export default function ConvertHubPage() {

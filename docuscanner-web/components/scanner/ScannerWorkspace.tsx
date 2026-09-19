@@ -11,16 +11,22 @@ import { detectPageQuad, renderPage } from "@/utils/scanner/pageProcessing";
 import { createPdfFromPages } from "@/utils/scanner/pdf";
 import { downloadBlob } from "@/utils/convert/download";
 import { importPdfPages } from "@/utils/scanner/pdfImport";
-import { rotateAnnotations, type Annotation } from "@/utils/scanner/annotations";
-import { annotationBounds } from "@/utils/scanner/annotationRender";
+import type { Annotation } from "@/utils/scanner/annotations";
+import { remapAnnotations, type PageGeometry } from "@/utils/scanner/annotationRemap";
+import { annotationContentBounds } from "@/utils/scanner/annotationRender";
 import type { SignatureImage } from "@/utils/scanner/signature";
-import { isPdfFile, PdfError } from "@/utils/pdf/pdfjs";
+import { PdfError } from "@/utils/pdf/pdfjs";
 import { validateImageFile } from "@/utils/scanner/validation";
+import { classifyDocument, DOCUMENT_ACCEPT, SUPPORTED_FORMATS } from "@/utils/scanner/documentTypes";
+import { takePendingImport } from "@/utils/scanner/handoff";
+import { excelErrorMessage, wordErrorMessage } from "@/utils/convert/errorMessages";
 import { cameraErrorMessage, pdfImportErrorMessage, uploadErrorMessage } from "@/utils/scanner/errorMessages";
 import { saveDocumentToAccount } from "@/utils/documents/save";
 import { getUserPlan, isFeatureAvailable } from "@/utils/features/plans";
 import type { EnhancementMode } from "@/utils/scanner/enhance";
 import {
+  trackConversionCompleted,
+  trackConversionStarted,
   trackDocumentCreated,
   trackDocumentDownloaded,
   trackDocumentUploaded,
@@ -52,6 +58,27 @@ type Mode = "idle" | "camera";
 // than force a bad crop, per requirement C.
 const AUTO_CROP_CONFIDENCE_THRESHOLD = 0.55;
 
+function geometryOf(
+  page: Pick<ScannerPage, "originalWidth" | "originalHeight" | "quad" | "cropEnabled" | "rotation">,
+): PageGeometry {
+  return {
+    originalWidth: page.originalWidth,
+    originalHeight: page.originalHeight,
+    quad: page.quad,
+    cropEnabled: page.cropEnabled,
+    rotation: page.rotation,
+  };
+}
+
+// Where a page's marks belong after a crop/rotation change, so they stay on the
+// same spot of the document instead of the same spot of the screen.
+function annotationsForChange(
+  page: ScannerPage,
+  change: Partial<Pick<ScannerPage, "quad" | "cropEnabled" | "rotation">>,
+): Annotation[] {
+  return remapAnnotations(page.annotations, geometryOf(page), geometryOf({ ...page, ...change }), annotationContentBounds);
+}
+
 export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "upload" }) {
   const { user, openAuthModal } = useAuth();
   // Derive the starting mode directly from the prop instead of setting it
@@ -66,6 +93,8 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
   const [lastSignature, setLastSignature] = useState<SignatureImage | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pdfImport, setPdfImport] = useState<{ done: number; total: number } | null>(null);
+  // Set while a Word/Excel/CSV file is being converted to PDF before import.
+  const [importStage, setImportStage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [creatingPdf, setCreatingPdf] = useState(false);
@@ -179,7 +208,12 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
           statusLabel: null,
         });
         if (result.perspectiveFailed) {
-          updatePageFields(page.id, { cropEnabled: false });
+          // The crop couldn't be applied, so the page is really uncropped:
+          // put the marks back where that puts them.
+          updatePageFields(page.id, {
+            cropEnabled: false,
+            annotations: annotationsForChange(target, { cropEnabled: false }),
+          });
           setError("Couldn't correct perspective for this page -- keeping it uncropped.");
           void trackError("perspective_correction", "correction_failed");
         }
@@ -227,13 +261,15 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
     void runDetectionAndRender(initial);
   }
 
-  // Renders each page of an uploaded PDF into the workspace, so it can be
-  // cropped, rotated, enhanced and reordered like any scanned photo.
-  async function importPdf(file: File) {
+  // Renders each page of a PDF into the workspace, so it can be cropped,
+  // rotated, enhanced, annotated and reordered like any scanned photo. `track`
+  // is false for a PDF this app just made from a Word/Excel file, which was
+  // already counted as an upload of the original.
+  async function importPdf(file: File, track = true) {
     setPdfImport({ done: 0, total: 0 });
     try {
       markScanStarted("upload");
-      void trackDocumentUploaded(file.type || "application/pdf", file.size);
+      if (track) void trackDocumentUploaded(file.type || "application/pdf", file.size);
       const count = await importPdfPages(file, {
         onPage: (captured, pageNumber, pageCount) => {
           setPdfBlob(null);
@@ -251,36 +287,100 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
     }
   }
 
+  // Word, Excel and CSV files are converted to a PDF in the browser first, then
+  // opened as pages like any other PDF -- so they can be edited and signed too.
+  // The converters are large and load only when a file of that type is chosen.
+  async function importConverted(file: File, kind: "docx" | "spreadsheet" | "csv") {
+    const conversion = kind === "docx" ? "word_to_pdf" : "spreadsheet_to_pdf";
+    setImportStage(kind === "docx" ? "Converting Word document\u2026" : "Converting spreadsheet\u2026");
+    const startedAt = Date.now();
+    void trackDocumentUploaded(file.type || "application/octet-stream", file.size);
+    void trackConversionStarted(conversion);
+
+    let pdf: File;
+    try {
+      let blob: Blob;
+      let warnings: string[];
+      if (kind === "docx") {
+        const { convertDocxToPdf } = await import("@/utils/convert/wordToPdf");
+        ({ blob, warnings } = await convertDocxToPdf(file));
+      } else {
+        const { loadWorkbook, workbookToPdf } = await import("@/utils/convert/excelToPdf");
+        const loaded = await loadWorkbook(file);
+        const sheetNames = loaded.sheets.filter((sheet) => sheet.rows > 0).map((sheet) => sheet.name);
+        ({ blob, warnings } = await workbookToPdf(loaded, { sheetNames, orientation: "auto", showGridlines: true }));
+      }
+      pdf = new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "document"}.pdf`, { type: "application/pdf" });
+      if (warnings.length > 0) setNotice(warnings.join(" "));
+      void trackConversionCompleted(conversion, Date.now() - startedAt);
+    } catch (err) {
+      // Both converters throw errors that carry a short code; the copy is shared
+      // with the dedicated tools.
+      const code =
+        typeof err === "object" && err && "code" in err && typeof err.code === "string" ? err.code : "conversion_failed";
+      setError(kind === "docx" ? wordErrorMessage(code) : excelErrorMessage(code));
+      void trackError(conversion, code);
+      setImportStage(null);
+      return;
+    }
+    // Starting the import first means there is no gap where the workspace looks idle.
+    const imported = importPdf(pdf, false);
+    setImportStage(null);
+    await imported;
+  }
+
+  // Sends one chosen file down the right path for its type.
+  async function importDocument(file: File) {
+    const kind = classifyDocument(file);
+    if (kind === "pdf") return importPdf(file);
+    if (kind === "docx" || kind === "spreadsheet" || kind === "csv") return importConverted(file, kind);
+    if (kind === "legacy-word" || kind === "legacy-excel" || kind === "unknown") {
+      const reason =
+        kind === "legacy-word" ? "legacy_word" : kind === "legacy-excel" ? "legacy_excel" : "unsupported_file_type";
+      setError(uploadErrorMessage(reason));
+      void trackError("upload", reason);
+      return;
+    }
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setError(uploadErrorMessage(validationError));
+      void trackError("upload", validationError);
+      return;
+    }
+    try {
+      const captured = await fileToCapturedImage(file);
+      const initial = createInitialPage(captured);
+      setPdfBlob(null);
+      setPages((prev) => [...prev, initial]);
+      markScanStarted("upload");
+      void trackDocumentUploaded(file.type, file.size);
+      void runDetectionAndRender(initial);
+    } catch {
+      setError(uploadErrorMessage("image_decode_failed"));
+      void trackError("upload", "image_decode_failed");
+    }
+  }
+
+  async function processFiles(files: File[]) {
+    for (const file of files) await importDocument(file);
+  }
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = ""; // allow re-selecting the same file later
     if (files.length === 0) return;
-
-    for (const file of files) {
-      if (isPdfFile(file)) {
-        await importPdf(file);
-        continue;
-      }
-      const validationError = validateImageFile(file);
-      if (validationError) {
-        setError(uploadErrorMessage(validationError));
-        void trackError("upload", validationError);
-        continue;
-      }
-      try {
-        const captured = await fileToCapturedImage(file);
-        const initial = createInitialPage(captured);
-        setPdfBlob(null);
-        setPages((prev) => [...prev, initial]);
-        markScanStarted("upload");
-        void trackDocumentUploaded(file.type, file.size);
-        void runDetectionAndRender(initial);
-      } catch {
-        setError(uploadErrorMessage("image_decode_failed"));
-        void trackError("upload", "image_decode_failed");
-      }
-    }
+    await processFiles(files);
   }
+
+  useEffect(() => {
+    // A PDF handed over from a converter tool ("Edit & sign this PDF"). It comes
+    // from this tab's memory only, and is opened like any uploaded file. Deferred
+    // a tick so nothing is set synchronously inside the effect.
+    const handedOff = takePendingImport();
+    if (handedOff.length > 0) void Promise.resolve().then(() => processFiles(handedOff));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleRemovePage(id: string) {
     setPdfBlob(null);
@@ -307,32 +407,12 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
   const editingPage = pages.find((p) => p.id === editingPageId) ?? null;
   const editingIndex = editingPage ? pages.findIndex((p) => p.id === editingPage.id) : -1;
 
-  // Marks are positioned on the page as it looks after rotation, so turning the
-  // page has to turn their positions with it or they'd end up in the wrong place.
-  function annotationsAfterRotation(page: ScannerPage, delta: number): Annotation[] {
-    const turn = ((delta % 360) + 360) % 360;
-    if (turn === 0 || page.annotations.length === 0) return page.annotations;
-    return rotateAnnotations(page.annotations, turn as 90 | 180 | 270, page.processedWidth, page.processedHeight, (a) =>
-      annotationBounds(a, page.processedWidth, page.processedHeight),
-    );
-  }
-
-  // A different crop changes the page's shape and content position, which can't
-  // be mapped onto existing marks, so say so rather than leave them silently off.
-  function noteCropChange(page: ScannerPage) {
-    if (page.annotations.length > 0) {
-      setNotice(
-        "You changed the crop. Your text, signature and marks kept their place on the page, so open Annotate to check they still line up.",
-      );
-    }
-  }
-
   function handleEditorRotate(direction: "left" | "right") {
     if (!editingPage) return;
     const delta = direction === "right" ? 90 : -90;
     const rotation = ((((editingPage.rotation + delta) % 360) + 360) % 360) as PageRotation;
     void trackFeatureUsed("rotate_page");
-    void reprocessPage(editingPage, { rotation, annotations: annotationsAfterRotation(editingPage, delta) });
+    void reprocessPage(editingPage, { rotation, annotations: annotationsForChange(editingPage, { rotation }) });
   }
 
   function handleEditorToggleCrop() {
@@ -342,8 +422,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
       void trackFeatureUsed("auto_crop");
       void trackFeatureUsed("perspective_correction");
     }
-    noteCropChange(editingPage);
-    void reprocessPage(editingPage, { cropEnabled });
+    void reprocessPage(editingPage, { cropEnabled, annotations: annotationsForChange(editingPage, { cropEnabled }) });
   }
 
   function handleEditorEnhancementChange(enhancement: EnhancementMode) {
@@ -360,13 +439,15 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
 
   function handleEditorReset() {
     if (!editingPage) return;
-    if (editingPage.cropEnabled) noteCropChange(editingPage);
-    void reprocessPage(editingPage, {
-      annotations: annotationsAfterRotation(editingPage, -editingPage.rotation),
+    const reset = {
       cropEnabled: false,
       // Back to what auto-detection found, discarding any manual crop.
       quad: editingPage.detectedQuad,
-      rotation: 0,
+      rotation: 0 as PageRotation,
+    };
+    void reprocessPage(editingPage, {
+      annotations: annotationsForChange(editingPage, reset),
+      ...reset,
       enhancement: "original",
       brightness: 0,
       contrast: 0,
@@ -380,8 +461,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
     const page = croppingPage;
     setCroppingPageId(null);
     void trackFeatureUsed("manual_crop");
-    noteCropChange(page);
-    void reprocessPage(page, { quad, cropEnabled: true });
+    void reprocessPage(page, { quad, cropEnabled: true, annotations: annotationsForChange(page, { quad, cropEnabled: true }) });
   }
 
   const annotatingPage = pages.find((p) => p.id === annotatingPageId) ?? null;
@@ -399,7 +479,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
   }
 
   const anyPageProcessing =
-    pdfImport !== null || pages.some((p) => p.status === "detecting" || p.status === "processing");
+    pdfImport !== null || importStage !== null || pages.some((p) => p.status === "detecting" || p.status === "processing");
 
   async function handleCreatePdf() {
     if (pages.length === 0 || creatingPdf || anyPageProcessing) return;
@@ -484,11 +564,11 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,application/pdf,.pdf"
+        accept={DOCUMENT_ACCEPT}
         multiple
         onChange={handleFileChange}
         className="sr-only"
-        aria-label="Upload document photo or PDF"
+        aria-label="Upload a document: PDF, Word, Excel, CSV or image"
       />
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
@@ -529,8 +609,9 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
             onClick={handleUploadClick}
             className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700"
           >
-            Upload photo or PDF
+            Upload document
           </button>
+          <p className="basis-full text-xs text-zinc-500">{SUPPORTED_FORMATS}</p>
         </div>
       )}
 
@@ -603,6 +684,11 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
         )}
       </div>
 
+      {importStage && (
+        <p role="status" className="text-sm text-zinc-500">
+          {importStage}
+        </p>
+      )}
       {pdfImport && (
         <p role="status" className="text-sm text-zinc-500">
           {pdfImport.total > 0

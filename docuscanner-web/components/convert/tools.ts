@@ -9,11 +9,21 @@ export interface ToolLink {
 
 export const SCAN_TOOL: ToolLink = {
   href: "/scan",
-  title: "Scan to PDF",
-  body: "Scan with your camera or upload photos and PDFs. Crop, straighten and enhance each page, then export one clean PDF.",
+  title: "Scan, edit & sign",
+  body: "Scan with your camera or upload a PDF, Word, Excel, CSV or image. Crop and enhance pages, add text and your signature, then export one clean PDF.",
 };
 
 export const CONVERT_TOOLS: ToolLink[] = [
+  {
+    href: "/convert/word-to-pdf",
+    title: "Word to PDF",
+    body: "Turn a Word document into a PDF. Keeps headings, lists, tables, pictures, links and text styles.",
+  },
+  {
+    href: "/convert/pdf-to-word",
+    title: "PDF to Word",
+    body: "Get an editable Word document from a PDF. Scanned pages are read with text recognition.",
+  },
   {
     href: "/convert/excel-to-pdf",
     title: "Excel to PDF",

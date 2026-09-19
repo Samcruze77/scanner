@@ -17,18 +17,25 @@ export interface PositionedText {
   width: number;
   // Roughly the font size.
   height: number;
+  // Optional font details, used by PDF -> Word to keep bold/italic and the
+  // rough typeface. PDF -> Excel doesn't need them.
+  bold?: boolean;
+  italic?: boolean;
+  family?: "serif" | "sans" | "mono";
 }
 
-interface Cell {
+export interface Cell {
   text: string;
   left: number;
   right: number;
 }
 
-interface Line {
+export interface Line {
   y: number;
   height: number;
   cells: Cell[];
+  // The strings the line was built from, left to right.
+  items: PositionedText[];
 }
 
 // A gap wider than this (in font heights) between two strings on a line
@@ -42,14 +49,14 @@ const SAME_LINE_EM = 0.45;
 // A vertical gap this many line-heights or more becomes a blank row.
 const BLANK_ROW_LINES = 1.9;
 
-function median(values: number[]): number {
+export function median(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = sorted.length >> 1;
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-function groupIntoLines(items: PositionedText[]): PositionedText[][] {
+export function groupIntoLines(items: PositionedText[]): PositionedText[][] {
   const usable = items.filter((item) => item.str.trim() !== "" && item.width >= 0);
   // Top of the page first (PDF y grows upward), then left to right.
   usable.sort((a, b) => b.y - a.y || a.x - b.x);
@@ -69,7 +76,7 @@ function groupIntoLines(items: PositionedText[]): PositionedText[][] {
   return lines.map((line) => line.items.sort((a, b) => a.x - b.x));
 }
 
-function splitIntoCells(items: PositionedText[]): Line {
+export function splitIntoCells(items: PositionedText[]): Line {
   const cells: Cell[] = [];
   const heights = items.map((item) => item.height).filter((h) => h > 0);
   const lineHeight = median(heights) || 10;
@@ -102,14 +109,14 @@ function splitIntoCells(items: PositionedText[]): Line {
   }
   if (current) cells.push(current);
 
-  return { y: items[0].y, height: lineHeight, cells };
+  return { y: items[0].y, height: lineHeight, cells, items };
 }
 
 // Column bands: horizontal ranges that cells from different lines overlap.
 // Projecting every cell onto the x axis and merging overlaps handles left-,
 // right- and centre-aligned columns alike (numbers right-aligned to the same
 // edge start at different x but still overlap).
-function findColumnBands(lines: Line[], pageWidth: number): { left: number; right: number }[] {
+export function findColumnBands(lines: Line[], pageWidth: number): { left: number; right: number }[] {
   // Only lines that look like table rows vote; single-cell lines are titles or
   // paragraph text and would otherwise glue every column together.
   const intervals = lines
@@ -131,7 +138,7 @@ function findColumnBands(lines: Line[], pageWidth: number): { left: number; righ
   return bands;
 }
 
-function bandIndexFor(cell: Cell, bands: { left: number; right: number }[]): number {
+export function bandIndexFor(cell: Cell, bands: { left: number; right: number }[]): number {
   const centre = (cell.left + cell.right) / 2;
   let best = 0;
   let bestDistance = Infinity;

@@ -13,13 +13,14 @@ import {
   type SignatureImage,
 } from "@/utils/scanner/signature";
 import { SIGNATURE_FONT_STACK } from "@/utils/scanner/annotations";
+import { clearSavedSignature, loadSavedSignature, saveSignature } from "@/utils/scanner/signatureStore";
 
 type Tab = "draw" | "type" | "upload";
 
 const TABS: { value: Tab; label: string }[] = [
-  { value: "draw", label: "Draw" },
+  { value: "draw", label: "Draw Signature" },
   { value: "type", label: "Type" },
-  { value: "upload", label: "Upload" },
+  { value: "upload", label: "Upload Signature" },
 ];
 
 const INK_COLORS = [
@@ -50,6 +51,10 @@ export function SignatureDialog({
   const [removeWhite, setRemoveWhite] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A signature the person chose to keep on this device (opt-in, local only).
+  // The dialog only exists after a click, so reading storage here is safe.
+  const [saved, setSaved] = useState<SignatureImage | null>(() => loadSavedSignature());
+  const [saveOnDevice, setSaveOnDevice] = useState(false);
 
   const padRef = useRef<HTMLCanvasElement>(null);
   const strokeRef = useRef<{ lastX: number; lastY: number; midX: number; midY: number; moved: boolean } | null>(null);
@@ -197,6 +202,10 @@ export function SignatureDialog({
       setError(tab === "draw" ? "Draw your signature first." : "Nothing to apply yet.");
       return;
     }
+    if (saveOnDevice && !saveSignature(result)) {
+      // Storage was blocked or full: still place the signature, just say so.
+      setError("The signature was added, but couldn't be saved on this device.");
+    }
     onApply(result);
   }
 
@@ -213,7 +222,34 @@ export function SignatureDialog({
       <div className="flex max-h-full w-full flex-col gap-4 overflow-y-auto rounded-t-xl bg-white p-4 dark:bg-zinc-900 sm:max-w-lg sm:rounded-xl">
         <h2 className="text-base font-semibold">Add your signature</h2>
 
-        {lastSignature && (
+        {saved && (
+          <div className="flex items-stretch gap-2">
+            <button
+              type="button"
+              onClick={() => onApply(saved)}
+              className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-zinc-300 p-2 text-left text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              <span className="flex h-12 w-28 shrink-0 items-center justify-center rounded bg-white p-1">
+                {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL */}
+                <img src={saved.dataUrl} alt="" className="max-h-full max-w-full object-contain" />
+              </span>
+              <span>Use my saved signature</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearSavedSignature();
+                setSaved(null);
+              }}
+              aria-label="Remove my saved signature from this device"
+              className="min-h-11 shrink-0 rounded-lg border border-zinc-300 px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            >
+              Remove
+            </button>
+          </div>
+        )}
+
+        {lastSignature && lastSignature.dataUrl !== saved?.dataUrl && (
           <button
             type="button"
             onClick={() => onApply(lastSignature)}
@@ -239,7 +275,7 @@ export function SignatureDialog({
                 setTab(t.value);
                 setError(null);
               }}
-              className={`min-h-11 flex-1 rounded-md px-3 text-sm font-medium ${
+              className={`min-h-11 flex-1 rounded-md px-2 text-center text-sm font-medium leading-tight ${
                 tab === t.value ? "bg-white shadow-sm dark:bg-zinc-950" : "text-zinc-600 dark:text-zinc-400"
               }`}
             >
@@ -349,6 +385,21 @@ export function SignatureDialog({
             </div>
           </div>
         )}
+
+        <label className="flex min-h-11 items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={saveOnDevice}
+            onChange={(e) => setSaveOnDevice(e.target.checked)}
+            className="mt-1 h-4 w-4 shrink-0 accent-blue-600"
+          />
+          <span>
+            Save this signature on this device
+            <span className="block text-xs text-zinc-500">
+              Kept in this browser only, so you don&apos;t have to redraw it next time. You can remove it any time.
+            </span>
+          </span>
+        </label>
 
         {error && (
           <p role="alert" className="text-sm text-red-600 dark:text-red-400">
