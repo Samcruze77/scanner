@@ -71,7 +71,12 @@ export interface OpenedPdf {
 // Opens a PDF from a user-selected file.
 export async function openPdf(file: File, options: { maxPages?: number } = {}): Promise<OpenedPdf> {
   if (file.size > MAX_PDF_FILE_BYTES) throw new PdfError("pdf_too_large");
+  return openPdfData(new Uint8Array(await file.arrayBuffer()), options);
+}
 
+// Opens a PDF from bytes the caller already holds (no size cap of its own: the
+// caller decides what is acceptable for its purpose).
+export async function openPdfData(data: Uint8Array, options: { maxPages?: number } = {}): Promise<OpenedPdf> {
   let pdfjs: PdfjsModule;
   try {
     pdfjs = await loadPdfjs();
@@ -79,7 +84,6 @@ export async function openPdf(file: File, options: { maxPages?: number } = {}): 
     throw new PdfError("pdf_failed");
   }
 
-  const data = new Uint8Array(await file.arrayBuffer());
   const task = pdfjs.getDocument({
     data,
     cMapUrl: `${PDFJS_BASE}/cmaps/`,

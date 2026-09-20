@@ -1,17 +1,19 @@
 "use client";
 
-// Word (.docx) -> PDF, entirely in the browser: mammoth reads the document,
-// docxHtml.ts turns it into safe HTML, html-to-pdfmake maps that HTML to a
-// document definition, and pdfmake lays it out as a real PDF (selectable text,
-// working links, embedded images).
+// Word (.docx) -> PDF, entirely in the browser.
 //
-// It carries the common content and formatting of a Word document -- headings,
-// paragraphs, bold/italic/underline/strikethrough, lists, tables, pictures,
-// links, paragraph alignment and page breaks -- but is not a Word layout
-// engine: fonts, colours, exact spacing, headers/footers, text boxes and
-// floating objects are not reproduced.
+// The heavy lifting is the layout engine in ./docx: it reads the document's
+// real formatting (fonts, sizes, spacing, indents, tables, pictures, headers and
+// footers, sections ...), lays it out with Word's own rules and draws a vector
+// PDF with selectable text. It is checked against Microsoft Word's own PDF
+// export on a set of fixtures (see tests/docx).
+//
+// Fonts: the browser has no Calibri/Arial/Times New Roman to embed, so open
+// metric-compatible twins are used (Carlito, Arimo, Tinos, Cousine, Caladea):
+// same character widths and line heights, so lines and pages break as in Word.
+// Other fonts use the closest twin and the result says so.
 
-import { checkDocxFile, docxToSafeHtml, WordConvertError } from "./docxHtml";
+import { checkDocxFile, WordConvertError } from "./wordErrors";
 
 export type WordStage = "reading" | "converting" | "building";
 
@@ -21,94 +23,37 @@ export interface WordToPdfOptions {
 
 export interface WordToPdfResult {
   blob: Blob;
+  pageCount: number;
   warnings: string[];
 }
 
-// A4 with 56pt (about 2cm) margins.
-const PAGE_MARGIN = 56;
-const CONTENT_WIDTH = 595.28 - PAGE_MARGIN * 2;
-const MAX_IMAGE_HEIGHT = 680;
-const PX_TO_PT = 0.75;
+const FONT_BASE = "/fonts/docx";
 
-interface PdfMakeLike {
-  addVirtualFileSystem: (vfs: unknown) => void;
-  setUrlAccessPolicy: (allow: (url: string) => boolean) => void;
-  createPdf: (definition: unknown) => { getBlob: () => Promise<Blob> };
+// Loads one font file from the same origin. A missing script subset is normal
+// (not every family covers every script), so that is not an error.
+async function loadFont(family: string, subset: string, bold: boolean, italic: boolean): Promise<Uint8Array | null> {
+  const url = `${FONT_BASE}/${family}-${subset}-${bold ? 700 : 400}-${italic ? "italic" : "normal"}.woff`;
+  const response = await fetch(url);
+  if (!response.ok) return null;
+  return new Uint8Array(await response.arrayBuffer());
 }
 
-let pdfMakePromise: Promise<PdfMakeLike> | null = null;
-
-// pdfmake and its fonts are large, so they load only when a Word file is
-// actually converted, and only once.
-function loadPdfMake(): Promise<PdfMakeLike> {
-  if (!pdfMakePromise) {
-    pdfMakePromise = Promise.all([import("pdfmake/build/pdfmake"), import("pdfmake/build/vfs_fonts")])
-      .then(([mod, fonts]) => {
-        const pdfMake = ((mod as { default?: unknown }).default ?? mod) as unknown as PdfMakeLike;
-        const vfs = (fonts as { default?: unknown }).default ?? fonts;
-        pdfMake.addVirtualFileSystem(vfs);
-        // The document is untrusted: never let the PDF builder fetch anything
-        // from the network (all pictures are embedded data already).
-        pdfMake.setUrlAccessPolicy(() => false);
-        return pdfMake;
-      })
-      .catch((error) => {
-        pdfMakePromise = null;
-        throw error;
-      });
-  }
-  return pdfMakePromise;
-}
-
-// Sets each picture's size in the PDF: its natural size, scaled down to fit the
-// page. (Word stores sizes separately from the image; mammoth doesn't carry them.)
-async function sizeImages(html: string): Promise<string> {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  const images = Array.from(doc.querySelectorAll("img"));
-  await Promise.all(
-    images.map(async (img) => {
-      try {
-        const probe = new Image();
-        probe.src = img.getAttribute("src") ?? "";
-        await probe.decode();
-        let w = probe.naturalWidth * PX_TO_PT;
-        let h = probe.naturalHeight * PX_TO_PT;
-        const scale = Math.min(1, CONTENT_WIDTH / w, MAX_IMAGE_HEIGHT / h);
-        w *= scale;
-        h *= scale;
-        img.setAttribute("width", String(Math.max(1, Math.round(w))));
-        img.setAttribute("height", String(Math.max(1, Math.round(h))));
-      } catch {
-        img.remove();
-      }
-    }),
-  );
-  return doc.body.innerHTML;
-}
-
-const TABLE_LAYOUT = {
-  hLineWidth: () => 0.5,
-  vLineWidth: () => 0.5,
-  hLineColor: () => "#b0b0b0",
-  vLineColor: () => "#b0b0b0",
-  paddingLeft: () => 4,
-  paddingRight: () => 4,
-  paddingTop: () => 3,
-  paddingBottom: () => 3,
-};
-
-// Word tables usually have borders that mammoth can't read; a thin grid keeps
-// them readable.
-function decorate(node: unknown): void {
-  if (Array.isArray(node)) {
-    node.forEach(decorate);
-    return;
-  }
-  if (!node || typeof node !== "object") return;
-  const record = node as Record<string, unknown>;
-  if (record.table) record.layout = TABLE_LAYOUT;
-  for (const value of Object.values(record)) {
-    if (value && typeof value === "object") decorate(value);
+// Pictures the PDF writer can't embed as-is (GIF, BMP, WebP, SVG ...) are
+// redrawn through a canvas as PNG.
+async function convertImage(data: Uint8Array, mime: string): Promise<{ data: Uint8Array; mime: string } | null> {
+  if (!/^image\/(gif|bmp|webp|svg\+xml|tiff)$/.test(mime)) return null;
+  try {
+    const bitmap = await createImageBitmap(new Blob([data as BlobPart], { type: mime }));
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) return null;
+    return { data: new Uint8Array(await blob.arrayBuffer()), mime: "image/png" };
+  } catch {
+    return null;
   }
 }
 
@@ -117,47 +62,27 @@ export async function convertDocxToPdf(file: File, options: WordToPdfOptions = {
   const buffer = await file.arrayBuffer();
   checkDocxFile(file, new Uint8Array(buffer, 0, Math.min(8, buffer.byteLength)));
 
-  options.onStage?.("converting");
-  const { html, warnings, hasContent } = await docxToSafeHtml(buffer);
-  if (!hasContent) throw new WordConvertError("word_empty");
-  const sized = await sizeImages(html);
+  // The engine (PDF writer, font parser, zip reader) is large, so it loads only
+  // once a Word file is actually being converted.
+  const engine = await import("./docx/index");
 
   try {
-    options.onStage?.("building");
-    const [pdfMake, htmlToPdfMakeModule] = await Promise.all([loadPdfMake(), import("html-to-pdfmake")]);
-    const htmlToPdfMake = ((htmlToPdfMakeModule as { default?: unknown }).default ?? htmlToPdfMakeModule) as unknown as (
-      html: string,
-      options: Record<string, unknown>,
-    ) => unknown;
-
-    const content = htmlToPdfMake(sized, {
-      window,
-      removeExtraBlanks: true,
-      defaultStyles: {
-        a: { color: "#1a56b8", decoration: "underline" },
-      },
+    const result = await engine.docxToPdf(buffer, {
+      loadFont: loadFont as import("./docx/index").FontLoader,
+      convertImage,
+      title: file.name.replace(/\.docx$/i, ""),
+      onStage: (stage) => options.onStage?.(stage === "reading" ? "reading" : stage === "layout" ? "converting" : "building"),
     });
-    decorate(content);
-
-    const definition = {
-      pageSize: "A4",
-      pageMargins: [PAGE_MARGIN, PAGE_MARGIN, PAGE_MARGIN, PAGE_MARGIN],
-      info: { title: file.name.replace(/\.docx$/i, ""), creator: "DocuScanner" },
-      defaultStyle: { font: "Roboto", fontSize: 11, lineHeight: 1.25 },
-      content,
-      styles: {
-        "jc-center": { alignment: "center" },
-        "jc-right": { alignment: "right" },
-        "jc-justify": { alignment: "justify" },
-      },
-      pageBreakBefore: (node: { style?: unknown }) =>
-        Array.isArray(node.style) && node.style.includes("page-break-before"),
+    return {
+      blob: new Blob([result.bytes as BlobPart], { type: "application/pdf" }),
+      pageCount: result.pageCount,
+      warnings: result.warnings,
     };
-
-    const blob = await pdfMake.createPdf(definition).getBlob();
-    return { blob, warnings };
   } catch (error) {
+    if (error instanceof engine.EmptyDocumentError) throw new WordConvertError("word_empty");
     if (error instanceof WordConvertError) throw error;
+    // A file that opens as a zip but has no document part is not a Word file.
+    if (error instanceof Error && /no document part|no body/.test(error.message)) throw new WordConvertError("word_invalid");
     throw new WordConvertError("word_failed");
   }
 }

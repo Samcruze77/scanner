@@ -16,6 +16,10 @@ const eslintConfig = defineConfig([
     "public/ocr/**",
     // Vendored PDF.js runtime copied in by scripts/copy-pdf-assets.mjs.
     "public/pdfjs/**",
+    // Vendored converter fonts copied in by scripts/copy-font-assets.mjs.
+    "public/fonts/**",
+    // Node test harness scripts (not app code).
+    "tests/**",
   ]),
 ]);
 

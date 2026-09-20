@@ -1,6 +1,6 @@
 "use client";
 
-// Bottom action bar for small screens, replacing the header's Scan/History
+// Bottom action bar for small screens, replacing the header's Scan/Convert/Tools/History
 // links (which are hidden below `sm` to keep the header from wrapping).
 // Fixed to the viewport bottom, so app/layout.tsx reserves matching bottom
 // padding on <body> to keep it from covering page content.
@@ -13,6 +13,7 @@ const ITEMS = [
   { href: "/", label: "Home", icon: "🏠" },
   { href: "/scan", label: "Scan", icon: "📷" },
   { href: "/convert", label: "Convert", icon: "🔄" },
+  { href: "/tools", label: "Tools", icon: "🛠" },
   { href: "/history", label: "History", icon: "🗂" },
 ] as const;
 
@@ -27,8 +28,8 @@ export function MobileActionBar() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {ITEMS.map((item) => {
-        // The Convert tab covers the hub and both tools beneath it.
-        const active = item.href === "/convert" ? pathname.startsWith("/convert") : pathname === item.href;
+        // Convert and Tools each cover their hub and every page beneath it.
+        const active = item.href === "/convert" || item.href === "/tools" ? pathname.startsWith(item.href) : pathname === item.href;
         return (
           <Link
             key={item.href}

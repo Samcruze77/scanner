@@ -15,7 +15,7 @@ import {
 import { SIGNATURE_FONT_STACK } from "@/utils/scanner/annotations";
 import { clearSavedSignature, loadSavedSignature, saveSignature } from "@/utils/scanner/signatureStore";
 
-type Tab = "draw" | "type" | "upload";
+export type Tab = "draw" | "type" | "upload";
 
 const TABS: { value: Tab; label: string }[] = [
   { value: "draw", label: "Draw Signature" },
@@ -38,12 +38,15 @@ export function SignatureDialog({
   lastSignature,
   onApply,
   onCancel,
+  initialTab,
 }: {
   lastSignature: SignatureImage | null;
-  onApply: (signature: SignatureImage) => void;
+  // `method` is which tab produced it (absent when an earlier signature is reused).
+  onApply: (signature: SignatureImage, method?: Tab) => void;
   onCancel: () => void;
+  initialTab?: Tab;
 }) {
-  const [tab, setTab] = useState<Tab>("draw");
+  const [tab, setTab] = useState<Tab>(initialTab ?? "draw");
   const [color, setColor] = useState<string>(INK_COLORS[0].value);
   const [hasInk, setHasInk] = useState(false);
   const [typed, setTyped] = useState("");
@@ -206,7 +209,7 @@ export function SignatureDialog({
       // Storage was blocked or full: still place the signature, just say so.
       setError("The signature was added, but couldn't be saved on this device.");
     }
-    onApply(result);
+    onApply(result, tab);
   }
 
   return (
@@ -220,7 +223,10 @@ export function SignatureDialog({
       }}
     >
       <div className="flex max-h-full w-full flex-col gap-4 overflow-y-auto rounded-t-xl bg-white p-4 dark:bg-zinc-900 sm:max-w-lg sm:rounded-xl">
-        <h2 className="text-base font-semibold">Add your signature</h2>
+        <div>
+          <h2 className="text-base font-semibold">Add your signature</h2>
+          <p className="mt-0.5 text-sm text-zinc-500">Draw your signature or upload an existing signature image.</p>
+        </div>
 
         {saved && (
           <div className="flex items-stretch gap-2">

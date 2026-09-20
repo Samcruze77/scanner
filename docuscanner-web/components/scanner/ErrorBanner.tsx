@@ -10,7 +10,7 @@ export function ErrorBanner({ message, onDismiss }: { message: string; onDismiss
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss error"
-          className="shrink-0 rounded p-1 text-red-500 hover:text-red-700 dark:hover:text-red-100"
+          className="-my-2 -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded text-red-500 hover:text-red-700 dark:hover:text-red-100"
         >
           ✕
         </button>

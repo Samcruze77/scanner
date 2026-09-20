@@ -3,7 +3,8 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { AdSlot } from "@/components/ads/AdSlot";
+import { AdInline } from "@/components/ads/AdSlot";
+import { Hint } from "@/components/guidance/Hint";
 import { fileToCapturedImage, type CapturedImage } from "@/utils/scanner/image";
 import type { Quad } from "@/utils/scanner/geometry";
 import { createInitialPage, type PageRotation, type ScannerPage } from "@/utils/scanner/page";
@@ -11,7 +12,7 @@ import { detectPageQuad, renderPage } from "@/utils/scanner/pageProcessing";
 import { createPdfFromPages } from "@/utils/scanner/pdf";
 import { downloadBlob } from "@/utils/convert/download";
 import { importPdfPages } from "@/utils/scanner/pdfImport";
-import type { Annotation } from "@/utils/scanner/annotations";
+import type { Annotation, AnnotationTool } from "@/utils/scanner/annotations";
 import { remapAnnotations, type PageGeometry } from "@/utils/scanner/annotationRemap";
 import { annotationContentBounds } from "@/utils/scanner/annotationRender";
 import type { SignatureImage } from "@/utils/scanner/signature";
@@ -34,6 +35,7 @@ import {
   trackFeatureUsed,
   trackScanCompleted,
   trackScanStarted,
+  trackSignPdf,
 } from "@/utils/analytics/events";
 import { CameraCapture } from "./CameraCapture";
 import { PageList } from "./PageList";
@@ -52,6 +54,14 @@ const AnnotationEditor = dynamic(() => import("./AnnotationEditor").then((m) => 
 });
 
 type Mode = "idle" | "camera";
+
+// Set when the workspace is opened from a Tools entry (Sign PDF, Highlight ...):
+// which annotation tool to start with, and which signature method to show first.
+export interface EditorIntent {
+  tool: AnnotationTool | null;
+  signatureTab?: "draw" | "upload";
+  guide?: string;
+}
 
 // A page whose detected boundary covers at least this much confidence gets
 // auto-cropped by default; below it we keep the original framing rather
@@ -79,7 +89,7 @@ function annotationsForChange(
   return remapAnnotations(page.annotations, geometryOf(page), geometryOf({ ...page, ...change }), annotationContentBounds);
 }
 
-export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "upload" }) {
+export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camera" | "upload"; intent?: EditorIntent }) {
   const { user, openAuthModal } = useAuth();
   // Derive the starting mode directly from the prop instead of setting it
   // from an effect -- avoids an extra render and a setState-in-effect.
@@ -88,6 +98,9 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [croppingPageId, setCroppingPageId] = useState<string | null>(null);
   const [annotatingPageId, setAnnotatingPageId] = useState<string | null>(null);
+  // A Tools entry opens the annotator by itself for a single-page document, once;
+  // after that (or with several pages) the person picks a page as usual.
+  const [intentUsed, setIntentUsed] = useState(false);
   // The most recent signature, kept in memory only so it can be placed on more
   // pages without redrawing. Never stored or uploaded; gone on reload.
   const [lastSignature, setLastSignature] = useState<SignatureImage | null>(null);
@@ -464,13 +477,18 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
     void reprocessPage(page, { quad, cropEnabled: true, annotations: annotationsForChange(page, { quad, cropEnabled: true }) });
   }
 
-  const annotatingPage = pages.find((p) => p.id === annotatingPageId) ?? null;
+  const autoOpenId =
+    intent?.tool && !intentUsed && pages.length === 1 && pages[0].status === "ready" && !editingPageId && !croppingPageId
+      ? pages[0].id
+      : null;
+  const annotatingPage = pages.find((p) => p.id === (annotatingPageId ?? autoOpenId)) ?? null;
   const annotatingIndex = annotatingPage ? pages.findIndex((p) => p.id === annotatingPage.id) : -1;
 
   function handleAnnotationsDone(annotations: Annotation[]) {
     if (!annotatingPage) return;
     const page = annotatingPage;
     setAnnotatingPageId(null);
+    setIntentUsed(true);
     // Nothing changed: leave the page (and any PDF already made) alone.
     if (annotations === page.annotations) return;
     // The PDF made earlier no longer matches this page.
@@ -495,6 +513,8 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
       const blob = await createPdfFromPages(pages);
       setPdfBlob(blob);
       void trackDocumentCreated(pages.length);
+      const signatures = pages.reduce((n, p) => n + p.annotations.filter((a) => a.type === "signature").length, 0);
+      if (signatures > 0) void trackSignPdf(signatures);
     } catch {
       setError("Couldn't create the PDF. Please try again.");
       void trackError("pdf_generation", "pdf_generation_failed");
@@ -551,6 +571,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
     setEditingPageId(null);
     setCroppingPageId(null);
     setAnnotatingPageId(null);
+    setIntentUsed(false);
     setNotice(null);
     setPdfBlob(null);
     setSaveNotice(null);
@@ -582,7 +603,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
             type="button"
             onClick={() => setNotice(null)}
             aria-label="Dismiss notice"
-            className="shrink-0 rounded p-1 hover:opacity-70"
+            className="-my-2 -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded hover:opacity-70"
           >
             ✕
           </button>
@@ -600,19 +621,29 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
           <button
             type="button"
             onClick={handleOpenCamera}
-            className="min-h-11 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-black"
+            className={`min-h-11 rounded-md px-4 py-2.5 text-sm font-medium ${
+              intent ? "order-2 border border-zinc-300 dark:border-zinc-700" : "bg-zinc-900 text-white dark:bg-white dark:text-black"
+            }`}
           >
             Use camera
           </button>
           <button
             type="button"
             onClick={handleUploadClick}
-            className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700"
+            className={`min-h-11 rounded-md px-4 py-2.5 text-sm font-medium ${
+              intent ? "order-1 bg-zinc-900 text-white dark:bg-white dark:text-black" : "border border-zinc-300 dark:border-zinc-700"
+            }`}
           >
             Upload document
           </button>
           <p className="basis-full text-xs text-zinc-500">{SUPPORTED_FORMATS}</p>
         </div>
+      )}
+
+      {pages.length > 0 && (
+        <Hint id="scan-open-page">
+          Tap a page to open the editor: crop, enhance, add text or sign. Use the arrows to reorder pages.
+        </Hint>
       )}
 
       <PageList
@@ -622,7 +653,7 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
         onMove={handleMovePage}
       />
 
-      <AdSlot variant="workspace" />
+      <AdInline />
 
       <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
         <button
@@ -737,6 +768,8 @@ export function ScannerWorkspace({ initialMode }: { initialMode?: "camera" | "up
           onSignatureUsed={setLastSignature}
           onTrack={(feature) => void trackFeatureUsed(feature)}
           onDone={handleAnnotationsDone}
+          initialTool={intent?.tool}
+          initialSignatureTab={intent?.signatureTab}
         />
       )}
 

@@ -1,21 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdSlot } from "@/components/ads/AdSlot";
+import { PageShell } from "@/components/layout/PageShell";
 import { CONVERT_TOOLS, SCAN_TOOL } from "@/components/convert/tools";
 
 export const metadata: Metadata = {
-  title: "Document tools - DocuScanner",
+  title: "Convert files - DocuScanner",
   description: "Scan, edit and sign documents, and convert between Word, PDF and Excel. Free, in your browser.",
 };
 
 export default function ConvertHubPage() {
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
-      <AdSlot variant="top-banner" className="mb-6" />
-      <AdSlot variant="mobile-banner" className="mb-6" />
-      <h1 className="mb-1 text-xl font-semibold">Document tools</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+    <PageShell>
+      <h1 className="mb-1 text-xl font-semibold">Convert</h1>
+      <p className="mb-2 text-sm text-zinc-500">
         Everything runs in your browser, so your files are never uploaded.
+      </p>
+      <p className="mb-6 text-sm text-zinc-500">
+        Use Convert to change a file&apos;s type. To edit, sign or compress a file, use{" "}
+        <Link href="/tools" className="inline-flex min-h-11 min-w-11 items-center justify-center font-medium text-zinc-900 underline dark:text-white">
+          Tools
+        </Link>
+        .
       </p>
       <ul className="grid gap-4 sm:grid-cols-2">
         {[SCAN_TOOL, ...CONVERT_TOOLS].map((tool) => (
@@ -30,6 +35,6 @@ export default function ConvertHubPage() {
           </li>
         ))}
       </ul>
-    </main>
+    </PageShell>
   );
 }

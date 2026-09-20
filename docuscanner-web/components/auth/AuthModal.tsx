@@ -105,7 +105,7 @@ function AuthModalDialog() {
             type="button"
             onClick={closeAuthModal}
             aria-label="Close"
-            className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800"
           >
             ✕
           </button>
@@ -127,7 +127,7 @@ function AuthModalDialog() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-black"
+              className="min-h-11 w-full rounded-md border border-zinc-300 px-3 text-sm dark:border-zinc-700 dark:bg-black"
             />
           </label>
           <label className="block text-sm">
@@ -139,7 +139,7 @@ function AuthModalDialog() {
               autoComplete={mode === "signup" ? "new-password" : "current-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-black"
+              className="min-h-11 w-full rounded-md border border-zinc-300 px-3 text-sm dark:border-zinc-700 dark:bg-black"
             />
           </label>
 
@@ -157,7 +157,7 @@ function AuthModalDialog() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+            className="min-h-11 w-full rounded-md bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
             {submitting ? "Please wait…" : mode === "signup" ? "Sign up" : "Log in"}
           </button>
@@ -170,7 +170,7 @@ function AuthModalDialog() {
               <button
                 type="button"
                 onClick={() => switchMode("login")}
-                className="font-medium text-zinc-900 underline dark:text-white"
+                className="inline-flex min-h-11 items-center font-medium text-zinc-900 underline dark:text-white"
               >
                 Log in
               </button>
@@ -181,7 +181,7 @@ function AuthModalDialog() {
               <button
                 type="button"
                 onClick={() => switchMode("signup")}
-                className="font-medium text-zinc-900 underline dark:text-white"
+                className="inline-flex min-h-11 items-center font-medium text-zinc-900 underline dark:text-white"
               >
                 Create a free account
               </button>

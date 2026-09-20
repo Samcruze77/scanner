@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Self-hosted Word -> PDF fonts (see scripts/copy-font-assets.mjs): loaded
+        // only when a Word file is converted, and unchanged between deploys.
+        source: "/fonts/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=2592000" }],
+      },
+      {
         // Self-hosted OCR runtime (see scripts/copy-ocr-assets.mjs). Multi-MB
         // and unchanged between deploys, so let browsers reuse it instead of
         // revalidating on every OCR run.

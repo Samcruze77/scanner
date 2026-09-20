@@ -11,10 +11,17 @@ import type { User } from "@supabase/supabase-js";
 export type PlanId = "free" | "premium";
 
 export type FeatureId =
+  | "convert.image_to_pdf"
   | "convert.excel_to_pdf"
   | "convert.pdf_to_excel"
   | "convert.word_to_pdf"
   | "convert.pdf_to_word"
+  | "edit.annotate"
+  | "edit.sign"
+  | "compress.pdf"
+  | "compress.image"
+  | "compress.word"
+  | "compress.excel"
   | "ocr.basic"
   | "ocr.advanced"
   | "ocr.batch"
@@ -35,11 +42,23 @@ export const FEATURES: Record<FeatureId, FeatureDefinition> = {
   // the device). PDF -> Excel reads digital PDFs with real columns; scanned
   // pages go through basic OCR and come out one line per row. Column detection
   // for scanned tables stays reserved as `ocr.table_extraction` below.
+  // Image -> PDF is the scan workspace under another name: free, in the browser.
+  "convert.image_to_pdf": { minPlan: "free", implemented: true },
   "convert.excel_to_pdf": { minPlan: "free", implemented: true },
   "convert.pdf_to_excel": { minPlan: "free", implemented: true },
   // Word conversions also run entirely in the browser and stay free.
   "convert.word_to_pdf": { minPlan: "free", implemented: true },
   "convert.pdf_to_word": { minPlan: "free", implemented: true },
+  // Editing, signing and compression tools run in the browser and are free.
+  // Signing (draw, type, upload) and the basic annotations are deliberately NOT
+  // premium features. Login, where a tool asks for it, is separate from plans:
+  // see `requiresAuth` in utils/tools/registry.ts.
+  "edit.annotate": { minPlan: "free", implemented: true },
+  "edit.sign": { minPlan: "free", implemented: true },
+  "compress.pdf": { minPlan: "free", implemented: true },
+  "compress.image": { minPlan: "free", implemented: true },
+  "compress.word": { minPlan: "free", implemented: true },
+  "compress.excel": { minPlan: "free", implemented: true },
   // Free at launch: in-browser Tesseract, English, page-by-page.
   "ocr.basic": { minPlan: "free", implemented: true },
   // Reserved for the paid tier (~6-8 months post launch): higher-accuracy

@@ -224,6 +224,7 @@ export function PageEditor({
 
           <div>
             <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">Adjust</p>
+            <p className="mb-1 text-xs text-zinc-500">Adjust brightness and contrast below.</p>
             <AdjustmentSlider
               label="Brightness"
               value={page.brightness}

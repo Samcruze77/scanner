@@ -15,9 +15,14 @@ export const SCAN_TOOL: ToolLink = {
 
 export const CONVERT_TOOLS: ToolLink[] = [
   {
+    href: "/convert/image-to-pdf",
+    title: "Image to PDF",
+    body: "Turn photos and pictures into one PDF. Crop, enhance and reorder the pages first.",
+  },
+  {
     href: "/convert/word-to-pdf",
     title: "Word to PDF",
-    body: "Turn a Word document into a PDF. Keeps headings, lists, tables, pictures, links and text styles.",
+    body: "Turn a Word document into a PDF that keeps your fonts, spacing, margins, tables, pictures, headers and footers.",
   },
   {
     href: "/convert/pdf-to-word",

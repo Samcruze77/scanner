@@ -13,7 +13,7 @@ import {
 } from "@/utils/analytics/events";
 import { downloadBlob, outputFilename } from "@/utils/convert/download";
 import { wordErrorMessage } from "@/utils/convert/errorMessages";
-import { WordConvertError } from "@/utils/convert/docxHtml";
+import { WordConvertError } from "@/utils/convert/wordErrors";
 import { getUserPlan, isFeatureAvailable } from "@/utils/features/plans";
 import { summarizePdf } from "@/utils/pdf/preview";
 import { setPendingImport } from "@/utils/scanner/handoff";
@@ -58,8 +58,8 @@ export function WordToPdfTool() {
     void trackDocumentUploaded(file.type || "application/octet-stream", file.size);
     void trackConversionStarted("word_to_pdf");
     try {
-      // The converter (mammoth, the PDF builder and its fonts) is large, so it
-      // only loads once a document has actually been chosen.
+      // The converter (layout engine, PDF writer and fonts) is large, so it only
+      // loads once a document has actually been chosen.
       const { convertDocxToPdf } = await import("@/utils/convert/wordToPdf");
       const result = await convertDocxToPdf(file, {
         onStage: (s) => setStage({ name: "working", fileName: file.name, label: STAGE_LABELS[s] }),
@@ -70,7 +70,7 @@ export function WordToPdfTool() {
         name: "done",
         fileName: file.name,
         blob: result.blob,
-        pageCount: summary.pageCount,
+        pageCount: summary.pageCount || result.pageCount,
         preview: summary.previewDataUrl,
         warnings: result.warnings,
       });
@@ -147,8 +147,9 @@ export function WordToPdfTool() {
               </ul>
             )}
             <p>
-              Headings, lists, tables, pictures, links and text styles are kept. Fonts, colours and exact spacing
-              may look different from Word.
+              Fonts, sizes, spacing, margins, lists, tables, pictures, headers and footers are taken from your document.
+              Look-alike fonts with identical character widths stand in for Calibri, Arial, Times New Roman, Courier New
+              and Cambria, so lines and pages break where they do in Word.
             </p>
           </div>
 

@@ -20,14 +20,14 @@ export function RequireAuthPrompt({
         <button
           type="button"
           onClick={() => openAuthModal("login")}
-          className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-white dark:border-zinc-700 dark:hover:bg-zinc-800"
+          className="min-h-11 rounded-md border border-zinc-300 px-3 text-sm font-medium hover:bg-white dark:border-zinc-700 dark:hover:bg-zinc-800"
         >
           Log in
         </button>
         <button
           type="button"
           onClick={() => openAuthModal("signup")}
-          className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-white dark:text-black"
+          className="min-h-11 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white dark:bg-white dark:text-black"
         >
           Sign up free
         </button>

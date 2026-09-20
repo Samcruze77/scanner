@@ -26,6 +26,7 @@ export function PageThumbnail({
         type="button"
         onClick={onEdit}
         aria-label={`Edit page ${index + 1}`}
+        title="Click the image to edit"
         className="relative block overflow-hidden rounded-md"
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL, not a static asset next/image can optimize */}

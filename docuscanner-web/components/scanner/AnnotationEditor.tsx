@@ -25,7 +25,7 @@ import { loadAnnotationImage } from "@/utils/scanner/annotationRender";
 import type { ScannerPage } from "@/utils/scanner/page";
 import type { SignatureImage } from "@/utils/scanner/signature";
 import { AnnotationCanvas, type AnnotationDefaults } from "./AnnotationCanvas";
-import { SignatureDialog } from "./SignatureDialog";
+import { SignatureDialog, type Tab as SignatureTab } from "./SignatureDialog";
 
 const TOOLS: { value: AnnotationTool; label: string; icon: string }[] = [
   { value: "select", label: "Select", icon: "↖" },
@@ -64,6 +64,8 @@ export function AnnotationEditor({
   onSignatureUsed,
   onTrack,
   onDone,
+  initialTool,
+  initialSignatureTab,
 }: {
   page: ScannerPage;
   index: number;
@@ -71,15 +73,18 @@ export function AnnotationEditor({
   onSignatureUsed: (signature: SignatureImage) => void;
   onTrack: (feature: string) => void;
   onDone: (annotations: Annotation[]) => void;
+  // Set when the editor is opened from a Tools entry such as Sign PDF or Highlight.
+  initialTool?: AnnotationTool | null;
+  initialSignatureTab?: "draw" | "upload";
 }) {
   const [history, setHistory] = useState<History>({ past: [], present: page.annotations, future: [] });
   // A gesture or text edit in progress. Shown, but not in the history until it
   // ends, so undo steps over whole actions rather than every pen sample.
   const [live, setLive] = useState<Annotation[] | null>(null);
-  const [tool, setTool] = useState<AnnotationTool>("select");
+  const [tool, setTool] = useState<AnnotationTool>(initialTool && initialTool !== "signature" ? initialTool : "select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [signatureOpen, setSignatureOpen] = useState(false);
+  const [signatureOpen, setSignatureOpen] = useState(initialTool === "signature");
 
   const [color, setColor] = useState<string>(PALETTE[0]);
   const [highlightColor, setHighlightColor] = useState<string>(HIGHLIGHT_PALETTE[0]);
@@ -217,7 +222,7 @@ export function AnnotationEditor({
     if (selected?.type === "text") patchSelected((a) => ({ ...a, italic: value }) as Annotation);
   }
 
-  async function placeSignature(signature: SignatureImage) {
+  async function placeSignature(signature: SignatureImage, method?: SignatureTab) {
     setSignatureOpen(false);
     try {
       await loadAnnotationImage(signature.dataUrl);
@@ -229,6 +234,7 @@ export function AnnotationEditor({
     setSelectedId(placed.id);
     setTool("select");
     onSignatureUsed(signature);
+    if (method) onTrack(method === "draw" ? "signature_drawn" : method === "upload" ? "signature_uploaded" : "signature_typed");
   }
 
   // ---- keyboard -----------------------------------------------------------------
@@ -331,7 +337,7 @@ export function AnnotationEditor({
       <div
         role="toolbar"
         aria-label="Annotation tools"
-        className="flex shrink-0 gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
+        className="flex shrink-0 flex-wrap gap-1 border-b border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
       >
         {TOOLS.map((t, i) => (
           <button
@@ -495,11 +501,17 @@ export function AnnotationEditor({
             onPlaced={() => setTool("select")}
           />
         </div>
-        {tool !== "select" && HINTS[tool] && <p className="mt-2 text-center text-xs text-zinc-500">{HINTS[tool]}</p>}
+        {(tool !== "select" || annotations.length > 0) && (
+          <p className="mt-2 text-center text-xs text-zinc-500">
+            {tool === "select" && selected?.type === "signature"
+              ? "Drag to move your signature. Drag the corner dot to resize it."
+              : HINTS[tool]}
+          </p>
+        )}
       </div>
 
       {signatureOpen && (
-        <SignatureDialog lastSignature={lastSignature} onApply={(s) => void placeSignature(s)} onCancel={() => setSignatureOpen(false)} />
+        <SignatureDialog lastSignature={lastSignature} initialTab={initialSignatureTab} onApply={(s, method) => void placeSignature(s, method)} onCancel={() => setSignatureOpen(false)} />
       )}
     </div>
   );

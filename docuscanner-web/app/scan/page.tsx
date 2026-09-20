@@ -1,5 +1,5 @@
 import { ScannerWorkspace } from "@/components/scanner/ScannerWorkspace";
-import { AdSlot } from "@/components/ads/AdSlot";
+import { PageShell } from "@/components/layout/PageShell";
 
 export default async function ScanPage({
   searchParams,
@@ -10,14 +10,12 @@ export default async function ScanPage({
   const initialMode = mode === "camera" || mode === "upload" ? mode : undefined;
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
-      <AdSlot variant="top-banner" className="mb-6" />
-      <AdSlot variant="mobile-banner" className="mb-6" />
+    <PageShell>
       <h1 className="mb-1 text-xl font-semibold">Scan, edit &amp; sign a document</h1>
       <p className="mb-6 text-sm text-zinc-500">
         Free to use as a guest. Everything happens in your browser. Sign in if you&apos;d like to save a document to your account.
       </p>
       <ScannerWorkspace initialMode={initialMode} />
-    </main>
+    </PageShell>
   );
 }

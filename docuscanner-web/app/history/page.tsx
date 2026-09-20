@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { getVerifiedClaims } from "@/utils/supabase/claims";
 import { createClient } from "@/utils/supabase/server";
 import { RequireAuthPrompt } from "@/components/auth/RequireAuthPrompt";
-import { AdSlot } from "@/components/ads/AdSlot";
+import { PageShell } from "@/components/layout/PageShell";
 
 interface DocumentRow {
   id: string;
@@ -20,10 +20,10 @@ export default async function HistoryPage() {
 
   if (!claims) {
     return (
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
+      <PageShell width="narrow">
         <h1 className="mb-4 text-xl font-semibold">Document history</h1>
         <RequireAuthPrompt message="Sign in to see documents you've saved to your account." />
-      </main>
+      </PageShell>
     );
   }
 
@@ -46,8 +46,7 @@ export default async function HistoryPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-      <AdSlot variant="top-banner" className="mb-6" />
+    <PageShell width="narrow">
       <h1 className="mb-4 text-xl font-semibold">Document history</h1>
       {withUrls.length === 0 ? (
         <p className="text-sm text-zinc-500">
@@ -76,6 +75,6 @@ export default async function HistoryPage() {
           ))}
         </ul>
       )}
-    </main>
+    </PageShell>
   );
 }

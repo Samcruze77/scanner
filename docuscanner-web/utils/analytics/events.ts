@@ -69,3 +69,57 @@ export function trackFeatureUsed(feature: string, properties?: Record<string, un
 export function trackError(context: string, message?: string) {
   return trackEvent("error", { properties: { context, message } });
 }
+
+// ---- Tools menu ----------------------------------------------------------------
+//
+// The deployed `track-analytics` function only accepts the event names in
+// client.ts, so the product events below ride on the existing ones, told apart
+// by their `feature` / `conversion_type`. Nothing here ever carries a document,
+// filename, OCR text or signature image: only tool ids, enums, sizes and counts.
+
+// tool_opened
+export function trackToolOpened(tool: string) {
+  return trackFeatureUsed("tool_opened", { tool });
+}
+
+// login_required: a guest reached a tool that asks for a (free) account.
+export function trackLoginRequired(tool: string) {
+  return trackFeatureUsed("login_required", { tool });
+}
+
+// compression_started / compression_completed / compression_failed. `kind` is
+// pdf | image | word | excel; the reduction is a whole-number percentage.
+export function trackCompressionStarted(kind: string) {
+  return trackConversionStarted(`compress_${kind}`);
+}
+
+export function trackCompressionCompleted(kind: string, durationMs: number, reductionPct: number, targetMet: boolean | null) {
+  return trackEvent("conversion_completed", {
+    conversionType: `compress_${kind}`,
+    properties: { durationMs, reductionPct: Math.round(reductionPct), targetMet },
+  });
+}
+
+export function trackCompressionFailed(kind: string, code: string) {
+  return trackError(`compress_${kind}`, code);
+}
+
+// signature_drawn / signature_uploaded (and typed): which method, never the image.
+export function trackSignatureAdded(method: "draw" | "upload" | "type") {
+  return trackFeatureUsed(method === "draw" ? "signature_drawn" : method === "upload" ? "signature_uploaded" : "signature_typed");
+}
+
+// sign_pdf: a PDF was created that carries at least one signature.
+export function trackSignPdf(signatureCount: number) {
+  return trackFeatureUsed("sign_pdf", { signatureCount });
+}
+
+// Advertising. Only called for a live ad provider (see utils/ads/config.ts);
+// placeholders are never counted. Placement is a fixed enum, nothing else.
+export function trackAdImpression(placement: string, provider: string) {
+  return trackFeatureUsed("ad_impression", { placement, provider });
+}
+
+export function trackAdClick(placement: string, provider: string) {
+  return trackFeatureUsed("ad_click", { placement, provider });
+}

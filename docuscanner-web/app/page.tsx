@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AdSlot } from "@/components/ads/AdSlot";
+import { AdBottom, AdTop } from "@/components/ads/AdSlot";
 import { CONVERT_TOOLS } from "@/components/convert/tools";
 import { HomeAuthCta } from "@/components/home/HomeAuthCta";
 import { SUPPORTED_FORMATS } from "@/utils/scanner/documentTypes";
@@ -51,11 +51,14 @@ export default function Home() {
 
         <p className="mt-4 text-sm text-zinc-500">{SUPPORTED_FORMATS}</p>
         <p className="mt-1 text-sm text-zinc-500">Free to use. Supported by ads.</p>
+        <p className="mt-3 text-sm text-zinc-500">
+          Use <Link href="/convert" className="inline-flex min-h-11 min-w-11 items-center justify-center font-medium text-zinc-900 underline dark:text-white">Convert</Link> for file conversions.
+          Use <Link href="/tools" className="inline-flex min-h-11 min-w-11 items-center justify-center font-medium text-zinc-900 underline dark:text-white">Tools</Link> for editing, signing and compression.
+        </p>
       </section>
 
-      <div className="mx-auto w-full max-w-5xl space-y-3 px-4">
-        <AdSlot variant="top-banner" />
-        <AdSlot variant="mobile-banner" />
+      <div className="mx-auto w-full max-w-5xl px-4">
+        <AdTop />
       </div>
 
       <section className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-14 sm:grid-cols-3">
@@ -86,9 +89,13 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-5xl px-4 pb-16 text-center">
+      <section className="mx-auto w-full max-w-5xl px-4 pb-8 text-center">
         <HomeAuthCta />
       </section>
+
+      <div className="mx-auto w-full max-w-5xl px-4 pb-10">
+        <AdBottom />
+      </div>
     </main>
   );
 }

@@ -13,7 +13,7 @@ export function HomeAuthCta() {
       <button
         type="button"
         onClick={() => openAuthModal("signup")}
-        className="font-medium text-zinc-900 underline dark:text-white"
+        className="inline-flex min-h-11 items-center font-medium text-zinc-900 underline dark:text-white"
       >
         Create a free account
       </button>{" "}
