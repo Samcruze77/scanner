@@ -2,9 +2,10 @@
 //
 // Standard: keeps the PDF exactly as it is -- text stays text (selectable,
 // searchable, sharp), vectors stay vectors -- and only re-encodes the JPEG
-// pictures inside it at a lower quality/size, then writes the file with
-// compact object streams. This is where scanned documents and photo-heavy PDFs
-// get most of their weight.
+// pictures inside it at the chosen level, drops hidden extras that don't affect
+// how a page looks (page thumbnails, XMP metadata, application-private data),
+// then writes the file with compact object streams. This is where scanned
+// documents and photo-heavy PDFs get most of their weight.
 //
 // Stronger: for files Standard can't shrink enough (or when a small target
 // can't otherwise be met), redraws every page as a picture at a reduced
@@ -12,12 +13,13 @@
 // is only ever done when the person asks for it.
 
 import { PDFArray, PDFBool, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream, PDFRef } from "pdf-lib";
+import { estimateFromPictures, reencode, type AbortLike } from "./estimate.ts";
 import {
-  BALANCED_LEVEL,
   CompressError,
-  IMAGE_LEVELS,
-  isMeaningfulReduction,
+  COMPRESSION_LEVELS,
+  deliver,
   reductionPercent,
+  type Analysis,
   type CompressDeps,
   type CompressReport,
   type Level,
@@ -26,6 +28,9 @@ import {
 export interface PdfOptions {
   target: number | null;
   strong: boolean;
+  // Index into COMPRESSION_LEVELS. With a target, the search starts at the lowest
+  // level and only goes as far as it must, so this is ignored.
+  level: number;
 }
 
 function baseName(name: string): string {
@@ -82,10 +87,9 @@ async function recompressImages(pdf: PDFDocument, images: JpegImage[], level: Le
     const decoded = await deps.codec.decode(bytes, "image/jpeg");
     if (!decoded) continue;
     try {
-      const longSide = Math.max(decoded.width, decoded.height);
-      const encoded = await decoded.encode({ maxDim: longSide > level.maxDim ? level.maxDim : null, quality: level.quality, format: "jpeg" });
       // Only replace a picture when it really got smaller.
-      if (!encoded || encoded.data.length >= bytes.length * 0.95) continue;
+      const encoded = await reencode(decoded, bytes.length, level, "jpeg");
+      if (!encoded) continue;
       const dict = image.stream.dict.clone(pdf.context);
       dict.set(PDFName.of("Width"), PDFNumber.of(encoded.width));
       dict.set(PDFName.of("Height"), PDFNumber.of(encoded.height));
@@ -102,6 +106,8 @@ async function recompressImages(pdf: PDFDocument, images: JpegImage[], level: Le
   return changed;
 }
 
+// Password-protected files are refused here, with a clear reason, rather than
+// producing a broken or unreadable result.
 async function loadPdf(data: Uint8Array): Promise<PDFDocument> {
   try {
     return await PDFDocument.load(data, { ignoreEncryption: false, updateMetadata: false });
@@ -113,40 +119,77 @@ async function loadPdf(data: Uint8Array): Promise<PDFDocument> {
   }
 }
 
+// Removes things that never change how a page looks: page thumbnails, the XMP
+// metadata packet and application-private data. Document properties (title,
+// author) are left alone. Returns how many were removed.
+function stripHiddenData(pdf: PDFDocument): number {
+  let removed = 0;
+  const drop = (dict: PDFDict, key: PDFName) => {
+    const value = dict.get(key);
+    if (value === undefined) return;
+    if (value instanceof PDFRef) pdf.context.delete(value);
+    dict.delete(key);
+    removed += 1;
+  };
+  drop(pdf.catalog, PDFName.of("Metadata"));
+  drop(pdf.catalog, PDFName.of("PieceInfo"));
+  for (const page of pdf.getPages()) {
+    drop(page.node, PDFName.of("Thumb"));
+    drop(page.node, PDFName.of("PieceInfo"));
+  }
+  return removed;
+}
+
+async function loadPrepared(data: Uint8Array): Promise<{ pdf: PDFDocument; hidden: number }> {
+  const pdf = await loadPdf(data);
+  return { pdf, hidden: stripHiddenData(pdf) };
+}
+
 async function saveCompact(pdf: PDFDocument): Promise<Uint8Array> {
   return pdf.save({ useObjectStreams: true, addDefaultPage: false, objectsPerTick: 5000 });
 }
 
 // ---- standard ------------------------------------------------------------------
 
-async function compressStandard(data: Uint8Array, options: PdfOptions, deps: CompressDeps): Promise<{ bytes: Uint8Array; imageCount: number; changed: number; levelUsed: number }> {
-  const probe = await loadPdf(data);
+interface StandardResult {
+  bytes: Uint8Array;
+  imageCount: number;
+  changed: number;
+  // Level that produced `bytes`, or -1 when no picture was involved.
+  levelUsed: number;
+  hidden: number;
+}
+
+async function compressStandard(data: Uint8Array, options: PdfOptions, deps: CompressDeps): Promise<StandardResult> {
+  const { pdf: probe, hidden } = await loadPrepared(data);
   const imageCount = findJpegImages(probe).length;
 
   // With no pictures to shrink, the only thing left is a compact rewrite.
   if (imageCount === 0) {
     deps.onProgress?.("Optimizing the file…");
-    return { bytes: await saveCompact(probe), imageCount: 0, changed: 0, levelUsed: -1 };
+    return { bytes: await saveCompact(probe), imageCount: 0, changed: 0, levelUsed: -1, hidden };
   }
 
-  const start = options.target === null ? BALANCED_LEVEL : 0;
-  const end = options.target === null ? BALANCED_LEVEL : IMAGE_LEVELS.length - 1;
+  const start = options.target === null ? options.level : 0;
+  const end = options.target === null ? options.level : COMPRESSION_LEVELS.length - 1;
   let best: { bytes: Uint8Array; changed: number; levelUsed: number } | null = null;
   for (let level = start; level <= end; level++) {
-    const pdf = level === start ? probe : await loadPdf(data);
+    const pdf = level === start ? probe : (await loadPrepared(data)).pdf;
     const images = findJpegImages(pdf);
-    const changed = await recompressImages(pdf, images, IMAGE_LEVELS[level], deps);
+    const changed = await recompressImages(pdf, images, COMPRESSION_LEVELS[level].embedded, deps);
     deps.onProgress?.("Writing the compressed file…");
     const bytes = await saveCompact(pdf);
     if (!best || bytes.length < best.bytes.length) best = { bytes, changed, levelUsed: level };
     if (options.target !== null && bytes.length <= options.target) break;
   }
-  return { bytes: (best as NonNullable<typeof best>).bytes, imageCount, changed: (best as NonNullable<typeof best>).changed, levelUsed: (best as NonNullable<typeof best>).levelUsed };
+  const chosen = best as NonNullable<typeof best>;
+  return { bytes: chosen.bytes, imageCount, changed: chosen.changed, levelUsed: chosen.levelUsed, hidden };
 }
 
 // ---- stronger ------------------------------------------------------------------
 
-// Page rendering scales (1 = 72 dpi) with the JPEG quality used at each step.
+// Page rendering scales (1 = 72 dpi) with the JPEG quality used at each step,
+// index-aligned with COMPRESSION_LEVELS.
 const STRONG_LEVELS = [
   { scale: 2.0, quality: 0.72 },
   { scale: 1.67, quality: 0.64 },
@@ -165,7 +208,7 @@ async function compressStrong(data: Uint8Array, options: PdfOptions, deps: Compr
   }
   try {
     let best: { bytes: Uint8Array; levelUsed: number } | null = null;
-    const start = options.target === null ? 1 : 0;
+    const start = options.target === null ? options.level : 0;
     for (let li = start; li < STRONG_LEVELS.length; li++) {
       const { scale, quality } = STRONG_LEVELS[li];
       const out = await PDFDocument.create();
@@ -186,7 +229,30 @@ async function compressStrong(data: Uint8Array, options: PdfOptions, deps: Compr
   }
 }
 
+// ---- estimate ------------------------------------------------------------------
+
+// Reads the file (refusing password-protected or damaged PDFs) and estimates the
+// size each level would give, from real re-encodes of its largest pictures.
+export async function analyzePdf(
+  data: Uint8Array,
+  deps: CompressDeps,
+  signal?: AbortLike,
+  onEstimate?: (sizes: number[]) => void,
+): Promise<Analysis> {
+  const { pdf } = await loadPrepared(data);
+  const images = findJpegImages(pdf);
+  const pictures = images.map((image) => ({ bytes: image.stream.getContents(), mime: "image/jpeg" as const }));
+  const pictureBytes = pictures.reduce((sum, p) => sum + p.bytes.length, 0);
+  // The compact rewrite with pictures untouched is what every level starts from.
+  const baseline = (await saveCompact(pdf)).length;
+  const estimates = await estimateFromPictures({ baseline, pictures, deps, signal, onEstimate });
+  return { estimates, pictureCount: pictures.length, pictureBytes };
+}
+
 // ---- entry ---------------------------------------------------------------------
+
+// Below this, redrawing pages as pictures can only make a file bigger.
+const STRONG_MIN_BYTES = 200 * 1024;
 
 export async function compressPdf(
   input: { data: Uint8Array; name: string },
@@ -197,25 +263,34 @@ export async function compressPdf(
   const notes: string[] = [];
   let bytes: Uint8Array;
   let strongAvailable = false;
+  let levelIndex: number | null = options.level;
 
   if (options.strong) {
     const result = await compressStrong(input.data, options, deps);
     bytes = result.bytes;
+    levelIndex = result.levelUsed;
     notes.push("Pages were redrawn as pictures, so the text in this PDF can no longer be selected or searched.");
   } else {
     const result = await compressStandard(input.data, options, deps);
     bytes = result.bytes;
+    // With no pictures in the file no level was applied, so none is reported.
+    levelIndex = result.levelUsed >= 0 ? result.levelUsed : null;
     if (result.imageCount === 0) {
       notes.push("This PDF has no JPEG pictures to shrink; it was only rewritten more compactly. Text and vector graphics are untouched.");
     } else {
       notes.push(`Recompressed ${result.changed} of ${result.imageCount} picture${result.imageCount === 1 ? "" : "s"}. Text and vector graphics are untouched, so text stays sharp and selectable.`);
       if (result.changed < result.imageCount) notes.push("Pictures that would not get smaller were left as they are.");
     }
+    if (result.hidden > 0) notes.push("Removed hidden extras that don't affect how pages look (thumbnails and embedded metadata).");
     strongAvailable = deps.openRenderer !== undefined;
   }
 
   const compressed = bytes.length;
-  const meaningful = isMeaningfulReduction(original, compressed);
+  const delivered = deliver(
+    { data: input.data, name: input.name, mime: "application/pdf" },
+    { data: bytes, name: `${baseName(input.name)}-compressed.pdf`, mime: "application/pdf" },
+  );
+  const meaningful = delivered.outcome === "reduced";
   let targetMet: boolean | null = null;
   if (options.target !== null) {
     targetMet = compressed <= options.target;
@@ -227,12 +302,11 @@ export async function compressPdf(
       );
     }
   }
-  if (!meaningful) notes.push("This PDF is already about as small as it can safely be.");
 
   return {
-    data: bytes,
-    mime: "application/pdf",
-    filename: `${baseName(input.name)}-compressed.pdf`,
+    data: delivered.data,
+    mime: delivered.mime,
+    filename: delivered.name,
     originalBytes: original,
     compressedBytes: compressed,
     reductionPct: reductionPercent(original, compressed),
@@ -240,7 +314,11 @@ export async function compressPdf(
     targetMet,
     targetBytes: options.target,
     notes,
-    // Offer the stronger option when the standard result is weak or missed the target.
-    strongAvailable: strongAvailable && (!meaningful || targetMet === false),
+    // Offer the stronger option when the standard result is weak or missed the target,
+    // but not for files so small that redrawing pages could only make them bigger.
+    strongAvailable: strongAvailable && original >= STRONG_MIN_BYTES && (!meaningful || targetMet === false),
+    outcome: delivered.outcome,
+    levelIndex,
+    mode: options.strong ? "flatten" : options.target !== null ? "target" : "level",
   };
 }

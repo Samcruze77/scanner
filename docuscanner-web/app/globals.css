@@ -35,3 +35,150 @@ textarea:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
+
+/* Compression level slider (components/tools/CompressionGauge.tsx). A native
+   range input, so keyboard, screen readers and touch dragging all work; only the
+   look is custom. 44px tall for a comfortable touch target. */
+.compress-range {
+  --thumb-bg: #ffffff;
+  --thumb-border: #18181b;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  /* Horizontal drags move the slider; vertical ones still scroll the page. */
+  touch-action: pan-y;
+}
+@media (prefers-color-scheme: dark) {
+  .compress-range {
+    --thumb-bg: #18181b;
+    --thumb-border: #ffffff;
+  }
+}
+.compress-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.compress-range::-webkit-slider-runnable-track {
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #10b981, #84cc16 30%, #f59e0b 65%, #ef4444);
+}
+.compress-range::-moz-range-track {
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #10b981, #84cc16 30%, #f59e0b 65%, #ef4444);
+}
+.compress-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -9px;
+  border-radius: 999px;
+  border: 3px solid var(--thumb-border);
+  background: var(--thumb-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.compress-range::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 3px solid var(--thumb-border);
+  background: var(--thumb-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+/* Printing (utils/print/printPages.ts). The document being printed is drawn into
+   a .print-root container that is added to <body> just before window.print().
+   It is invisible on screen; when printing, everything else in the app (header,
+   navigation, ads, dialogs, buttons) is hidden and only that container remains.
+   Each document page gets its own sheet. Named pages let a mixed document keep
+   each page's own orientation where the browser supports them; elsewhere the
+   pages simply follow the orientation chosen in the print dialog. */
+.print-root {
+  display: none;
+}
+
+@page print-portrait {
+  size: portrait;
+  margin: 0;
+}
+@page print-landscape {
+  size: landscape;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+    background: #fff !important;
+  }
+  body > *:not(.print-root) {
+    display: none !important;
+  }
+  .print-root {
+    display: block !important;
+  }
+  .print-page {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    /* One sheet per page: in print, 100vh is the height of the sheet. The small
+       subtraction stops rounding from spilling a blank page after each one. */
+    height: calc(100vh - 1px);
+    /* The paper's own unprintable edge is never cropped: keep a margin inside. */
+    padding: 6mm;
+    overflow: hidden;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+  }
+  /* Browsers size the viewport from the FIRST page, so 100vh is the height of a
+     sheet only when it has the first page's orientation. A sheet turned the other
+     way is as tall as the first page is wide. (printPages.ts sets data-first.) */
+  .print-root[data-first="portrait"] .print-page[data-orientation="landscape"],
+  .print-root[data-first="landscape"] .print-page[data-orientation="portrait"] {
+    height: calc(100vw - 1px);
+  }
+  .print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .print-page[data-orientation="portrait"] {
+    page: print-portrait;
+  }
+  .print-page[data-orientation="landscape"] {
+    page: print-landscape;
+  }
+  /* Scans and pictures: as large as fits, never cropped, never stretched. */
+  .print-page img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  /* Pages of a PDF: true size, shrunk only when they don't fit the sheet. */
+  .print-page[data-sized] img {
+    width: var(--print-w);
+    height: var(--print-h);
+    max-width: 100%;
+    max-height: 100%;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

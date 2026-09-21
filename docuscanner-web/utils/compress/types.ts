@@ -25,11 +25,12 @@ export interface CompressReport {
   // Suggested download name (extension included).
   filename: string;
   originalBytes: number;
+  // Size of the compressed attempt, even when it was not good enough to keep.
   compressedBytes: number;
-  // Whole-number percentage saved. Only meaningful when `meaningful` is true.
+  // Percentage saved, to one decimal place. Only meaningful when `meaningful` is true.
   reductionPct: number;
-  // False when the result isn't worth reporting or offering: the file barely
-  // changed (or got bigger), so it is already about as small as it can safely be.
+  // False when the result isn't worth offering: the file barely changed (or got
+  // bigger), so `data` is the untouched original rather than the attempt.
   meaningful: boolean;
   // Whether a requested target size was reached; null when there was no target.
   targetMet: boolean | null;
@@ -38,6 +39,27 @@ export interface CompressReport {
   notes: string[];
   // PDF only: a stronger option exists (turns pages into pictures).
   strongAvailable: boolean;
+  // "reduced": smaller by a worthwhile amount. "negligible": barely smaller.
+  // "larger": the result was bigger than the original.
+  outcome: CompressOutcome;
+  // Index into COMPRESSION_LEVELS that produced the result; null for a
+  // size-target search on a picture, which isn't one of the fixed levels.
+  levelIndex: number | null;
+  // How the result was chosen: a level on the slider, searched to meet a target
+  // size, or (PDF) pages redrawn as pictures.
+  mode: "level" | "target" | "flatten";
+}
+
+export type CompressOutcome = "reduced" | "negligible" | "larger";
+
+// What the file is made of and how big each level is expected to make it. Built
+// before compressing so the screen can show an estimate; sizes are index-aligned
+// with COMPRESSION_LEVELS and null when they can't be estimated.
+export interface Analysis {
+  estimates: (number | null)[];
+  // Pictures that compression can act on, and their combined size in bytes.
+  pictureCount: number;
+  pictureBytes: number;
 }
 
 // A change must save at least this much of the file, and at least this many
@@ -49,9 +71,25 @@ export function isMeaningfulReduction(original: number, compressed: number): boo
   return original - compressed >= MIN_SAVED_BYTES && compressed <= original * (1 - MIN_REDUCTION);
 }
 
+// Percentage saved, to one decimal place (67.9), never negative.
 export function reductionPercent(original: number, compressed: number): number {
   if (original <= 0) return 0;
-  return Math.max(0, Math.round(((original - compressed) / original) * 100));
+  return Math.max(0, Math.round(((original - compressed) / original) * 1000) / 10);
+}
+
+export function outcomeOf(original: number, compressed: number): CompressOutcome {
+  if (compressed > original) return "larger";
+  return isMeaningfulReduction(original, compressed) ? "reduced" : "negligible";
+}
+
+// What to hand back: the compressed file when it is really smaller, otherwise the
+// original untouched (never a bigger or barely-smaller file dressed up as a win).
+export function deliver(
+  original: { data: Uint8Array; name: string; mime: string },
+  candidate: { data: Uint8Array; name: string; mime: string },
+): { data: Uint8Array; name: string; mime: string; outcome: CompressOutcome } {
+  const outcome = outcomeOf(original.data.length, candidate.data.length);
+  return outcome === "reduced" ? { ...candidate, outcome } : { ...original, outcome };
 }
 
 export function formatBytes(bytes: number): string {
@@ -113,21 +151,94 @@ export interface CompressDeps {
   onProgress?: (message: string) => void;
 }
 
-// The compression "levels" tried in order until a target is met. Quality never
-// drops below what still reads well, and pictures never shrink below the floor.
+// ---- compression levels -----------------------------------------------------------
+//
+// One shared table drives the slider, the size estimates and every compressor, so
+// what the screen promises is what the code does. Quality never drops below what
+// still reads well, and pictures never shrink below a floor.
+
 export interface Level {
   quality: number;
   maxDim: number;
 }
 
-export const IMAGE_LEVELS: Level[] = [
-  { quality: 0.82, maxDim: 3000 },
-  { quality: 0.74, maxDim: 2200 },
-  { quality: 0.66, maxDim: 1700 },
-  { quality: 0.58, maxDim: 1300 },
-  { quality: 0.5, maxDim: 1000 },
-  { quality: 0.45, maxDim: 800 },
+export interface CompressionLevel {
+  key: "low" | "balanced" | "medium" | "high" | "maximum";
+  // Short label under the slider; `name` is the full name in the description.
+  short: string;
+  name: string;
+  description: string;
+  // Shown before compressing when the level trades away visible quality.
+  warning: string | null;
+  // Standalone pictures: JPEG/WebP quality and the longest side (null = keep size).
+  image: { quality: number; maxDim: number | null };
+  // Pictures inside a PDF / Word / Excel file (text and layout are never touched).
+  embedded: Level;
+  // 0-100, only to draw the quality meter; it describes the level, it is not a measurement.
+  qualityMeter: number;
+  qualityWord: string;
+}
+
+export const COMPRESSION_LEVELS: readonly CompressionLevel[] = [
+  {
+    key: "low",
+    short: "Low",
+    name: "Low compression",
+    description: "Highest quality. A small size reduction with the best document quality.",
+    warning: null,
+    image: { quality: 0.9, maxDim: null },
+    embedded: { quality: 0.85, maxDim: 3000 },
+    qualityMeter: 95,
+    qualityWord: "Excellent",
+  },
+  {
+    key: "balanced",
+    short: "Balanced",
+    name: "Balanced",
+    description: "Good quality with a noticeable size reduction. Right for most files.",
+    warning: null,
+    image: { quality: 0.8, maxDim: 3000 },
+    embedded: { quality: 0.74, maxDim: 2200 },
+    qualityMeter: 78,
+    qualityWord: "Very good",
+  },
+  {
+    key: "medium",
+    short: "Medium",
+    name: "Medium compression",
+    description: "Stronger compression, suitable for emailing and general sharing.",
+    warning: null,
+    image: { quality: 0.7, maxDim: 2200 },
+    embedded: { quality: 0.64, maxDim: 1700 },
+    qualityMeter: 60,
+    qualityWord: "Good",
+  },
+  {
+    key: "high",
+    short: "High",
+    name: "High compression",
+    description: "A much smaller file. Some loss of picture quality is expected.",
+    warning: "Pictures and scans will look softer, and fine detail may be lost.",
+    image: { quality: 0.6, maxDim: 1600 },
+    embedded: { quality: 0.54, maxDim: 1300 },
+    qualityMeter: 42,
+    qualityWord: "Reduced",
+  },
+  {
+    key: "maximum",
+    short: "Maximum",
+    name: "Maximum compression",
+    description: "The smallest file. Size comes first, quality second.",
+    warning: "Quality will drop noticeably. Small print in scanned pages may become hard to read.",
+    image: { quality: 0.5, maxDim: 1200 },
+    embedded: { quality: 0.45, maxDim: 1000 },
+    qualityMeter: 25,
+    qualityWord: "Lowest",
+  },
 ];
 
-// The level used when no target size is given: a good balance for most files.
-export const BALANCED_LEVEL = 1;
+// The level selected when a file is chosen.
+export const DEFAULT_LEVEL = 1;
+
+// Files this small (or smaller) rarely have anything left to save.
+export const TINY_FILE_BYTES = 50 * 1024;

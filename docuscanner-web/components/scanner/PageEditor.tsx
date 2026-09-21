@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { PrintButton } from "@/components/print/PrintButton";
+import { scannerPagesToPrintPages } from "@/utils/print/sources";
 import type { ScannerPage } from "@/utils/scanner/page";
 import { ENHANCEMENT_MODES, type EnhancementMode } from "@/utils/scanner/enhance";
 import { AnnotationOverlay } from "./AnnotationOverlay";
@@ -266,6 +268,19 @@ export function PageEditor({
               </button>
             </div>
           )}
+
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Print</p>
+            <div className="flex flex-wrap gap-2">
+              <PrintButton
+                source="editor_page"
+                title={`page-${index + 1}`}
+                label="Print this page"
+                disabled={processing}
+                getPages={() => scannerPagesToPrintPages([page])}
+              />
+            </div>
+          </div>
 
           <div className="flex flex-wrap gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             <button

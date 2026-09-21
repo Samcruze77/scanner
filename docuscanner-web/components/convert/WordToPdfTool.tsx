@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { PrintButton } from "@/components/print/PrintButton";
 import { ErrorBanner } from "@/components/scanner/ErrorBanner";
 import {
   trackConversionCompleted,
@@ -16,6 +17,7 @@ import { wordErrorMessage } from "@/utils/convert/errorMessages";
 import { WordConvertError } from "@/utils/convert/wordErrors";
 import { getUserPlan, isFeatureAvailable } from "@/utils/features/plans";
 import { summarizePdf } from "@/utils/pdf/preview";
+import { pdfToPrintPages, printTitle } from "@/utils/print/sources";
 import { setPendingImport } from "@/utils/scanner/handoff";
 import { FileDropzone } from "./FileDropzone";
 
@@ -168,6 +170,7 @@ export function WordToPdfTool() {
             >
               Edit &amp; sign this PDF
             </button>
+            <PrintButton source="convert" title={printTitle(stage.fileName)} getPages={() => pdfToPrintPages(stage.blob)} />
           </div>
 
           {stage.preview && (

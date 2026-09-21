@@ -12,12 +12,13 @@
 // reported as already compact rather than pretending to compress it.
 
 import JSZip from "jszip";
+import { estimateFromPictures, reencode, type AbortLike } from "./estimate.ts";
 import {
-  BALANCED_LEVEL,
   CompressError,
-  IMAGE_LEVELS,
-  isMeaningfulReduction,
+  COMPRESSION_LEVELS,
+  deliver,
   reductionPercent,
+  type Analysis,
   type CompressDeps,
   type CompressReport,
   type Level,
@@ -25,6 +26,9 @@ import {
 
 export interface OoxmlOptions {
   target: number | null;
+  // Index into COMPRESSION_LEVELS. With a target, the search starts at the lowest
+  // level and only goes as far as it must, so this is ignored.
+  level: number;
 }
 
 type Kind = "word" | "excel";
@@ -118,11 +122,9 @@ async function shrinkPictures(pictures: Picture[], level: Level, deps: CompressD
     const decoded = await deps.codec.decode(pic.bytes, pic.format === "png" ? "image/png" : "image/jpeg");
     if (!decoded) continue;
     try {
-      const longSide = Math.max(decoded.width, decoded.height);
-      const maxDim = longSide > level.maxDim ? level.maxDim : null;
       // A JPEG stays a JPEG; a PNG stays a PNG (lossless, transparency kept).
-      const encoded = await decoded.encode({ maxDim, quality: level.quality, format: pic.format });
-      if (encoded && encoded.data.length < pic.bytes.length * 0.95) {
+      const encoded = await reencode(decoded, pic.bytes.length, level, pic.format);
+      if (encoded) {
         replacements.set(pic.name, encoded.data);
         changed += 1;
       }
@@ -131,6 +133,31 @@ async function shrinkPictures(pictures: Picture[], level: Level, deps: CompressD
     }
   }
   return { replacements, changed };
+}
+
+// Reads the package (refusing anything that isn't a real Word/Excel file) and
+// estimates the size each level would give, from real re-encodes of its largest
+// pictures.
+export async function analyzeOoxml(
+  data: Uint8Array,
+  kind: Kind,
+  deps: CompressDeps,
+  signal?: AbortLike,
+  onEstimate?: (sizes: number[]) => void,
+): Promise<Analysis> {
+  const zip = await open(data, kind);
+  const pictures = (await listPictures(zip, kind)).filter((p) => p.bytes.length >= MIN_PICTURE_BYTES);
+  const pictureBytes = pictures.reduce((sum, p) => sum + p.bytes.length, 0);
+  // Pictures untouched, package repacked: what every level starts from.
+  const baseline = (await rebuild(zip, new Map())).length;
+  const estimates = await estimateFromPictures({
+    baseline,
+    pictures: pictures.map((p) => ({ bytes: p.bytes, mime: p.format === "png" ? ("image/png" as const) : ("image/jpeg" as const) })),
+    deps,
+    signal,
+    onEstimate,
+  });
+  return { estimates, pictureCount: pictures.length, pictureBytes };
 }
 
 export async function compressOoxml(
@@ -145,27 +172,31 @@ export async function compressOoxml(
   const pictures = await listPictures(zip, kind);
   const notes: string[] = [];
 
-  // Level -1 is lossless: same pictures, better packing.
-  let best: { bytes: Uint8Array; changed: number } = { bytes: await rebuild(zip, new Map()), changed: 0 };
+  // Lossless first: same pictures, better packing.
+  let best: { bytes: Uint8Array; changed: number; level: number | null } = { bytes: await rebuild(zip, new Map()), changed: 0, level: null };
   const targetReached = (size: number) => options.target !== null && size <= options.target;
 
   if (pictures.length > 0 && !targetReached(best.bytes.length)) {
-    const start = options.target === null ? BALANCED_LEVEL : 0;
-    const end = options.target === null ? BALANCED_LEVEL : IMAGE_LEVELS.length - 1;
+    const start = options.target === null ? options.level : 0;
+    const end = options.target === null ? options.level : COMPRESSION_LEVELS.length - 1;
     for (let level = start; level <= end; level++) {
-      const { replacements, changed } = await shrinkPictures(pictures, IMAGE_LEVELS[level], deps);
+      const { replacements, changed } = await shrinkPictures(pictures, COMPRESSION_LEVELS[level].embedded, deps);
       if (changed === 0) continue;
       deps.onProgress?.("Writing the compressed file…");
       const bytes = await rebuild(zip, replacements);
-      if (bytes.length < best.bytes.length) best = { bytes, changed };
+      if (bytes.length < best.bytes.length) best = { bytes, changed, level };
       if (targetReached(bytes.length)) break;
     }
   }
 
-  // Never hand back something bigger than what came in.
-  const bytes = best.bytes.length < original ? best.bytes : input.data;
-  const compressed = bytes.length;
-  const meaningful = isMeaningfulReduction(original, compressed);
+  // The attempt's size is reported as it is; if it isn't really smaller, the
+  // original comes back untouched.
+  const compressed = best.bytes.length;
+  const delivered = deliver(
+    { data: input.data, name: input.name, mime: parts.mime },
+    { data: best.bytes, name: `${baseName(input.name, parts.ext)}-compressed.${parts.ext}`, mime: parts.mime },
+  );
+  const meaningful = delivered.outcome === "reduced";
 
   if (pictures.length === 0) {
     notes.push(`This ${parts.label} contains no pictures, so there is very little to shrink. Its text, formatting and structure were left exactly as they are.`);
@@ -178,12 +209,11 @@ export async function compressOoxml(
   if (options.target !== null) {
     targetMet = compressed <= options.target;
   }
-  if (!meaningful) notes.push(`This ${parts.label} is already compact.`);
 
   return {
-    data: bytes,
-    mime: parts.mime,
-    filename: `${baseName(input.name, parts.ext)}-compressed.${parts.ext}`,
+    data: delivered.data,
+    mime: delivered.mime,
+    filename: delivered.name,
     originalBytes: original,
     compressedBytes: compressed,
     reductionPct: reductionPercent(original, compressed),
@@ -192,5 +222,9 @@ export async function compressOoxml(
     targetBytes: options.target,
     notes,
     strongAvailable: false,
+    outcome: delivered.outcome,
+    // A size-target search reports the level it landed on; lossless repacking alone is no level.
+    levelIndex: pictures.length === 0 ? null : options.target === null ? options.level : best.level,
+    mode: options.target === null ? "level" : "target",
   };
 }

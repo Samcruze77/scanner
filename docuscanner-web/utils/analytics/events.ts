@@ -87,16 +87,25 @@ export function trackLoginRequired(tool: string) {
   return trackFeatureUsed("login_required", { tool });
 }
 
-// compression_started / compression_completed / compression_failed. `kind` is
-// pdf | image | word | excel; the reduction is a whole-number percentage.
-export function trackCompressionStarted(kind: string) {
-  return trackConversionStarted(`compress_${kind}`);
+// print: the person asked to print (the browser's print dialog was requested).
+// `source` is where it was started (scan | editor_page | convert | compress |
+// history). Never carries the document, its name, or any printer information.
+export function trackPrint(source: string, pageCount: number) {
+  return trackFeatureUsed("print", { source, pageCount });
 }
 
-export function trackCompressionCompleted(kind: string, durationMs: number, reductionPct: number, targetMet: boolean | null) {
+// compression_started / compression_completed / compression_failed. `kind` is
+// pdf | image | word | excel; the reduction is a whole-number percentage. `level`
+// is the slider step (low | balanced | medium | high | maximum), or "target" /
+// "flatten" when the level was picked by a size target or the PDF page redraw.
+export function trackCompressionStarted(kind: string, level?: string) {
+  return trackEvent("conversion_started", { conversionType: `compress_${kind}`, properties: { level } });
+}
+
+export function trackCompressionCompleted(kind: string, durationMs: number, reductionPct: number, targetMet: boolean | null, level?: string) {
   return trackEvent("conversion_completed", {
     conversionType: `compress_${kind}`,
-    properties: { durationMs, reductionPct: Math.round(reductionPct), targetMet },
+    properties: { durationMs, reductionPct: Math.round(reductionPct), targetMet, level },
   });
 }
 

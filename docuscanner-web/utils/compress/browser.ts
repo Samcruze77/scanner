@@ -6,8 +6,11 @@
 // compression algorithms themselves live in image.ts / pdf.ts / ooxml.ts and are
 // loaded only when a file is actually compressed.
 
+import type { AbortLike } from "./estimate";
 import {
   CompressError,
+  DEFAULT_LEVEL,
+  type Analysis,
   type CompressDeps,
   type CompressKind,
   type CompressReport,
@@ -185,10 +188,11 @@ async function openRenderer(data: Uint8Array): Promise<PageRenderer> {
 export interface CompressRequest {
   kind: CompressKind;
   file: File;
-  // Bytes; null for "best balance".
+  // Index into COMPRESSION_LEVELS; defaults to Balanced.
+  level?: number;
+  // Bytes; null to use the level.
   target: number | null;
-  // Image only.
-  quality?: number;
+  // Image only: a longest-side cap that overrides the level's.
   maxDim?: number | null;
   // PDF only: redraw pages as pictures (text no longer selectable).
   strong?: boolean;
@@ -201,28 +205,84 @@ export async function compressFile(request: CompressRequest): Promise<CompressRe
   const { mime } = validateCompressFile(kind, file, bytes.subarray(0, 16));
 
   const deps: CompressDeps = { codec: browserCodec, openRenderer, onProgress: request.onProgress };
+  const level = request.level ?? DEFAULT_LEVEL;
   try {
     switch (kind) {
       case "image": {
         const { compressImage } = await import("./image");
         return await compressImage(
           { data: bytes, mime, name: file.name },
-          { quality: request.quality ?? 0.75, maxDim: request.maxDim ?? null, target: request.target, format: "auto" },
+          { level, maxDim: request.maxDim ?? null, target: request.target, format: "auto" },
           deps,
         );
       }
       case "pdf": {
         const { compressPdf } = await import("./pdf");
-        return await compressPdf({ data: bytes, name: file.name }, { target: request.target, strong: request.strong ?? false }, deps);
+        return await compressPdf({ data: bytes, name: file.name }, { target: request.target, strong: request.strong ?? false, level }, deps);
       }
       case "word":
       case "excel": {
         const { compressOoxml } = await import("./ooxml");
-        return await compressOoxml({ data: bytes, name: file.name }, kind, { target: request.target }, deps);
+        return await compressOoxml({ data: bytes, name: file.name }, kind, { target: request.target, level }, deps);
       }
     }
   } catch (error) {
     if (error instanceof CompressError) throw error;
     throw new CompressError("compress_failed");
+  }
+}
+
+// ---- estimate ------------------------------------------------------------------------
+
+// Reading a huge file just to preview a size would freeze the page, so beyond
+// these sizes no estimate is offered (compression itself still works).
+const MAX_ESTIMATE_BYTES: Record<CompressKind, number> = {
+  pdf: 40 * MB,
+  image: 25 * MB,
+  word: 40 * MB,
+  excel: 40 * MB,
+};
+
+export interface AnalyzeRequest {
+  kind: CompressKind;
+  file: File;
+  // Image only: the same size cap that will be passed to compressFile.
+  maxDim?: number | null;
+  signal?: AbortLike;
+  // Called as estimates arrive; sizes are index-aligned with COMPRESSION_LEVELS.
+  onEstimate?: (sizes: (number | null)[]) => void;
+}
+
+// Opens the file to check it can be compressed (a password-protected or damaged
+// PDF is reported here, before the person sets anything) and estimates the size
+// each level would give. Returns null when no estimate is possible; that never
+// stops the file being compressed.
+export async function analyzeFile(request: AnalyzeRequest): Promise<Analysis | null> {
+  const { kind, file, signal } = request;
+  if (file.size > MAX_ESTIMATE_BYTES[kind]) return null;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const { mime } = validateCompressFile(kind, file, bytes.subarray(0, 16));
+  const deps: CompressDeps = { codec: browserCodec };
+  try {
+    switch (kind) {
+      case "image": {
+        const { analyzeImage } = await import("./image");
+        return await analyzeImage({ data: bytes, mime }, { maxDim: request.maxDim ?? null, format: "auto" }, deps, signal, request.onEstimate);
+      }
+      case "pdf": {
+        const { analyzePdf } = await import("./pdf");
+        return await analyzePdf(bytes, deps, signal, request.onEstimate);
+      }
+      case "word":
+      case "excel": {
+        const { analyzeOoxml } = await import("./ooxml");
+        return await analyzeOoxml(bytes, kind, deps, signal, request.onEstimate);
+      }
+    }
+  } catch (error) {
+    // Only problems with the file itself matter to the person; anything else
+    // just means there is no estimate.
+    if (error instanceof CompressError && (error.code === "compress_password" || error.code === "compress_invalid")) throw error;
+    return null;
   }
 }

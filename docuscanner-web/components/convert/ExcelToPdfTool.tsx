@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { PrintButton } from "@/components/print/PrintButton";
 import { ErrorBanner } from "@/components/scanner/ErrorBanner";
 import {
   trackConversionCompleted,
@@ -21,6 +22,7 @@ import {
   type Orientation,
 } from "@/utils/convert/excelToPdf";
 import { getUserPlan, isFeatureAvailable } from "@/utils/features/plans";
+import { pdfToPrintPages, printTitle } from "@/utils/print/sources";
 import { FileDropzone } from "./FileDropzone";
 
 const ACCEPT =
@@ -238,6 +240,11 @@ export function ExcelToPdfTool() {
                 >
                   Download PDF
                 </button>
+                <PrintButton
+                  source="convert"
+                  title={printTitle(stage.fileName)}
+                  getPages={() => pdfToPrintPages(stage.result.blob)}
+                />
                 <button
                   type="button"
                   onClick={handleConvert}

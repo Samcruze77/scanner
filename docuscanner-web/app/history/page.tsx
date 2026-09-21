@@ -3,6 +3,7 @@ import { getVerifiedClaims } from "@/utils/supabase/claims";
 import { createClient } from "@/utils/supabase/server";
 import { RequireAuthPrompt } from "@/components/auth/RequireAuthPrompt";
 import { PageShell } from "@/components/layout/PageShell";
+import { HistoryPrintButton } from "./HistoryPrintButton";
 
 interface DocumentRow {
   id: string;
@@ -64,12 +65,15 @@ export default async function HistoryPage() {
                 </p>
               </div>
               {doc.downloadUrl && (
-                <a
-                  href={doc.downloadUrl}
-                  className="shrink-0 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
-                >
-                  Download
-                </a>
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  <HistoryPrintButton url={doc.downloadUrl} title={doc.title} />
+                  <a
+                    href={doc.downloadUrl}
+                    className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
+                  >
+                    Download
+                  </a>
+                </div>
               )}
             </li>
           ))}

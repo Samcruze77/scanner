@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AdInline } from "@/components/ads/AdSlot";
+import { PrintButton } from "@/components/print/PrintButton";
 import { Hint } from "@/components/guidance/Hint";
 import { fileToCapturedImage, type CapturedImage } from "@/utils/scanner/image";
 import type { Quad } from "@/utils/scanner/geometry";
@@ -11,6 +12,7 @@ import { createInitialPage, type PageRotation, type ScannerPage } from "@/utils/
 import { detectPageQuad, renderPage } from "@/utils/scanner/pageProcessing";
 import { createPdfFromPages } from "@/utils/scanner/pdf";
 import { downloadBlob } from "@/utils/convert/download";
+import { scannerPagesToPrintPages } from "@/utils/print/sources";
 import { importPdfPages } from "@/utils/scanner/pdfImport";
 import type { Annotation, AnnotationTool } from "@/utils/scanner/annotations";
 import { remapAnnotations, type PageGeometry } from "@/utils/scanner/annotationRemap";
@@ -685,6 +687,15 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
           >
             View extracted text
           </button>
+        )}
+
+        {pages.length > 0 && (
+          <PrintButton
+            source="scan"
+            title="document"
+            disabled={anyPageProcessing}
+            getPages={() => scannerPagesToPrintPages(pages)}
+          />
         )}
 
         {pdfBlob && (
