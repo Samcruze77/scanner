@@ -29,7 +29,7 @@ export function LoginRequiredDialog({ toolId, toolTitle, onBack }: { toolId: str
       // Below the sign-in form (z-50), so choosing Sign In shows it on top.
       className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
     >
-      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-zinc-900">
+      <div className="w-full max-w-sm rounded-xl bg-elevated p-6 shadow-xl">
         <h2 id="login-required-title" className="text-lg font-semibold">
           {toolTitle}
         </h2>

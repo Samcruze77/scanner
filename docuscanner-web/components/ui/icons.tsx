@@ -155,6 +155,27 @@ const ICONS = {
       <path d="M8 9.5h8M8 12.5h8M8 15.5h5" />
     </>
   ),
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6" />
+    </>
+  ),
+  moon: <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z" />,
+  // Half filled circle: the middle theme.
+  contrast: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor" />
+    </>
+  ),
+  alert: (
+    <>
+      <path d="M12 4l9 15.5H3z" />
+      <path d="M12 10v4.5" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" />
+    </>
+  ),
   pointer: <path d="M5 3.5l14 8-6 1.6L10 19.5z" />,
   undo: (
     <>

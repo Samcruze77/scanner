@@ -18,7 +18,7 @@ export function MobileActionBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-zinc-200 bg-chrome/95 backdrop-blur dark:border-zinc-800 sm:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {ITEMS.map((item) => {
@@ -29,7 +29,7 @@ export function MobileActionBar() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={`relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
-              active ? "text-blue-600 dark:text-blue-400" : "text-zinc-500 dark:text-zinc-400"
+              active ? "text-blue-700 dark:text-blue-400" : "text-zinc-500 dark:text-zinc-400"
             }`}
           >
             {active && <span aria-hidden className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400" />}

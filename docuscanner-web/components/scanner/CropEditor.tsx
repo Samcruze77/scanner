@@ -110,7 +110,7 @@ export function CropEditor({
       aria-label="Adjust crop"
       className="fixed inset-0 z-[60] flex flex-col bg-black/70 p-3 sm:items-center sm:justify-center sm:p-4"
     >
-      <div className="flex max-h-full w-full flex-col overflow-y-auto rounded-2xl bg-white p-4 shadow-xl dark:bg-zinc-900 sm:max-w-lg sm:max-h-[95vh]">
+      <div className="flex max-h-full w-full flex-col overflow-y-auto rounded-2xl bg-elevated p-4 shadow-xl sm:max-w-lg sm:max-h-[95vh]">
         <h2 className="text-base font-semibold">Adjust crop</h2>
         <p className="muted mb-3 text-sm">
           Drag the corners to the edges of your document. Rotation is applied after cropping.

@@ -21,7 +21,9 @@ const shotArg = process.argv.find((a) => a.startsWith("--shots="));
 const SHOT_WIDTHS = shotArg ? shotArg.slice(8).split(",").map(Number) : [375, 1280];
 const WIDTHS = [375, 390, 768, 1024, 1280];
 const tag = process.env.TAG ?? "before";
-// SCHEME=dark renders every screen with the system in dark mode.
+// THEME=light|soft|dark chooses the app theme the way a person would (saved preference).
+// With no THEME the app follows the system, which SCHEME=dark|light emulates.
+const THEME = ["light", "soft", "dark"].includes(process.env.THEME) ? process.env.THEME : null;
 const SCHEME = process.env.SCHEME === "dark" ? "dark" : "light";
 const { createCanvas } = require("@napi-rs/canvas");
 const work = fs.mkdtempSync(path.join(os.tmpdir(), "ui-audit-"));
@@ -99,6 +101,7 @@ async function waitFor(expression, what, timeout = 30000) {
 await send("Page.enable");
 await send("Runtime.enable");
 await send("Page.addScriptToEvaluateOnNewDocument", { source: `window.print = () => {};` });
+if (THEME) await send("Page.addScriptToEvaluateOnNewDocument", { source: `try { localStorage.setItem("pdfscanner.theme", ${JSON.stringify(THEME)}); } catch (e) {}` });
 
 async function open(route, width) {
   await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: SCHEME }] });
@@ -243,6 +246,11 @@ await measureAllWidths("signature-dialog", async (w) => {
   await waitFor(`document.querySelector('[role=dialog][aria-label^="Annotate page"]')`, "annotator", 20000);
   await waitFor(`document.querySelectorAll('[role=dialog]').length > 1 || [...document.querySelectorAll('[role=dialog]')].some(d => /signature/i.test(d.getAttribute('aria-label') || ''))`, "signature dialog", 8000);
   await sleep(600);
+});
+await measureAllWidths("theme-menu", async (w) => {
+  await open("/scan", w);
+  await evaluate(`document.querySelector('header button[aria-label^="Theme"]').click()`);
+  await sleep(300);
 });
 await measureAllWidths("tools-hub", (w) => open("/tools", w));
 await measureAllWidths("tool-editor-page", (w) => open("/tools/sign-pdf", w));

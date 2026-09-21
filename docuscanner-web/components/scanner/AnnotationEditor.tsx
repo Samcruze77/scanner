@@ -308,7 +308,7 @@ export function AnnotationEditor({
       aria-label={`Annotate page ${index + 1}`}
       className="fixed inset-0 z-[60] flex flex-col bg-zinc-100 dark:bg-zinc-950"
     >
-      <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200 bg-surface px-3 py-2 dark:border-zinc-800">
         <h2 className="min-w-0 flex-1 truncate text-base font-semibold">Annotate page {index + 1}</h2>
         <button
           type="button"
@@ -340,7 +340,7 @@ export function AnnotationEditor({
       <div
         role="toolbar"
         aria-label="Annotation tools"
-        className="flex shrink-0 flex-wrap gap-1 border-b border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
+        className="flex shrink-0 flex-wrap gap-1 border-b border-zinc-200 bg-surface px-3 py-2 dark:border-zinc-800"
       >
         {TOOLS.map((t, i) => (
           <button
@@ -363,7 +363,7 @@ export function AnnotationEditor({
 
       <div
         aria-label="Tool options"
-        className="flex min-h-[60px] shrink-0 items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-white px-3 py-1 dark:border-zinc-800 dark:bg-zinc-900"
+        className="flex min-h-[60px] shrink-0 items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-surface px-3 py-1 dark:border-zinc-800"
       >
         {showText && (
           <>
@@ -517,7 +517,7 @@ export function AnnotationEditor({
           {/* Room so the floating zoom controls never cover the bottom of the page. */}
           <div aria-hidden className="h-14" />
         </ZoomViewport>
-        <ZoomControls api={zoom} className="absolute bottom-3 right-3 z-10 rounded-lg bg-white/90 p-1 shadow-md dark:bg-zinc-900/90" />
+        <ZoomControls api={zoom} className="absolute bottom-3 right-3 z-10 rounded-lg bg-surface/90 p-1 shadow-md" />
       </div>
 
       {signatureOpen && (

@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { Logo } from "@/components/layout/Logo";
 import { NAV_ITEMS, isNavActive } from "@/components/layout/nav";
+import { ThemeMenu } from "@/components/theme/ThemeMenu";
 
 // Top bar: logo, the four places the product is organised around (see nav.ts), and
 // the account controls. Below `sm` the places move to the bottom bar
@@ -15,7 +16,7 @@ export function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/90 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
+    <header className="sticky top-0 z-40 border-b border-zinc-200 bg-chrome/90 backdrop-blur dark:border-zinc-800">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
         <Link href="/" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg" aria-label="PDFScanner home">
           <Logo />
@@ -41,7 +42,8 @@ export function Header() {
           })}
         </nav>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <ThemeMenu />
           {loading ? null : user ? (
             <AccountMenu />
           ) : (

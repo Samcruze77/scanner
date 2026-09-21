@@ -62,7 +62,7 @@ function AdSlot({ placement, className }: { placement: AdPlacement; className?: 
         onClick={() => {
           if (ADS_LIVE && AD_PROVIDER) void trackAdClick(placement, AD_PROVIDER);
         }}
-        className={`flex items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100/60 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-500 ${BOX[placement]}`}
+        className={`flex items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100/60 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400 ${BOX[placement]}`}
       >
         {ADS_LIVE ? null : "Ad space"}
       </div>

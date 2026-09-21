@@ -125,7 +125,7 @@ export function OcrPanel({ ocr, pages }: { ocr: OcrController; pages: ScannerPag
         if (e.target === e.currentTarget && state.status !== "running") closePanel();
       }}
     >
-      <div className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-zinc-900 sm:h-[90vh] sm:max-h-[48rem] sm:max-w-5xl sm:rounded-xl">
+      <div className="flex h-full w-full flex-col overflow-hidden bg-elevated sm:h-[90vh] sm:max-h-[48rem] sm:max-w-5xl sm:rounded-xl">
         <div className="flex items-center gap-2 border-b border-zinc-200 p-3 dark:border-zinc-800">
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-base font-semibold">Extracted text</h2>

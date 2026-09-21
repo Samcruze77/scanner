@@ -222,7 +222,7 @@ export function SignatureDialog({
         if (e.target === e.currentTarget) onCancel();
       }}
     >
-      <div className="flex max-h-full w-full flex-col gap-4 overflow-y-auto rounded-t-xl bg-white p-4 dark:bg-zinc-900 sm:max-w-lg sm:rounded-xl">
+      <div className="flex max-h-full w-full flex-col gap-4 overflow-y-auto rounded-t-xl bg-elevated p-4 sm:max-w-lg sm:rounded-xl">
         <div>
           <h2 className="text-base font-semibold">Add your signature</h2>
           <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">Draw your signature or upload an existing signature image.</p>
@@ -282,7 +282,7 @@ export function SignatureDialog({
                 setError(null);
               }}
               className={`min-h-11 flex-1 rounded-md px-2 text-center text-sm font-medium leading-tight ${
-                tab === t.value ? "bg-white shadow-sm dark:bg-zinc-950" : "text-zinc-600 dark:text-zinc-400"
+                tab === t.value ? "bg-surface shadow-sm" : "text-zinc-600 dark:text-zinc-400"
               }`}
             >
               {t.label}

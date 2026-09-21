@@ -207,7 +207,7 @@ function AuthModalDialog() {
         if (e.target === e.currentTarget) closeAuthModal();
       }}
     >
-      <div className="my-auto w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-900">
+      <div className="my-auto w-full max-w-sm rounded-2xl bg-elevated p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 id="auth-modal-title" className="text-lg font-semibold">
             {title}

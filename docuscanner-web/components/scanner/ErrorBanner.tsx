@@ -2,10 +2,9 @@ import { Icon } from "@/components/ui/icons";
 
 export function ErrorBanner({ message, onDismiss }: { message: string; onDismiss?: () => void }) {
   return (
-    <div
-      role="alert"
-      className="notice notice-error"
-    >
+    <div role="alert" className="notice notice-error">
+      {/* The icon means an error notice never relies on its colour alone. */}
+      <Icon name="alert" size={18} className="mt-0.5" />
       <span className="min-w-0 flex-1">{message}</span>
       {onDismiss && (
         <button

@@ -12,43 +12,184 @@
    Space    4px grid. Page gutter 16px (phone) / 24px (desktop); sections 32px apart;
             controls 8px apart; page width max-w-6xl, workspace max-w-7xl.
    Shape    Controls 8px radius (rounded-lg), cards and panels 12px (rounded-xl),
-            dialogs 16px, pills fully round. Borders 1px zinc-200 / zinc-800.
-            Shadows only on things that float (dialogs, menus).
-   Colour   Neutral zinc surfaces, ONE accent (blue-600) for the primary action
-            and focus. Green = success, amber = caution, red = error/destructive.
+            dialogs 16px, pills fully round. Borders 1px. Shadows only on things
+            that float (dialogs, menus).
+   Colour   Neutral surfaces, ONE accent (blue-600) for the primary action and focus.
+            Green = success, amber = caution, red = error/destructive.
    Motion   Colour transitions only (150ms), and none at all when the person has
             asked for reduced motion.
    Touch    Every control is at least 44px tall.
+
+   Themes   Three palettes -- Light, Soft Gray, Dark -- chosen by the person (see
+            components/theme). The choice is the `data-theme` attribute on <html>.
+            Only COLOUR changes between them: layout, type, spacing, icons and the
+            blue accent are shared.
+              1. Semantic tokens (--page, --surface, --text ...) are defined once per
+                 theme below. The shared classes (.btn, .card, .field, .notice ...)
+                 read them, so new UI should use those classes or the token utilities
+                 (bg-surface, bg-chrome, bg-elevated ...) and never a raw colour.
+              2. Older screens still use Tailwind's zinc scale. Soft Gray re-maps that
+                 scale, and Dark answers `dark:` utilities, so they follow the theme too.
+              3. Documents are paper: anything that shows a scanned page or a signature
+                 pad keeps `bg-white` and is never re-coloured by a theme.
+            Themes only apply on screen: printing always uses the light palette.
    ============================================================================= */
 
+/* `dark:` utilities apply when the Dark theme is chosen (not just when the system
+   is dark), and never in print. */
+@custom-variant dark {
+  @media screen {
+    &:where([data-theme="dark"], [data-theme="dark"] *) {
+      @slot;
+    }
+  }
+}
+
+/* ---- Light (the default palette; also what print uses) ---------------------- */
 :root {
-  --background: #fafafa;
-  --surface: #ffffff;
-  --foreground: #18181b;
-  /* Lets the browser draw its own controls (scrollbars, sliders, pickers) to match. */
+  --page: #fafafa;          /* app background */
+  --surface: #ffffff;       /* cards, panels, inputs' surroundings */
+  --elevated: #ffffff;      /* dialogs and menus that float above the page */
+  --chrome: #ffffff;        /* header and bottom navigation */
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --text: #18181b;
+  --text-2: #52525b;        /* secondary text */
+  --text-muted: #71717a;    /* captions and hints */
+  --placeholder: #71717a;
+  --field-bg: #ffffff;
+  --field-border: #d4d4d8;
+  --hover: #f4f4f5;
+  --selected: #e4e4e7;
+  --focus: #2563eb;
+  --link: #1d4ed8;
+  --success-bg: #ecfdf5;
+  --success-border: #a7f3d0;
+  --success-text: #064e3b;
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+  --warning-text: #78350f;
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+  --error-text: #991b1b;
+  --info-bg: #eff6ff;
+  --info-border: #bfdbfe;
+  --info-text: #1e3a8a;
+  --scrim: rgb(0 0 0 / 0.4);
   color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* Soft Gray: a cool, neutral middle -- not bright, not dark. Cool light-gray page,
+   slightly darker gray surfaces, strong soft text. The blue accent is unchanged. */
+@media screen {
+  :root[data-theme="soft"] {
+    --page: #e9ecf1;
+    --surface: #dfe3e9;
+    --elevated: #e7eaef;
+    --chrome: #dfe3e9;
+    --border: #c4cad4;
+    --border-strong: #a9b1be;
+    --text: #1b212b;
+    --text-2: #3b4452;
+    --text-muted: #4f5968;
+    --placeholder: #5a6473;
+    --field-bg: #f1f3f6;
+    --field-border: #98a1af;
+    --hover: #d2d7df;
+    --selected: #c3cad5;
+    --focus: #1d4ed8;
+    --link: #1d4ed8;
+    --success-bg: #d3e9dc;
+    --success-border: #9fcbb0;
+    --success-text: #14432a;
+    --warning-bg: #efe2c2;
+    --warning-border: #d6bd7c;
+    --warning-text: #5c3208;
+    --error-bg: #f0d4d4;
+    --error-border: #d9a1a1;
+    --error-text: #7a1a1a;
+    --info-bg: #d3deef;
+    --info-border: #a3b8d8;
+    --info-text: #1e3a70;
+    --scrim: rgb(20 26 36 / 0.45);
+    color-scheme: light;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09090b;
-    --surface: #18181b;
-    --foreground: #f4f4f5;
+    /* The zinc scale, re-mapped to cool grays, for screens that use it directly. */
+    --color-zinc-50: #eef0f4;
+    --color-zinc-100: #d5dae2;
+    --color-zinc-200: #c4cad4;
+    --color-zinc-300: #a9b1be;
+    --color-zinc-400: #6b7585;
+    --color-zinc-500: #4f5968;
+    --color-zinc-600: #3b4452;
+    --color-zinc-700: #2b3340;
+    --color-zinc-800: #212832;
+    --color-zinc-900: #1b212b;
+    --color-zinc-950: #12161d;
+  }
+
+  /* Dark: charcoal, not black. */
+  :root[data-theme="dark"] {
+    --page: #111113;
+    --surface: #1a1a1e;
+    --elevated: #222227;
+    --chrome: #141417;
+    --border: #27272a;
+    --border-strong: #3f3f46;
+    --text: #f4f4f5;
+    --text-2: #a1a1aa;
+    --text-muted: #a1a1aa;
+    --placeholder: #8f8f98;
+    --field-bg: #111113;
+    --field-border: #4a4a52;
+    --hover: #27272a;
+    --selected: #3f3f46;
+    --focus: #3b82f6;
+    --link: #60a5fa;
+    --success-bg: #022c22;
+    --success-border: #065f46;
+    --success-text: #a7f3d0;
+    --warning-bg: #451a03;
+    --warning-border: #78350f;
+    --warning-text: #fde68a;
+    --error-bg: #450a0a;
+    --error-border: #7f1d1d;
+    --error-text: #fca5a5;
+    --info-bg: #172554;
+    --info-border: #1e3a8a;
+    --info-text: #dbeafe;
+    --scrim: rgb(0 0 0 / 0.6);
     color-scheme: dark;
   }
 }
 
+/* Token utilities: bg-surface, bg-chrome, bg-elevated, text-fg, border-line ... */
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-chrome: var(--chrome);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-fg-2: var(--text-2);
+  --color-fg-muted: var(--text-muted);
+  --color-field: var(--field-bg);
+  --color-hover: var(--hover);
+  --color-selected: var(--selected);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--page);
+  color: var(--text);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Scrollbars follow the theme (Chrome 121+, Firefox; others keep the native look). */
+html {
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 /* Consistent, visible keyboard focus across every interactive element --
@@ -60,8 +201,24 @@ select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* A theme switch fades colours briefly (see components/theme/theme.ts). Skipped
+   entirely for people who ask their system for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html.theme-switching,
+  html.theme-switching *,
+  html.theme-switching *::before,
+  html.theme-switching *::after {
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease,
+      fill 160ms ease,
+      stroke 160ms ease !important;
+  }
 }
 
 /* People who ask their system for less motion get none. */
@@ -79,19 +236,39 @@ summary:focus-visible,
 @layer components {
   /* ---- buttons: .btn plus one of the variants ---- */
   .btn {
-    @apply inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 dark:hover:bg-blue-500;
+    @apply bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800;
   }
   .btn-secondary {
-    @apply border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 active:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800;
+    border: 1px solid var(--field-border);
+    background-color: var(--surface);
+    color: var(--text);
+  }
+  .btn-secondary:hover {
+    background-color: var(--hover);
+  }
+  .btn-secondary:active {
+    background-color: var(--selected);
   }
   .btn-ghost {
-    @apply text-zinc-700 hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800;
+    color: var(--text-2);
+  }
+  .btn-ghost:hover {
+    background-color: var(--hover);
+    color: var(--text);
+  }
+  .btn-ghost:active {
+    background-color: var(--selected);
   }
   .btn-danger {
-    @apply border border-red-200 bg-white text-red-700 hover:bg-red-50 dark:border-red-900 dark:bg-zinc-900 dark:text-red-400 dark:hover:bg-red-950;
+    border: 1px solid var(--error-border);
+    background-color: var(--surface);
+    color: var(--error-text);
+  }
+  .btn-danger:hover {
+    background-color: var(--error-bg);
   }
   /* A square, icon-only button: give it an aria-label. */
   .btn-icon {
@@ -103,15 +280,24 @@ summary:focus-visible,
 
   /* ---- form controls ---- */
   .field {
-    @apply min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100;
+    @apply min-h-11 w-full rounded-lg border px-3 text-sm;
+    border-color: var(--field-border);
+    background-color: var(--field-bg);
+    color: var(--text);
+  }
+  .field::placeholder {
+    color: var(--placeholder);
   }
 
   /* ---- surfaces ---- */
   .card {
-    @apply rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900;
+    @apply rounded-xl border;
+    border-color: var(--border);
+    background-color: var(--surface);
   }
   .panel-title {
-    @apply text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400;
+    @apply text-xs font-semibold uppercase tracking-wide;
+    color: var(--text-muted);
   }
 
   /* ---- type ---- */
@@ -122,13 +308,14 @@ summary:focus-visible,
     @apply text-lg font-semibold tracking-tight;
   }
   .muted {
-    @apply text-zinc-600 dark:text-zinc-400;
+    color: var(--text-2);
   }
   /* A link inside a sentence. It stays inline and looks like text, but an invisible
      box around it (::after) makes the tappable area at least 44px tall without
      changing the line spacing. Use it for at most one link per line. */
   .link-inline {
-    @apply relative font-medium text-blue-700 underline underline-offset-2 dark:text-blue-400;
+    @apply relative font-medium underline underline-offset-2;
+    color: var(--link);
   }
   .link-inline::after {
     content: "";
@@ -141,16 +328,24 @@ summary:focus-visible,
     @apply flex items-start gap-3 rounded-lg border p-3 text-sm;
   }
   .notice-success {
-    @apply border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200;
+    border-color: var(--success-border);
+    background-color: var(--success-bg);
+    color: var(--success-text);
   }
   .notice-warning {
-    @apply border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200;
+    border-color: var(--warning-border);
+    background-color: var(--warning-bg);
+    color: var(--warning-text);
   }
   .notice-error {
-    @apply border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300;
+    border-color: var(--error-border);
+    background-color: var(--error-bg);
+    color: var(--error-text);
   }
   .notice-info {
-    @apply border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100;
+    border-color: var(--info-border);
+    background-color: var(--info-bg);
+    color: var(--info-text);
   }
 }
 
@@ -158,8 +353,8 @@ summary:focus-visible,
    range input, so keyboard, screen readers and touch dragging all work; only the
    look is custom. 44px tall for a comfortable touch target. */
 .compress-range {
-  --thumb-bg: #ffffff;
-  --thumb-border: #18181b;
+  --thumb-bg: var(--surface);
+  --thumb-border: var(--text);
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -169,12 +364,6 @@ summary:focus-visible,
   cursor: pointer;
   /* Horizontal drags move the slider; vertical ones still scroll the page. */
   touch-action: pan-y;
-}
-@media (prefers-color-scheme: dark) {
-  .compress-range {
-    --thumb-bg: #18181b;
-    --thumb-border: #ffffff;
-  }
 }
 .compress-range:disabled {
   cursor: not-allowed;

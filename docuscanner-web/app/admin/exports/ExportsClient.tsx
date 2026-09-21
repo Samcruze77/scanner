@@ -68,7 +68,7 @@ export function ExportsClient() {
         </p>
       </div>
 
-      <div className="max-w-xl space-y-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="max-w-xl space-y-4 rounded-lg border border-zinc-200 bg-surface p-4 dark:border-zinc-800">
         <div className="grid grid-cols-2 gap-3">
           <label className="text-sm">
             <span className="mb-1 block text-zinc-500 dark:text-zinc-400">From</span>

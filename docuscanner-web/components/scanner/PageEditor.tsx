@@ -116,7 +116,7 @@ export function PageEditor({
     >
       {/* Phone: one scrolling column with Done pinned below it. Desktop: the page on the
           left, its tools on the right, each scrolling on its own. */}
-      <div className="flex max-h-full w-full flex-col overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-zinc-900 sm:max-h-[92vh] sm:max-w-lg lg:max-w-5xl">
+      <div className="flex max-h-full w-full flex-col overflow-hidden rounded-2xl bg-elevated shadow-xl sm:max-h-[92vh] sm:max-w-lg lg:max-w-5xl">
         <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 py-2 pl-4 pr-2 dark:border-zinc-800">
           <h2 className="text-base font-semibold">Edit page {index + 1}</h2>
           <button

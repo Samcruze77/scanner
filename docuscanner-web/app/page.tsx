@@ -44,7 +44,7 @@ export default function Home() {
   return (
     <main id="main" className="flex-1">
       <section className="mx-auto w-full max-w-4xl px-4 pb-10 pt-12 text-center sm:px-6 sm:pt-20">
-        <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+        <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-surface px-3 py-1 text-xs font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
           <Icon name="shield" size={14} className="text-emerald-600 dark:text-emerald-400" />
           Your files stay on your device
         </p>

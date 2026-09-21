@@ -54,10 +54,10 @@ export function FileDropzone({
         type="button"
         disabled={disabled}
         onClick={() => inputRef.current?.click()}
-        className={`flex min-h-40 w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed bg-white px-4 py-8 text-center transition-colors disabled:opacity-50 ${
+        className={`flex min-h-40 w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors disabled:opacity-50 ${
           dragging
             ? "border-blue-600 bg-blue-50 dark:bg-blue-950"
-            : "border-zinc-300 hover:border-blue-400 hover:bg-blue-50/40 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+            : "border-zinc-300 bg-surface hover:border-blue-400 hover:bg-hover dark:border-zinc-700"
         }`}
       >
         <span aria-hidden className="mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
