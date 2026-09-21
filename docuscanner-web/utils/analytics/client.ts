@@ -53,6 +53,19 @@ export interface TrackEventOptions {
   properties?: Record<string, unknown>;
 }
 
+// Where the visitor came from, without anything after the path. A page opened from an
+// emailed link can have a referrer that carries a one-time token in its query
+// string, and that must never be stored.
+function safeReferrer(): string | undefined {
+  try {
+    if (!document.referrer) return undefined;
+    const url = new URL(document.referrer);
+    return url.origin + url.pathname;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function trackEvent(
   eventName: AnalyticsEventType,
   options: TrackEventOptions = {},
@@ -70,7 +83,7 @@ export async function trackEvent(
       visitor_id: getVisitorId(),
       session_id: getSessionId(),
       path: window.location.pathname,
-      referrer: document.referrer || undefined,
+      referrer: safeReferrer(),
       properties: Object.keys(properties).length > 0 ? properties : undefined,
     };
 

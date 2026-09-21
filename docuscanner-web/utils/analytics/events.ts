@@ -87,6 +87,17 @@ export function trackLoginRequired(tool: string) {
   return trackFeatureUsed("login_required", { tool });
 }
 
+// password_reset_requested / password_reset_completed: the forgot-password flow.
+// Only the fact that it happened: never the email address, the link or any
+// password (see utils/auth/messages.ts for the error codes that are safe to send).
+export function trackPasswordResetRequested() {
+  return trackFeatureUsed("password_reset_requested");
+}
+
+export function trackPasswordResetCompleted() {
+  return trackFeatureUsed("password_reset_completed");
+}
+
 // print: the person asked to print (the browser's print dialog was requested).
 // `source` is where it was started (scan | editor_page | convert | compress |
 // history). Never carries the document, its name, or any printer information.

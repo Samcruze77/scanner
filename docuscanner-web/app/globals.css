@@ -189,3 +189,11 @@ textarea:focus-visible {
     print-color-adjust: exact;
   }
 }
+
+/* The eye button in components/auth/PasswordField.tsx is the app's own show/hide
+   control. Edge and Internet Explorer draw a second one inside password inputs
+   and a clear (x) button in text ones: hide those so there is only ever one eye. */
+.password-input::-ms-reveal,
+.password-input::-ms-clear {
+  display: none;
+}
