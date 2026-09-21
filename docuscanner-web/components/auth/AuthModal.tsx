@@ -153,11 +153,13 @@ function AuthModalDialog() {
     try {
       if (mode === "signup") {
         void trackSignupStarted("email");
-        // The confirmation link brings the person back to the site they signed up on.
+        // The confirmation link brings the person back to the site they signed up on. The
+        // trailing slash matters: it is the form the project's Redirect URLs allow-list holds
+        // (https://…vercel.app/ and http://localhost:3000/**), and a bare origin is refused.
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: address,
           password,
-          options: { emailRedirectTo: authRedirectUrl() },
+          options: { emailRedirectTo: authRedirectUrl("/") },
         });
         if (signUpError) {
           setError(authErrorMessage(signUpError, "signup"));

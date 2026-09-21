@@ -8,7 +8,8 @@
 // allow-list (Authentication > URL Configuration); anything else, such as a
 // preview deployment, falls back to the project's Site URL.
 
-// `path` starts with "/" ("" means the site's home page).
+// `path` starts with "/". Use "/" for the home page: Supabase matches these addresses
+// against its allow-list exactly, and a bare origin with no slash is not the same address.
 export function authRedirectUrl(path = ""): string {
   return `${window.location.origin}${path}`;
 }
