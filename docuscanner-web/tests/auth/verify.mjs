@@ -401,6 +401,8 @@ await test("sign up: valid details create the account request and ask you to con
   assert.equal(c.length, 1);
   assert.equal(c[0].body.email, "new@example.com");
   assert.equal(c[0].body.password, PW.signup);
+  // The confirmation link returns to the site the person signed up on (production in production, localhost locally).
+  assert.equal(new URL(SUPABASE_URL + "/auth/v1" + c[0].path).searchParams.get("redirect_to"), BASE, "sign-up sends emailRedirectTo = this site");
   assert.equal(await evaluate(`document.querySelector('[role=status]').innerText`), "Check your email to confirm your account, then log in.");
   assert.equal(await modalTitle(), "Log in", "moves to the log-in form");
   assert.equal(await evaluate(`${inputFor("Password")}.value`), "", "the typed password is cleared");

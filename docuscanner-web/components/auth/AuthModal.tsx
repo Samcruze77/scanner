@@ -10,6 +10,7 @@ import {
   trackSignupStarted,
 } from "@/utils/analytics/events";
 import { authErrorCode, authErrorMessage, GENERIC_AUTH_ERROR, isRateLimited } from "@/utils/auth/messages";
+import { authRedirectUrl } from "@/utils/auth/redirects";
 import { confirmProblem, emailProblem, PASSWORD_HINT, passwordProblem } from "@/utils/auth/validation";
 import { PasswordField } from "./PasswordField";
 import { useAuth, type AuthModalMode } from "./AuthProvider";
@@ -89,7 +90,7 @@ function AuthModalDialog() {
     try {
       const supabase = createClient();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(address, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: authRedirectUrl("/reset-password"),
       });
       if (resetError) {
         void trackError("password_reset_request", authErrorCode(resetError, "reset_failed"));
@@ -152,7 +153,12 @@ function AuthModalDialog() {
     try {
       if (mode === "signup") {
         void trackSignupStarted("email");
-        const { data, error: signUpError } = await supabase.auth.signUp({ email: address, password });
+        // The confirmation link brings the person back to the site they signed up on.
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: address,
+          password,
+          options: { emailRedirectTo: authRedirectUrl() },
+        });
         if (signUpError) {
           setError(authErrorMessage(signUpError, "signup"));
           void trackError("signup", authErrorCode(signUpError, "signup_failed"));
