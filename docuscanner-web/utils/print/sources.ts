@@ -33,11 +33,11 @@ export async function scannerPagesToPrintPages(pages: ScannerPage[]): Promise<Pr
 }
 
 // Every page of a PDF, at its real size.
-export async function pdfToPrintPages(pdf: Blob | Uint8Array): Promise<PrintPage[]> {
+export async function pdfToPrintPages(pdf: Blob | Uint8Array, options: { maxPages?: number } = {}): Promise<PrintPage[]> {
   const bytes = pdf instanceof Uint8Array ? pdf : new Uint8Array(await pdf.arrayBuffer());
   let opened;
   try {
-    opened = await openPdfData(bytes, { maxPages: MAX_PRINT_PAGES });
+    opened = await openPdfData(bytes, { maxPages: options.maxPages ?? MAX_PRINT_PAGES });
   } catch (error) {
     if (error instanceof PdfError) {
       if (error.code === "pdf_password") throw new PrintError("password");

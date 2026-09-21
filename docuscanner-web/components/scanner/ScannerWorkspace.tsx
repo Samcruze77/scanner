@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AdInline } from "@/components/ads/AdSlot";
 import { PrintButton } from "@/components/print/PrintButton";
+import { useArmedDocument } from "@/components/print/useArmedDocument";
 import { Hint } from "@/components/guidance/Hint";
 import { fileToCapturedImage, type CapturedImage } from "@/utils/scanner/image";
 import type { Quad } from "@/utils/scanner/geometry";
@@ -500,6 +501,16 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
 
   const anyPageProcessing =
     pdfImport !== null || importStage !== null || pages.some((p) => p.status === "detecting" || p.status === "processing");
+
+  // Whatever the browser's print command is used from, it prints these pages (as
+  // edited) and nothing else on the screen.
+  useArmedDocument({
+    hasDocument: pages.length > 0,
+    active: !anyPageProcessing,
+    docKey: pages,
+    title: "document",
+    load: () => scannerPagesToPrintPages(pages),
+  });
 
   async function handleCreatePdf() {
     if (pages.length === 0 || creatingPdf || anyPageProcessing) return;

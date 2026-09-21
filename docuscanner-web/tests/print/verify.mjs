@@ -148,11 +148,12 @@ await send("Page.addScriptToEvaluateOnNewDocument", {
     window.fetch = (url, init) => { try { if (String(url).includes('track-analytics')) window.__events.push(JSON.parse(init.body)); } catch {} return realFetch(url, init); };
     window.__printCalls = [];
     window.print = () => {
-      const root = document.querySelector('.print-root');
+      const root = document.querySelector('.print-root:not([data-suspended])');
       window.__printCalls.push({
         pages: root ? [...root.querySelectorAll('.print-page')].map((s) => { const i = s.querySelector('img'); return { w: i.naturalWidth, h: i.naturalHeight, orientation: s.dataset.orientation, sized: s.dataset.sized === 'true', head: i.src.slice(0, 22), len: i.src.length }; }) : null,
         title: document.title,
       });
+      window.dispatchEvent(new Event('beforeprint'));
     };
   `,
 });
@@ -541,6 +542,175 @@ await test("Create PDF -> Download PDF still saves a PDF, and Print, Save and St
   assert.equal((await printEvents()).length, 1);
 });
 
+console.log("Browser print command (Ctrl/Cmd+P, File > Print): only the open file");
+
+const standing = "document.querySelector('.print-root[data-standing]')";
+const armedReady = `(() => { const r = ${standing}; return r && !r.dataset.suspended && [...r.querySelectorAll('img')].every(i => i.complete && i.naturalWidth > 0); })()`;
+const textOf = async (pages) => pages.map((p) => p.text).join(" ");
+
+await test("no document open: the browser prints the page normally (never a blank sheet)", async () => {
+  await open("/scan");
+  await sleep(600);
+  assert.equal(await evaluate("document.querySelectorAll('.print-root').length"), 0);
+  assert.equal(await evaluate("document.documentElement.classList.contains('print-document')"), false);
+  const pages = await inspect(await printToPdf(), "no-document");
+  const text = await textOf(pages);
+  log(`${pages.length} page(s), text: ${text.slice(0, 60)}`);
+  assert.ok(pages.length >= 1 && !pages[0].blank);
+  assert.match(text, /Scan, edit & sign a document/);
+  await open("/");
+  const home = await inspect(await printToPdf(), "no-document-home");
+  assert.ok(!home[0].blank && (await textOf(home)).length > 20, "the home page prints its content");
+});
+
+await test("a scan is open: the browser's own print prints ONLY its pages, no Print button needed", async () => {
+  await open("/scan");
+  await setFiles([fixtures.multi]);
+  await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(5 page/.test(b.innerText) && !b.disabled)`, "import", 90000);
+  await waitFor(armedReady, "the document to be armed", 30000);
+  const pages = await inspect(await printToPdf(), "browser-print-scan");
+  log(summary(pages));
+  assertClean(pages, 5, "browser print");
+  assert.equal(await evaluate("window.__printCalls.length"), 0, "our button was never used");
+});
+
+await test("that browser print counts as ONE print event (source browser), even if the browser fires beforeprint twice", async () => {
+  await evaluate("window.__events.length = 0");
+  await evaluate("window.dispatchEvent(new Event('beforeprint')); window.dispatchEvent(new Event('beforeprint'))");
+  await sleep(600);
+  const ev = await printEvents();
+  assert.equal(ev.length, 1, `expected 1 event, got ${ev.length}`);
+  assert.equal(ev[0].properties.source, "browser");
+  assert.equal(ev[0].properties.pageCount, 5);
+  assert.deepEqual(Object.keys(ev[0].properties).sort(), ["feature", "pageCount", "source"]);
+});
+
+await test("the Print button does not also count as a browser print", async () => {
+  await evaluate("window.__events.length = 0; window.__printCalls.length = 0");
+  await clickButton("Print");
+  await waitFor("window.__printCalls.length === 1", "print");
+  await sleep(600);
+  const ev = await printEvents();
+  assert.equal(ev.length, 1);
+  assert.equal(ev[0].properties.source, "scan");
+});
+
+await test("after a one-page job from the editor finishes, the browser print is the whole document again", async () => {
+  await open("/scan");
+  await setFiles([fixtures.multi]);
+  await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(5 page/.test(b.innerText) && !b.disabled)`, "import", 90000);
+  await waitFor(armedReady, "armed", 30000);
+  await evaluate(`document.querySelector('ul button, li button').click()`);
+  await waitFor(`document.querySelector('[role=dialog][aria-label="Edit page 1"]')`, "editor");
+  await clickButton("Print this page");
+  await waitFor("window.__printCalls.length === 1", "print");
+  const during = await inspect(await printToPdf(), "job-during");
+  assert.equal(during.length, 1, "while the job is running, only its page prints");
+  await evaluate("window.dispatchEvent(new Event('afterprint'))");
+  const after = await inspect(await printToPdf(), "job-after");
+  log(`during: ${during.length} page, after: ${after.length} pages`);
+  assert.equal(after.length, 5, "the open document is restored once the job is done");
+  for (const p of after) assert.equal(p.text, "");
+});
+
+await test("editing changes what the browser prints: rotate in the editor and the armed pages follow", async () => {
+  await open("/scan");
+  await setFiles([fixtures.scan]);
+  await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(1 page/.test(b.innerText) && !b.disabled)`, "scan", 60000);
+  await waitFor(armedReady, "armed", 30000);
+  assert.equal(await evaluate(`${standing}.querySelector('.print-page').dataset.orientation`), "portrait");
+  await evaluate(`document.querySelector('ul button, li button').click()`);
+  await waitFor(`document.querySelector('[role=dialog][aria-label="Edit page 1"]')`, "editor");
+  await evaluate(`document.querySelector('[aria-label="Rotate right"]').click()`);
+  await sleep(1500);
+  await waitFor(`!document.querySelector('[role=dialog]').innerText.includes('Processing')`, "rotation", 30000);
+  await waitFor(`${standing}.querySelector('.print-page').dataset.orientation === 'landscape' && ${armedReady}`, "armed pages to follow the edit", 30000);
+  const pages = await inspect(await printToPdf(), "browser-print-edited");
+  log(summary(pages));
+  assertClean(pages, 1, "edited browser print", { frame: false });
+  assert.ok(pages[0].w > pages[0].h, "the rotated (landscape) page is what prints");
+});
+
+await test("Ctrl+P pressed while the pages are still being prepared waits, then prints the document", async () => {
+  await open("/scan");
+  await setFiles([fixtures.multi]);
+  // Poll fast, and press Ctrl+P the instant the workspace is ready, inside the preparation window.
+  const prevented = await evaluate(`new Promise((resolve) => {
+    const iv = setInterval(() => {
+      const ready = [...document.querySelectorAll('button')].some(b => /Create PDF \\(5 page/.test(b.innerText) && !b.disabled);
+      if (!ready) return;
+      clearInterval(iv);
+      const e = new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, cancelable: true, bubbles: true });
+      window.dispatchEvent(e);
+      resolve(e.defaultPrevented);
+    }, 5);
+  })`);
+  assert.equal(prevented, true, "the shortcut was held back until the pages were ready");
+  await waitFor("window.__printCalls.length === 1", "print after preparing", 30000);
+  const call = (await printCalls())[0];
+  assert.equal(call.pages.length, 5, "it printed the whole open document");
+  // With everything prepared, the shortcut is left to the browser.
+  await sleep(500);
+  const free = await evaluate(`(() => { const e = new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, cancelable: true, bubbles: true }); window.dispatchEvent(e); return e.defaultPrevented; })()`);
+  assert.equal(free, false, "once armed, the browser's own print handles it");
+});
+
+await test("converted document: the browser print prints only the converted PDF", async () => {
+  await open("/convert/word-to-pdf");
+  await setFiles([fixtures.docx]);
+  await waitFor(`[...document.querySelectorAll('button')].some(b => b.innerText.trim() === 'Download PDF')`, "conversion", 120000);
+  await waitFor(armedReady, "armed", 60000);
+  const pages = await inspect(await printToPdf(), "browser-print-word");
+  log(summary(pages));
+  assert.ok(pages.length >= 1);
+  for (const p of pages) { assert.equal(p.text, ""); assert.ok(!p.blank); }
+});
+
+await test("compress result: the browser print prints only the file (PDF and image)", async () => {
+  await open("/tools/compress-pdf");
+  await setFiles([fixtures.bigPdf]);
+  await waitFor(`[...document.querySelectorAll('button')].some(b => b.innerText.trim() === 'Compress PDF')`, "ready", 30000);
+  await clickButton("Compress PDF");
+  await waitFor(`[...document.querySelectorAll('button')].some(b => b.innerText.includes('Download compressed'))`, "compression", 90000);
+  await waitFor(armedReady, "armed", 60000);
+  const pdfPages = await inspect(await printToPdf(), "browser-print-compress-pdf");
+  assert.equal(pdfPages.length, 3);
+  for (const p of pdfPages) { assert.equal(p.text, ""); assert.ok(!p.blank); }
+  await open("/tools/compress-image");
+  await setFiles([fixtures.photo]);
+  await waitFor(`[...document.querySelectorAll('button')].some(b => b.innerText.trim() === 'Compress image')`, "image ready", 30000);
+  await clickButton("Compress image");
+  await waitFor(`[...document.querySelectorAll('button')].some(b => /Download (compressed|original)/.test(b.innerText))`, "image compression", 60000);
+  await waitFor(armedReady, "armed", 30000);
+  const imgPages = await inspect(await printToPdf(), "browser-print-compress-image");
+  log(`pdf ${pdfPages.length} pages; image ${summary(imgPages)}`);
+  assertClean(imgPages, 1, "compressed image, browser print");
+});
+
+await test("leaving the screen disarms it: the next page prints normally again", async () => {
+  await open("/scan");
+  await setFiles([fixtures.scan]);
+  await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(1 page/.test(b.innerText) && !b.disabled)`, "scan", 60000);
+  await waitFor(armedReady, "armed", 30000);
+  await evaluate(`document.querySelector('a[href="/convert"]').click()`);
+  await waitFor(`location.pathname === '/convert'`, "navigation");
+  await sleep(500);
+  assert.equal(await evaluate("document.querySelectorAll('.print-root').length"), 0, "no print container left behind");
+  const pages = await inspect(await printToPdf(), "after-leaving");
+  assert.match(await textOf(pages), /Convert/);
+});
+
+await test("start over (no pages left) disarms it too", async () => {
+  await open("/scan");
+  await setFiles([fixtures.scan]);
+  await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(1 page/.test(b.innerText) && !b.disabled)`, "scan", 60000);
+  await waitFor(armedReady, "armed", 30000);
+  await evaluate(`document.querySelector('[aria-label="Remove page 1"]').click()`);
+  await waitFor(`document.querySelectorAll('.print-root').length === 0`, "print container removed after the last page is removed", 15000);
+  const pages = await inspect(await printToPdf(), "after-remove");
+  assert.match(await textOf(pages), /Scan, edit & sign a document/);
+});
+
 console.log("Analytics and clean-up");
 
 await test("one Print press = exactly one print analytics event; no printer/device data in it", async () => {
@@ -560,16 +730,16 @@ await test("one Print press = exactly one print analytics event; no printer/devi
 });
 
 await test("the print container is removed after the browser reports the job finished", async () => {
-  assert.equal(await evaluate("document.querySelectorAll('.print-root').length"), 1);
+  assert.equal(await evaluate("document.querySelectorAll('.print-root:not([data-standing])').length"), 1);
   await evaluate("window.dispatchEvent(new Event('afterprint'))");
   await sleep(10500);
-  assert.equal(await evaluate("document.querySelectorAll('.print-root').length"), 0);
+  assert.equal(await evaluate("document.querySelectorAll('.print-root:not([data-standing])').length"), 0);
 });
 
 await test("a second press replaces the first job instead of stacking print containers", async () => {
   await clickButton("Print");
   await waitFor("window.__printCalls.length === 2", "second print");
-  assert.equal(await evaluate("document.querySelectorAll('.print-root').length"), 1);
+  assert.equal(await evaluate("document.querySelectorAll('.print-root:not([data-standing])').length"), 1);
   assert.equal((await printEvents()).length, 2, "two presses = two events, one each");
 });
 
@@ -646,8 +816,8 @@ await test("on screen, nothing print-related is visible", async () => {
   await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(1 page/.test(b.innerText) && !b.disabled)`, "scan", 60000);
   await clickButton("Print");
   await waitFor("window.__printCalls.length === 1", "print");
-  const visible = await evaluate(`(() => { const r = document.querySelector('.print-root'); const cs = getComputedStyle(r); return { display: cs.display, h: r.getBoundingClientRect().height }; })()`);
-  assert.equal(visible.display, "none");
+  const visible = await evaluate(`[...document.querySelectorAll('.print-root')].map(r => getComputedStyle(r).display)`);
+  assert.ok(visible.length >= 1 && visible.every((d) => d === "none"), `print containers must be invisible on screen: ${visible}`);
 });
 
 await test("no console errors or exceptions during the whole run", async () => {

@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { FileDropzone } from "@/components/convert/FileDropzone";
 import { ErrorBanner } from "@/components/scanner/ErrorBanner";
 import { PrintButton } from "@/components/print/PrintButton";
+import { ARM_MAX_PAGES, useArmedDocument } from "@/components/print/useArmedDocument";
 import { CompressionGauge, type LevelEstimate } from "@/components/tools/CompressionGauge";
 import {
   trackCompressionCompleted,
@@ -431,6 +432,20 @@ function Result({
   onReset: () => void;
 }) {
   const { report } = stage;
+  // The file offered for download is the document on screen: the browser's print
+  // command prints just it (PDFs and pictures; Word and Excel have no print path).
+  useArmedDocument({
+    hasDocument: kind === "pdf" || kind === "image",
+    active: true,
+    docKey: report,
+    title: printTitle(report.filename),
+    load: () =>
+      kind === "pdf"
+        ? pdfToPrintPages(report.data, { maxPages: ARM_MAX_PAGES })
+        : kind === "image"
+          ? imageToPrintPages(new Blob([report.data as BlobPart], { type: report.mime }))
+          : Promise.resolve([]),
+  });
   const targetLabel = report.targetBytes !== null ? formatBytes(report.targetBytes) : null;
   const saved = report.originalBytes - report.compressedBytes;
   const aggressive = report.levelIndex !== null && COMPRESSION_LEVELS[report.levelIndex].warning !== null;

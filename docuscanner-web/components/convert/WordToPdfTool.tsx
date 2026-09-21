@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { PrintButton } from "@/components/print/PrintButton";
+import { ARM_MAX_PAGES, useArmedDocument } from "@/components/print/useArmedDocument";
 import { ErrorBanner } from "@/components/scanner/ErrorBanner";
 import {
   trackConversionCompleted,
@@ -48,6 +49,16 @@ export function WordToPdfTool() {
 
   const [stage, setStage] = useState<Stage>({ name: "idle" });
   const [error, setError] = useState<string | null>(null);
+
+  // The converted PDF is the document on screen: the browser's print command prints just it.
+  const converted = stage.name === "done" ? stage : null;
+  useArmedDocument({
+    hasDocument: converted !== null,
+    active: true,
+    docKey: converted?.blob ?? null,
+    title: converted ? printTitle(converted.fileName) : undefined,
+    load: () => (converted ? pdfToPrintPages(converted.blob, { maxPages: ARM_MAX_PAGES }) : Promise.resolve([])),
+  });
 
   if (!available) {
     return <p className="text-sm text-zinc-500">This tool isn&apos;t available on your plan.</p>;

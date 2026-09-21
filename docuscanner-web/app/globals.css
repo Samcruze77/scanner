@@ -93,10 +93,13 @@ textarea:focus-visible {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
-/* Printing (utils/print/printPages.ts). The document being printed is drawn into
-   a .print-root container that is added to <body> just before window.print().
-   It is invisible on screen; when printing, everything else in the app (header,
-   navigation, ads, dialogs, buttons) is hidden and only that container remains.
+/* Printing (utils/print/printPages.ts). The open document is kept as pages drawn
+   into a .print-root container added to <body>. It is invisible on screen. While a
+   visible container exists, printing only the document is switched on by the
+   `print-document` class on <html>: everything else in the app (header,
+   navigation, ads, dialogs, buttons) is hidden when printing and only the
+   document's pages remain. With no container (no document open) none of these
+   rules apply and the browser prints the page as usual.
    Each document page gets its own sheet. Named pages let a mixed document keep
    each page's own orientation where the browser supports them; elsewhere the
    pages simply follow the orientation chosen in the print dialog. */
@@ -114,8 +117,8 @@ textarea:focus-visible {
 }
 
 @media print {
-  html,
-  body {
+  html.print-document,
+  html.print-document body {
     height: auto !important;
     min-height: 0 !important;
     margin: 0 !important;
@@ -124,13 +127,17 @@ textarea:focus-visible {
     display: block !important;
     background: #fff !important;
   }
-  body > *:not(.print-root) {
+  html.print-document body > *:not(.print-root) {
     display: none !important;
   }
-  .print-root {
+  html.print-document .print-root {
     display: block !important;
   }
-  .print-page {
+  /* A container that is waiting underneath another (or already printed) stays out. */
+  html.print-document .print-root[data-suspended] {
+    display: none !important;
+  }
+  html.print-document .print-page {
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -149,35 +156,35 @@ textarea:focus-visible {
   /* Browsers size the viewport from the FIRST page, so 100vh is the height of a
      sheet only when it has the first page's orientation. A sheet turned the other
      way is as tall as the first page is wide. (printPages.ts sets data-first.) */
-  .print-root[data-first="portrait"] .print-page[data-orientation="landscape"],
-  .print-root[data-first="landscape"] .print-page[data-orientation="portrait"] {
+  html.print-document .print-root[data-first="portrait"] .print-page[data-orientation="landscape"],
+  html.print-document .print-root[data-first="landscape"] .print-page[data-orientation="portrait"] {
     height: calc(100vw - 1px);
   }
-  .print-page:last-child {
+  html.print-document .print-page:last-child {
     break-after: auto;
     page-break-after: auto;
   }
-  .print-page[data-orientation="portrait"] {
+  html.print-document .print-page[data-orientation="portrait"] {
     page: print-portrait;
   }
-  .print-page[data-orientation="landscape"] {
+  html.print-document .print-page[data-orientation="landscape"] {
     page: print-landscape;
   }
   /* Scans and pictures: as large as fits, never cropped, never stretched. */
-  .print-page img {
+  html.print-document .print-page img {
     display: block;
     width: 100%;
     height: 100%;
     object-fit: contain;
   }
   /* Pages of a PDF: true size, shrunk only when they don't fit the sheet. */
-  .print-page[data-sized] img {
+  html.print-document .print-page[data-sized] img {
     width: var(--print-w);
     height: var(--print-h);
     max-width: 100%;
     max-height: 100%;
   }
-  * {
+  html.print-document * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
