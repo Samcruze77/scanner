@@ -347,7 +347,7 @@ export async function convertPdfToWord(file: File, options: PdfToWordOptions): P
   });
 
   const document = new Document({
-    creator: "DocuScanner",
+    creator: "PDFScanner",
     title: file.name.replace(/\.pdf$/i, ""),
     numbering: {
       config: [

@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const tool = getToolBySlug(slug);
   if (!tool) return {};
-  return { title: `${tool.title} - DocuScanner`, description: `${tool.body} Free, in your browser.` };
+  return { title: `${tool.title} - PDFScanner`, description: `${tool.body} Free, in your browser.` };
 }
 
 export default async function ToolPage({ params }: { params: Promise<{ slug: string }> }) {

@@ -4,7 +4,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { ExcelToPdfTool } from "@/components/convert/ExcelToPdfTool";
 
 export const metadata: Metadata = {
-  title: "Excel to PDF converter - DocuScanner",
+  title: "Excel to PDF converter - PDFScanner",
   description:
     "Convert Excel and CSV files to PDF for free, right in your browser. Your file never leaves your device.",
 };

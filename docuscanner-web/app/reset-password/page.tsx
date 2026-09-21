@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
 
 export const metadata: Metadata = {
-  title: "Choose a new password - DocuScanner",
+  title: "Choose a new password - PDFScanner",
   // A private, one-time page: keep it out of search results.
   robots: { index: false, follow: false },
 };

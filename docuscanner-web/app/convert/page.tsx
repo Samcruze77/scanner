@@ -6,7 +6,7 @@ import { CONVERT_TOOLS, SCAN_TOOL } from "@/components/convert/tools";
 import { Icon, type IconName } from "@/components/ui/icons";
 
 export const metadata: Metadata = {
-  title: "Convert files - DocuScanner",
+  title: "Convert files - PDFScanner",
   description: "Scan, edit and sign documents, and convert between Word, PDF and Excel. Free, in your browser.",
 };
 

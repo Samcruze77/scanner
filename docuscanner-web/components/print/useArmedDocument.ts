@@ -3,7 +3,7 @@
 // Keeps the document that is open on screen "armed" for printing: its pages are
 // prepared in a hidden container, so ANY print command (the Print button,
 // Ctrl/Cmd+P, the browser's File > Print menu) prints only that document, in its
-// current edited state, instead of the whole DocuScanner page around it.
+// current edited state, instead of the whole PDFScanner page around it.
 //
 // - Re-arms when the document changes (an edit, a new conversion result), a moment
 //   after the change settles.

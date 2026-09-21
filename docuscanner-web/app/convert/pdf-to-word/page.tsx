@@ -4,7 +4,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { PdfToWordTool } from "@/components/convert/PdfToWordTool";
 
 export const metadata: Metadata = {
-  title: "PDF to Word converter - DocuScanner",
+  title: "PDF to Word converter - PDFScanner",
   description:
     "Convert a PDF to an editable Word document for free, right in your browser. Scanned PDFs are read with text recognition. Your file never leaves your device.",
 };

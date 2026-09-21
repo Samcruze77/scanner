@@ -41,7 +41,7 @@ export default async function AdminLayout({
         <div>
           <h1 className="text-xl font-semibold">Access restricted</h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            This area is limited to DocuScanner admins.
+            This area is limited to PDFScanner admins.
           </p>
         </div>
       </div>

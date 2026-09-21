@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* ==== DocuScanner design system ================================================
+/* ==== PDFScanner design system ================================================
    One place for how the product looks, so screens stay consistent. Plain Tailwind:
    tokens here, shared component classes below (@layer components), and screens
    compose them. There is no component library.

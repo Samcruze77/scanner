@@ -631,7 +631,7 @@ await test("opening the page with no link at all is handled: a clear message and
   await waitFor(`document.querySelector('main h1') && document.querySelector('main h1').innerText === "This reset link can't be used"`, "invalid message", 8000);
   assert.equal((await callsTo("PUT", "/user")).length, 0);
   const s = await evaluate(`[...document.querySelectorAll('main button, main a')].map(x => x.innerText.trim())`);
-  assert.deepEqual(s, ["Send me a new link", "Back to log in", "Go to DocuScanner"]);
+  assert.deepEqual(s, ["Send me a new link", "Back to log in", "Go to PDFScanner"]);
   await click(byText("document.querySelector('main')", "button", "Back to log in"));
   await waitFor(`${dialog} && ${dialog}.querySelector('h2').innerText === 'Log in'`, "log-in dialog");
 });

@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DocuScanner - Free document scanning",
+  title: "PDFScanner - Free document scanning",
   description: "Scan, organize, and download documents as PDF, free and ad-supported.",
 };
 

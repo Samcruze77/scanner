@@ -6,7 +6,7 @@ import { ToolCard } from "@/components/tools/ToolCard";
 import { TOOL_GROUPS, toolsInGroup } from "@/utils/tools/registry";
 
 export const metadata: Metadata = {
-  title: "Tools - DocuScanner",
+  title: "Tools - PDFScanner",
   description: "Edit, sign and compress documents for free, right in your browser. Nothing is uploaded.",
 };
 

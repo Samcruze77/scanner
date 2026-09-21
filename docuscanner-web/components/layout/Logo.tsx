@@ -1,4 +1,4 @@
-// The DocuScanner mark and wordmark. The wordmark is hidden on very small screens,
+// The PDFScanner mark and wordmark. The wordmark is hidden on very small screens,
 // where the mark alone keeps the header from crowding.
 export function Logo({ showWordmark = true }: { showWordmark?: boolean }) {
   return (
@@ -9,7 +9,7 @@ export function Logo({ showWordmark = true }: { showWordmark?: boolean }) {
           <path d="M10 13h6M10 17h6" />
         </svg>
       </span>
-      {showWordmark && <span className="hidden text-base font-semibold tracking-tight sm:inline">DocuScanner</span>}
+      {showWordmark && <span className="hidden text-base font-semibold tracking-tight sm:inline">PDFScanner</span>}
     </span>
   );
 }
