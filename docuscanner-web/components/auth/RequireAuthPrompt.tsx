@@ -14,21 +14,13 @@ export function RequireAuthPrompt({
   const { openAuthModal } = useAuth();
 
   return (
-    <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between">
-      <span className="text-zinc-600 dark:text-zinc-400">{message}</span>
+    <div className="card flex flex-col items-start gap-3 border-dashed p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+      <span className="muted">{message}</span>
       <div className="flex shrink-0 gap-2">
-        <button
-          type="button"
-          onClick={() => openAuthModal("login")}
-          className="min-h-11 rounded-md border border-zinc-300 px-3 text-sm font-medium hover:bg-white dark:border-zinc-700 dark:hover:bg-zinc-800"
-        >
+        <button type="button" onClick={() => openAuthModal("login")} className="btn btn-secondary">
           Log in
         </button>
-        <button
-          type="button"
-          onClick={() => openAuthModal("signup")}
-          className="min-h-11 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white dark:bg-white dark:text-black"
-        >
+        <button type="button" onClick={() => openAuthModal("signup")} className="btn btn-primary">
           Sign up free
         </button>
       </div>

@@ -1,8 +1,11 @@
 import { cookies } from "next/headers";
+import Link from "next/link";
 import { getVerifiedClaims } from "@/utils/supabase/claims";
 import { createClient } from "@/utils/supabase/server";
 import { RequireAuthPrompt } from "@/components/auth/RequireAuthPrompt";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
+import { Icon } from "@/components/ui/icons";
 import { HistoryPrintButton } from "./HistoryPrintButton";
 
 interface DocumentRow {
@@ -22,7 +25,7 @@ export default async function HistoryPage() {
   if (!claims) {
     return (
       <PageShell width="narrow">
-        <h1 className="mb-4 text-xl font-semibold">Document history</h1>
+        <PageHeader title="Document history">Documents you&apos;ve saved to your account.</PageHeader>
         <RequireAuthPrompt message="Sign in to see documents you've saved to your account." />
       </PageShell>
     );
@@ -48,29 +51,31 @@ export default async function HistoryPage() {
 
   return (
     <PageShell width="narrow">
-      <h1 className="mb-4 text-xl font-semibold">Document history</h1>
+      <PageHeader title="Document history">Documents you&apos;ve saved to your account. Download or print them from any device.</PageHeader>
       {withUrls.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          No saved documents yet. Scan something and save it to your account.
-        </p>
+        <div className="card flex flex-col items-start gap-3 p-6 text-sm">
+          <p className="muted">No saved documents yet. Scan something and save it to your account.</p>
+          <Link href="/scan" className="btn btn-primary">
+            <Icon name="camera" size={18} />
+            Scan a document
+          </Link>
+        </div>
       ) : (
-        <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        <ul className="card divide-y divide-zinc-200 overflow-hidden dark:divide-zinc-800">
           {withUrls.map((doc) => (
-            <li key={doc.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+            <li key={doc.id} className="flex flex-col gap-3 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="truncate font-medium">{doc.title}</p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   {doc.page_count ?? "?"} page{doc.page_count === 1 ? "" : "s"} ·{" "}
                   {new Date(doc.created_at).toLocaleDateString()}
                 </p>
               </div>
               {doc.downloadUrl && (
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <HistoryPrintButton url={doc.downloadUrl} title={doc.title} />
-                  <a
-                    href={doc.downloadUrl}
-                    className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium dark:border-zinc-700"
-                  >
+                  <a href={doc.downloadUrl} className="btn btn-secondary">
+                    <Icon name="download" size={18} />
                     Download
                   </a>
                 </div>

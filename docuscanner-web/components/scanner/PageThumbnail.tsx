@@ -4,81 +4,35 @@ import { AnnotationOverlay } from "./AnnotationOverlay";
 export function PageThumbnail({
   page,
   index,
-  total,
-  onEdit,
-  onRemove,
-  onMoveUp,
-  onMoveDown,
+  selected,
+  onSelect,
 }: {
   page: ScannerPage;
   index: number;
-  total: number;
-  onEdit: () => void;
-  onRemove: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const processing = page.status === "detecting" || page.status === "processing";
 
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-800">
+    <li className="shrink-0">
       <button
         type="button"
-        onClick={onEdit}
-        aria-label={`Edit page ${index + 1}`}
-        title="Click the image to edit"
-        className="relative block overflow-hidden rounded-md"
+        onClick={onSelect}
+        aria-label={`Show page ${index + 1}`}
+        aria-current={selected ? "true" : undefined}
+        className={`relative block w-16 overflow-hidden rounded-lg border-2 bg-white sm:w-20 ${
+          selected ? "border-blue-600" : "border-zinc-200 hover:border-zinc-400 dark:border-zinc-700"
+        }`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL, not a static asset next/image can optimize */}
-        <img
-          src={page.processedDataUrl}
-          alt={`Page ${index + 1}`}
-          className="aspect-[3/4] w-full object-cover"
-        />
+        <img src={page.processedDataUrl} alt="" className="aspect-[3/4] w-full object-cover" />
         <AnnotationOverlay page={page} fit="cover" />
-        {processing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 px-1 text-center text-xs font-medium text-white">
-            {page.statusLabel ?? "Processing…"}
-          </div>
-        )}
-        {!processing && page.cropEnabled && (
-          <span className="absolute bottom-1 left-1 rounded bg-emerald-600/90 px-1.5 py-0.5 text-[10px] font-medium text-white">
-            Cropped
-          </span>
-        )}
+        {processing && <span className="absolute inset-0 bg-black/40" />}
+        <span className="absolute bottom-0.5 right-0.5 rounded bg-zinc-900/80 px-1.5 text-[11px] font-medium leading-5 text-white">
+          {index + 1}
+        </span>
       </button>
-      <div className="flex flex-col gap-1 text-xs text-zinc-500">
-        <span>Page {index + 1}</span>
-        {/* Three 44px targets don't fit beside the label in a half-width card on a phone, so they get their own row and share its width. */}
-        <div className="grid grid-cols-3 gap-1">
-          <button
-            type="button"
-            onClick={onMoveUp}
-            disabled={index === 0}
-            aria-label={`Move page ${index + 1} earlier`}
-            className="flex h-11 min-w-0 items-center justify-center rounded-md border border-zinc-200 disabled:opacity-30 dark:border-zinc-800"
-          >
-            ↑
-          </button>
-          <button
-            type="button"
-            onClick={onMoveDown}
-            disabled={index === total - 1}
-            aria-label={`Move page ${index + 1} later`}
-            className="flex h-11 min-w-0 items-center justify-center rounded-md border border-zinc-200 disabled:opacity-30 dark:border-zinc-800"
-          >
-            ↓
-          </button>
-          <button
-            type="button"
-            onClick={onRemove}
-            aria-label={`Remove page ${index + 1}`}
-            className="flex h-11 min-w-0 items-center justify-center rounded-md border border-red-200 text-red-600 dark:border-red-900 dark:text-red-400"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
     </li>
   );
 }

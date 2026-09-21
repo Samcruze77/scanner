@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Icon } from "@/components/ui/icons";
 
 // Click-or-drop file picker shared by the conversion tools. The visible
 // control is a real button (keyboard and screen-reader friendly) that opens a
@@ -53,14 +54,17 @@ export function FileDropzone({
         type="button"
         disabled={disabled}
         onClick={() => inputRef.current?.click()}
-        className={`flex min-h-40 w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors disabled:opacity-50 ${
+        className={`flex min-h-40 w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed bg-white px-4 py-8 text-center transition-colors disabled:opacity-50 ${
           dragging
-            ? "border-zinc-900 bg-zinc-100 dark:border-white dark:bg-zinc-900"
-            : "border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            ? "border-blue-600 bg-blue-50 dark:bg-blue-950"
+            : "border-zinc-300 hover:border-blue-400 hover:bg-blue-50/40 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
         }`}
       >
+        <span aria-hidden className="mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+          <Icon name="upload" size={22} />
+        </span>
         <span className="text-base font-semibold">{title}</span>
-        <span className="text-sm text-zinc-500">{hint}</span>
+        <span className="muted text-sm">{hint}</span>
       </button>
     </div>
   );

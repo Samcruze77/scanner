@@ -61,7 +61,7 @@ export function WordToPdfTool() {
   });
 
   if (!available) {
-    return <p className="text-sm text-zinc-500">This tool isn&apos;t available on your plan.</p>;
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">This tool isn&apos;t available on your plan.</p>;
   }
 
   async function handleFile(file: File) {
@@ -123,15 +123,15 @@ export function WordToPdfTool() {
       )}
 
       {stage.name === "working" && (
-        <div role="status" className="rounded-lg border border-zinc-200 p-4 text-sm dark:border-zinc-800">
+        <div role="status" className="card p-4 text-sm">
           <p className="truncate font-medium">{stage.fileName}</p>
-          <p className="mt-1 text-zinc-500">{stage.label}</p>
+          <p className="mt-1 text-zinc-500 dark:text-zinc-400">{stage.label}</p>
         </div>
       )}
 
       {stage.name === "done" && (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 card p-3">
             <p className="min-w-0 truncate text-sm font-medium">{stage.fileName}</p>
             <button
               type="button"
@@ -139,7 +139,7 @@ export function WordToPdfTool() {
                 setStage({ name: "idle" });
                 setError(null);
               }}
-              className="min-h-11 rounded-md px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+              className="btn btn-ghost"
             >
               Choose a different file
             </button>
@@ -147,7 +147,7 @@ export function WordToPdfTool() {
 
           <div
             role="status"
-            className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+            className="notice notice-success !block space-y-2"
           >
             <p className="font-medium">
               Done{stage.pageCount > 0 ? `: ${stage.pageCount} page${stage.pageCount === 1 ? "" : "s"}` : ""}.
@@ -170,14 +170,14 @@ export function WordToPdfTool() {
             <button
               type="button"
               onClick={handleDownload}
-              className="min-h-11 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-black"
+              className="btn btn-primary"
             >
               Download PDF
             </button>
             <button
               type="button"
               onClick={handleEditAndSign}
-              className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700"
+              className="btn btn-secondary"
             >
               Edit &amp; sign this PDF
             </button>
@@ -186,7 +186,7 @@ export function WordToPdfTool() {
 
           {stage.preview && (
             <div>
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">Preview (first page)</p>
+              <p className="panel-title mb-1">Preview (first page)</p>
               {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL */}
               <img
                 src={stage.preview}

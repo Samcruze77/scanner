@@ -1,61 +1,43 @@
 "use client";
 
-// Bottom action bar for small screens, replacing the header's Scan/Convert/Tools/History
-// links (which are hidden below `sm` to keep the header from wrapping).
-// Fixed to the viewport bottom, so app/layout.tsx reserves matching bottom
-// padding on <body> to keep it from covering page content.
+// Bottom navigation for phones: the same places as the header, within thumb reach
+// (the header's links are hidden below `sm`). Fixed to the bottom, so app/layout.tsx
+// reserves matching padding on <body> and nothing is covered. Signing in lives in the
+// header on every screen size, so it isn't repeated here.
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { NAV_ITEMS, isNavActive } from "@/components/layout/nav";
+import { Icon } from "@/components/ui/icons";
 
-const ITEMS = [
-  { href: "/", label: "Home", icon: "🏠" },
-  { href: "/scan", label: "Scan", icon: "📷" },
-  { href: "/convert", label: "Convert", icon: "🔄" },
-  { href: "/tools", label: "Tools", icon: "🛠" },
-  { href: "/history", label: "History", icon: "🗂" },
-] as const;
+const ITEMS = [{ href: "/", label: "Home", icon: "home" as const }, ...NAV_ITEMS];
 
 export function MobileActionBar() {
   const pathname = usePathname();
-  const { user, openAuthModal } = useAuth();
 
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-black/95 sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 sm:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {ITEMS.map((item) => {
-        // Convert and Tools each cover their hub and every page beneath it.
-        const active = item.href === "/convert" || item.href === "/tools" ? pathname.startsWith(item.href) : pathname === item.href;
+        const active = item.href === "/" ? pathname === "/" : isNavActive(pathname, item.href);
         return (
           <Link
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium ${
-              active ? "text-zinc-900 dark:text-white" : "text-zinc-500 dark:text-zinc-400"
+            className={`relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
+              active ? "text-blue-600 dark:text-blue-400" : "text-zinc-500 dark:text-zinc-400"
             }`}
           >
-            <span aria-hidden className="text-base">
-              {item.icon}
-            </span>
+            {active && <span aria-hidden className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-blue-600 dark:bg-blue-400" />}
+            <Icon name={item.icon} size={22} />
             {item.label}
           </Link>
         );
       })}
-      <button
-        type="button"
-        onClick={() => (user ? undefined : openAuthModal("login"))}
-        className="flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-zinc-500 dark:text-zinc-400"
-      >
-        <span aria-hidden className="text-base">
-          👤
-        </span>
-        {user ? "Account" : "Sign in"}
-      </button>
     </nav>
   );
 }

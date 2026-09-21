@@ -16,7 +16,7 @@ export function AdminNav({ role }: { role: AdminRole }) {
     <nav className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-black md:w-56 md:flex-col md:items-stretch md:border-b-0 md:border-r md:px-3 md:py-6">
       <div className="mb-2 hidden px-2 md:block">
         <p className="text-sm font-semibold">Admin</p>
-        <p className="text-xs capitalize text-zinc-500">{role.replace("_", " ")}</p>
+        <p className="text-xs capitalize text-zinc-500 dark:text-zinc-400">{role.replace("_", " ")}</p>
       </div>
       {LINKS.map((link) => {
         const active = pathname === link.href;

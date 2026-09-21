@@ -3,10 +3,9 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { AdInline } from "@/components/ads/AdSlot";
+import { Icon } from "@/components/ui/icons";
 import { PrintButton } from "@/components/print/PrintButton";
 import { useArmedDocument } from "@/components/print/useArmedDocument";
-import { Hint } from "@/components/guidance/Hint";
 import { fileToCapturedImage, type CapturedImage } from "@/utils/scanner/image";
 import type { Quad } from "@/utils/scanner/geometry";
 import { createInitialPage, type PageRotation, type ScannerPage } from "@/utils/scanner/page";
@@ -43,6 +42,8 @@ import {
 import { CameraCapture } from "./CameraCapture";
 import { PageList } from "./PageList";
 import { PageEditor } from "./PageEditor";
+import { PagePreview } from "./PagePreview";
+import { WorkspaceStepper, type WorkspaceStep } from "./WorkspaceStepper";
 import { CropEditor } from "./CropEditor";
 import { ErrorBanner } from "./ErrorBanner";
 import { OcrPanel } from "./OcrPanel";
@@ -98,6 +99,8 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
   // from an effect -- avoids an extra render and a setState-in-effect.
   const [mode, setMode] = useState<Mode>(initialMode === "camera" ? "camera" : "idle");
   const [pages, setPages] = useState<ScannerPage[]>([]);
+  // The page shown large in the preview. Falls back to the first page when unset or removed.
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [croppingPageId, setCroppingPageId] = useState<string | null>(null);
   const [annotatingPageId, setAnnotatingPageId] = useState<string | null>(null);
@@ -122,6 +125,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
   const ocr = useOcr(plan);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const exportRef = useRef<HTMLElement>(null);
   const scanStartedRef = useRef(false);
   const scanCompletedRef = useRef(false);
 
@@ -274,6 +278,8 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     const initial = createInitialPage(captured);
     setPdfBlob(null);
     setPages((prev) => [...prev, initial]);
+    // Show what was just captured.
+    setSelectedPageId(initial.id);
     void runDetectionAndRender(initial);
   }
 
@@ -400,6 +406,11 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
 
   function handleRemovePage(id: string) {
     setPdfBlob(null);
+    // Keep the preview on a neighbouring page when the shown one goes.
+    if (selectedPage?.id === id) {
+      const at = pages.findIndex((p) => p.id === id);
+      setSelectedPageId((pages[at + 1] ?? pages[at - 1])?.id ?? null);
+    }
     setPages((prev) => prev.filter((p) => p.id !== id));
     setEditingPageId((current) => (current === id ? null : current));
     setCroppingPageId((current) => (current === id ? null : current));
@@ -420,6 +431,8 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     void trackFeatureUsed("reorder_page");
   }
 
+  const selectedPage = pages.find((p) => p.id === selectedPageId) ?? pages[0] ?? null;
+  const selectedIndex = selectedPage ? pages.indexOf(selectedPage) : -1;
   const editingPage = pages.find((p) => p.id === editingPageId) ?? null;
   const editingIndex = editingPage ? pages.findIndex((p) => p.id === editingPage.id) : -1;
 
@@ -512,6 +525,12 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     load: () => scannerPagesToPrintPages(pages),
   });
 
+  // On a phone the Export card sits below the preview: when the PDF is ready, make sure
+  // the result (and its Download button) is what's on screen.
+  useEffect(() => {
+    if (pdfBlob) exportRef.current?.scrollIntoView({ block: "nearest" });
+  }, [pdfBlob]);
+
   async function handleCreatePdf() {
     if (pages.length === 0 || creatingPdf || anyPageProcessing) return;
 
@@ -581,6 +600,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
   function handleStartOver() {
     ocr.reset();
     setPages([]);
+    setSelectedPageId(null);
     setEditingPageId(null);
     setCroppingPageId(null);
     setAnnotatingPageId(null);
@@ -592,6 +612,37 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     scanStartedRef.current = false;
     scanCompletedRef.current = false;
   }
+
+  // Camera first when scanning; upload first when a Tools entry (Sign PDF ...) opened this.
+  const addButtons = (large: boolean) => (
+    <>
+      <button
+        type="button"
+        onClick={handleOpenCamera}
+        className={`btn ${large ? `btn-lg ${intent ? "btn-secondary order-2" : "btn-primary"}` : "btn-secondary"}`}
+      >
+        <Icon name="camera" size={20} />
+        Use camera
+      </button>
+      <button
+        type="button"
+        onClick={handleUploadClick}
+        className={`btn ${large ? `btn-lg ${intent ? "btn-primary order-1" : "btn-secondary"}` : "btn-secondary"}`}
+      >
+        <Icon name="upload" size={20} />
+        Upload document
+      </button>
+    </>
+  );
+
+  const step: WorkspaceStep = pages.length === 0 ? 0 : pdfBlob ? 2 : 1;
+  const busyMessage = importStage
+    ? importStage
+    : pdfImport
+      ? pdfImport.total > 0
+        ? `Importing PDF… page ${pdfImport.done} of ${pdfImport.total}`
+        : "Opening PDF…"
+      : null;
 
   return (
     <div className="space-y-4">
@@ -605,162 +656,215 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
         aria-label="Upload a document: PDF, Word, Excel, CSV or image"
       />
 
+      <WorkspaceStepper current={step} />
+
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
       {notice && (
-        <div
-          role="status"
-          className="flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
-        >
-          <span>{notice}</span>
+        <div role="status" className="notice notice-warning">
+          <span className="min-w-0 flex-1">{notice}</span>
           <button
             type="button"
             onClick={() => setNotice(null)}
             aria-label="Dismiss notice"
-            className="-my-2 -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded hover:opacity-70"
+            className="btn btn-icon btn-ghost -my-2 -mr-2 shrink-0"
           >
-            ✕
+            <Icon name="x" size={18} />
           </button>
         </div>
       )}
-
-      {mode === "camera" ? (
-        <CameraCapture
-          onCapture={handleCameraCapture}
-          onClose={() => setMode("idle")}
-          onError={handleCameraError}
-        />
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handleOpenCamera}
-            className={`min-h-11 rounded-md px-4 py-2.5 text-sm font-medium ${
-              intent ? "order-2 border border-zinc-300 dark:border-zinc-700" : "bg-zinc-900 text-white dark:bg-white dark:text-black"
-            }`}
-          >
-            Use camera
-          </button>
-          <button
-            type="button"
-            onClick={handleUploadClick}
-            className={`min-h-11 rounded-md px-4 py-2.5 text-sm font-medium ${
-              intent ? "order-1 bg-zinc-900 text-white dark:bg-white dark:text-black" : "border border-zinc-300 dark:border-zinc-700"
-            }`}
-          >
-            Upload document
-          </button>
-          <p className="basis-full text-xs text-zinc-500">{SUPPORTED_FORMATS}</p>
-        </div>
+      {busyMessage && (
+        <p role="status" className="notice notice-info">
+          {busyMessage}
+        </p>
       )}
 
-      {pages.length > 0 && (
-        <Hint id="scan-open-page">
-          Tap a page to open the editor: crop, enhance, add text or sign. Use the arrows to reorder pages.
-        </Hint>
+      {mode === "camera" && (
+        <CameraCapture onCapture={handleCameraCapture} onClose={() => setMode("idle")} onError={handleCameraError} />
       )}
 
-      <PageList
-        pages={pages}
-        onEdit={setEditingPageId}
-        onRemove={handleRemovePage}
-        onMove={handleMovePage}
-      />
-
-      <AdInline />
-
-      <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-        <button
-          type="button"
-          onClick={handleCreatePdf}
-          disabled={pages.length === 0 || creatingPdf || anyPageProcessing}
-          className="min-h-11 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+      {mode !== "camera" && pages.length === 0 && (
+        <section
+          aria-labelledby="scan-empty-title"
+          className="card flex flex-col items-center gap-5 px-4 py-10 text-center sm:py-16"
         >
-          {creatingPdf
-            ? "Preparing PDF…"
-            : `Create PDF (${pages.length} page${pages.length === 1 ? "" : "s"})`}
-        </button>
-
-        {ocrEnabled && (
-          <button
-            type="button"
-            onClick={handleExtractAllText}
-            disabled={pages.length === 0 || anyPageProcessing || ocr.running}
-            className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
+          <span
+            aria-hidden
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
           >
-            {pages.length > 1 ? `Extract text (${pages.length} pages)` : "Extract text"}
-          </button>
-        )}
-        {ocrEnabled && ocr.hasResult && !ocr.panelOpen && (
-          <button
-            type="button"
-            onClick={ocr.openPanel}
-            className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700"
-          >
-            View extracted text
-          </button>
-        )}
+            <Icon name="document" size={28} />
+          </span>
+          <div>
+            <h2 id="scan-empty-title" className="section-title">
+              Add your first page
+            </h2>
+            <p className="muted mx-auto mt-1 max-w-md text-sm">
+              Take a photo of a document, or upload a file. You can crop, enhance and sign each page, then export one PDF.
+            </p>
+          </div>
+          <div className="flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">{addButtons(true)}</div>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">{SUPPORTED_FORMATS}</p>
+        </section>
+      )}
 
-        {pages.length > 0 && (
-          <PrintButton
-            source="scan"
-            title="document"
-            disabled={anyPageProcessing}
-            getPages={() => scannerPagesToPrintPages(pages)}
-          />
-        )}
+      {pages.length > 0 && selectedPage && (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+          <div className="min-w-0 space-y-3">
+            <PagePreview
+              page={selectedPage}
+              index={selectedIndex}
+              total={pages.length}
+              onEdit={() => setEditingPageId(selectedPage.id)}
+              onPrevious={() => setSelectedPageId(pages[selectedIndex - 1]?.id ?? null)}
+              onNext={() => setSelectedPageId(pages[selectedIndex + 1]?.id ?? null)}
+            />
+            <PageList pages={pages} selectedId={selectedPage.id} onSelect={setSelectedPageId} />
+          </div>
 
-        {pdfBlob && (
-          <>
-            <button
-              type="button"
-              onClick={handleDownload}
-              className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700"
-            >
-              Download PDF
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveToAccount}
-              disabled={saving}
-              className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
-            >
-              {saving ? "Saving…" : "Save to account"}
-            </button>
-            <button
-              type="button"
-              onClick={handleStartOver}
-              className="min-h-11 rounded-md px-4 py-2.5 text-sm font-medium text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-            >
-              Start new scan
-            </button>
-          </>
-        )}
-      </div>
+          <div className="min-w-0 space-y-4">
+            <section aria-label="This page" className="card space-y-3 p-4">
+              <h2 className="panel-title">Page {selectedIndex + 1}</h2>
+              <button type="button" onClick={() => setEditingPageId(selectedPage.id)} className="btn btn-secondary w-full">
+                <Icon name="crop" size={18} />
+                Edit page
+              </button>
+              <p className="muted text-xs">Crop, rotate, enhance, add text or sign.</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleMovePage(selectedPage.id, "up")}
+                  disabled={selectedIndex === 0}
+                  aria-label={`Move page ${selectedIndex + 1} earlier`}
+                  title="Move earlier"
+                  className="btn btn-secondary"
+                >
+                  <Icon name="arrow-up" size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMovePage(selectedPage.id, "down")}
+                  disabled={selectedIndex === pages.length - 1}
+                  aria-label={`Move page ${selectedIndex + 1} later`}
+                  title="Move later"
+                  className="btn btn-secondary"
+                >
+                  <Icon name="arrow-down" size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemovePage(selectedPage.id)}
+                  aria-label={`Remove page ${selectedIndex + 1}`}
+                  title="Remove page"
+                  className="btn btn-danger"
+                >
+                  <Icon name="trash" size={18} />
+                </button>
+              </div>
+            </section>
 
-      {importStage && (
-        <p role="status" className="text-sm text-zinc-500">
-          {importStage}
-        </p>
-      )}
-      {pdfImport && (
-        <p role="status" className="text-sm text-zinc-500">
-          {pdfImport.total > 0
-            ? `Importing PDF… page ${pdfImport.done} of ${pdfImport.total}`
-            : "Opening PDF…"}
-        </p>
-      )}
-      {anyPageProcessing && !pdfImport && pages.length > 0 && !pdfBlob && (
-        <p className="text-sm text-zinc-500">Finishing page processing…</p>
-      )}
-      {saveNotice && (
-        <p role="status" className="text-sm text-emerald-600 dark:text-emerald-400">
-          {saveNotice}
-        </p>
-      )}
-      {!user && pdfBlob && (
-        <p className="text-sm text-zinc-500">
-          Guest scans aren&apos;t saved automatically -- download now, or sign in to keep a copy.
-        </p>
+            <section ref={exportRef} aria-label="Export" className="card space-y-3 p-4">
+              <h2 className="panel-title">Export</h2>
+              {pdfBlob && (
+                <div role="status" className="notice notice-success">
+                  <Icon name="check" size={18} className="mt-0.5" />
+                  <span>
+                    <strong className="block">Your PDF is ready</strong>
+                    {pages.length} page{pages.length === 1 ? "" : "s"}. Download it, print it or save it to your account.
+                  </span>
+                </div>
+              )}
+
+              {pdfBlob ? (
+                <button type="button" onClick={handleDownload} className="btn btn-primary btn-lg w-full">
+                  <Icon name="download" size={20} />
+                  Download PDF
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleCreatePdf}
+                  disabled={pages.length === 0 || creatingPdf || anyPageProcessing}
+                  className="btn btn-primary btn-lg w-full"
+                >
+                  {creatingPdf ? "Preparing PDF…" : `Create PDF (${pages.length} page${pages.length === 1 ? "" : "s"})`}
+                </button>
+              )}
+              {!pdfBlob && anyPageProcessing && !pdfImport && (
+                <p role="status" className="muted text-sm">
+                  Finishing page processing…
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <PrintButton
+                  source="scan"
+                  title="document"
+                  disabled={anyPageProcessing}
+                  className="btn btn-secondary flex-1"
+                  getPages={() => scannerPagesToPrintPages(pages)}
+                />
+                {pdfBlob && (
+                  <button
+                    type="button"
+                    onClick={handleSaveToAccount}
+                    disabled={saving}
+                    className="btn btn-secondary flex-1 whitespace-nowrap"
+                  >
+                    <Icon name="save" size={18} />
+                    {saving ? "Saving…" : "Save to account"}
+                  </button>
+                )}
+              </div>
+
+              {ocrEnabled && (
+                <details className="group border-t border-zinc-200 pt-3 dark:border-zinc-800">
+                  <summary className="btn btn-ghost w-full cursor-pointer list-none justify-between">
+                    More options
+                    <Icon name="chevron-down" size={18} className="transition-transform group-open:rotate-180" />
+                  </summary>
+                  <div className="mt-2 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={handleExtractAllText}
+                      disabled={pages.length === 0 || anyPageProcessing || ocr.running}
+                      className="btn btn-secondary"
+                    >
+                      <Icon name="ocr" size={18} />
+                      {pages.length > 1 ? `Extract text (${pages.length} pages)` : "Extract text"}
+                    </button>
+                    {ocr.hasResult && !ocr.panelOpen && (
+                      <button type="button" onClick={ocr.openPanel} className="btn btn-secondary">
+                        View extracted text
+                      </button>
+                    )}
+                  </div>
+                </details>
+              )}
+
+              {saveNotice && (
+                <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">
+                  {saveNotice}
+                </p>
+              )}
+              {!user && pdfBlob && (
+                <p className="muted text-sm">
+                  Guest scans aren&apos;t saved automatically. Download now, or sign in to keep a copy.
+                </p>
+              )}
+              {pdfBlob && (
+                <button type="button" onClick={handleStartOver} className="btn btn-ghost w-full">
+                  Start new scan
+                </button>
+              )}
+            </section>
+
+            {mode !== "camera" && (
+              <section aria-label="Add pages" className="card space-y-3 p-4">
+                <h2 className="panel-title">Add more pages</h2>
+                <div className="flex flex-col gap-2">{addButtons(false)}</div>
+              </section>
+            )}
+          </div>
+        </div>
       )}
 
       {editingPage && (

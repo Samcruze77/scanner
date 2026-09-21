@@ -15,7 +15,8 @@
     "test:compress:readability": "node tests/compress/readability.mjs",
     "test:print": "node tests/print/verify.mjs",
     "test:zoom": "node tests/zoom/verify.mjs",
-    "test:auth": "node tests/auth/verify.mjs"
+    "test:auth": "node tests/auth/verify.mjs",
+    "audit:ui": "node tests/ui/audit.mjs"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

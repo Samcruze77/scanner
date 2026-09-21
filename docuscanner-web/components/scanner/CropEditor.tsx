@@ -110,9 +110,9 @@ export function CropEditor({
       aria-label="Adjust crop"
       className="fixed inset-0 z-[60] flex flex-col bg-black/70 p-3 sm:items-center sm:justify-center sm:p-4"
     >
-      <div className="flex max-h-full w-full flex-col overflow-y-auto rounded-xl bg-white p-4 dark:bg-zinc-900 sm:max-w-lg sm:max-h-[95vh]">
+      <div className="flex max-h-full w-full flex-col overflow-y-auto rounded-2xl bg-white p-4 shadow-xl dark:bg-zinc-900 sm:max-w-lg sm:max-h-[95vh]">
         <h2 className="text-base font-semibold">Adjust crop</h2>
-        <p className="mb-3 text-sm text-zinc-500">
+        <p className="muted mb-3 text-sm">
           Drag the corners to the edges of your document. Rotation is applied after cropping.
         </p>
 
@@ -179,12 +179,12 @@ export function CropEditor({
           </ZoomFrame>
         </ZoomViewport>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-zinc-500">Zoom in to place the corners exactly: pinch, or use + and −.</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Zoom in to place the corners exactly: pinch, or use + and −.</p>
           <ZoomControls api={zoom} />
         </div>
 
         {tooSmall && (
-          <p role="alert" className="mb-3 text-sm text-red-600 dark:text-red-400">
+          <p role="alert" className="notice notice-error mb-3">
             That crop area is too small. Drag the corners further apart.
           </p>
         )}
@@ -196,7 +196,7 @@ export function CropEditor({
               setTooSmall(false);
               setQuad(fullImageQuad(width, height));
             }}
-            className="min-h-11 rounded-md border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700"
+            className="btn btn-secondary"
           >
             Whole page
           </button>
@@ -207,7 +207,7 @@ export function CropEditor({
                 setTooSmall(false);
                 setQuad(page.detectedQuad as Quad);
               }}
-              className="min-h-11 rounded-md border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700"
+              className="btn btn-secondary"
             >
               Reset to detected
             </button>
@@ -219,14 +219,14 @@ export function CropEditor({
             ref={cancelRef}
             type="button"
             onClick={onCancel}
-            className="min-h-11 rounded-md px-4 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            className="btn btn-ghost"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleApply}
-            className="min-h-11 flex-1 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white dark:bg-white dark:text-black"
+            className="btn btn-primary flex-1"
           >
             Apply crop
           </button>

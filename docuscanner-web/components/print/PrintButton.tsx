@@ -10,6 +10,7 @@
 // (`basis-full`), so it can sit in any of the existing flex-wrap button rows.
 
 import { useRef, useState } from "react";
+import { Icon } from "@/components/ui/icons";
 import { trackError, trackPrint } from "@/utils/analytics/events";
 import { isPrintSupported, PrintError, printPages, type PrintErrorCode, type PrintPage } from "@/utils/print/printPages";
 
@@ -77,10 +78,9 @@ export function PrintButton({
         type="button"
         onClick={() => void handlePrint()}
         disabled={disabled || busy}
-        className={
-          className ?? "min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
-        }
+        className={className ?? "btn btn-secondary"}
       >
+        <Icon name="print" size={18} />
         {busy ? "Preparing…" : label}
       </button>
       {message && (

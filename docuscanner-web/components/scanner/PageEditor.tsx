@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/ui/icons";
 import { PrintButton } from "@/components/print/PrintButton";
 import { scannerPagesToPrintPages } from "@/utils/print/sources";
 import type { ScannerPage } from "@/utils/scanner/page";
@@ -45,9 +46,9 @@ function AdjustmentSlider({
         onPointerUp={commit}
         onKeyUp={commit}
         onBlur={commit}
-        className="h-11 min-w-0 flex-1 disabled:opacity-50"
+        className="h-11 min-w-0 flex-1 accent-blue-600 disabled:opacity-50"
       />
-      <span className="w-10 shrink-0 text-right tabular-nums text-zinc-500">{shown > 0 ? `+${shown}` : shown}</span>
+      <span className="muted w-10 shrink-0 text-right tabular-nums">{shown > 0 ? `+${shown}` : shown}</span>
     </label>
   );
 }
@@ -113,207 +114,191 @@ export function PageEditor({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-full w-full flex-col overflow-y-auto rounded-xl bg-white p-4 dark:bg-zinc-900 sm:max-w-lg sm:max-h-[90vh]">
-        <div className="mb-3 flex items-center justify-between">
+      {/* Phone: one scrolling column with Done pinned below it. Desktop: the page on the
+          left, its tools on the right, each scrolling on its own. */}
+      <div className="flex max-h-full w-full flex-col overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-zinc-900 sm:max-h-[92vh] sm:max-w-lg lg:max-w-5xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 py-2 pl-4 pr-2 dark:border-zinc-800">
           <h2 className="text-base font-semibold">Edit page {index + 1}</h2>
           <button
             ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label="Close editor"
-            className="flex h-11 w-11 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            className="btn btn-icon btn-ghost"
           >
-            ✕
+            <Icon name="x" />
           </button>
         </div>
 
-        {/* shrink-0: this is a flex item with overflow-hidden, which lets it
-            collapse to 0px (hiding the preview entirely) whenever the editor
-            is taller than the screen. It should scroll instead. */}
-        <div className="relative mb-2 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
-          {/* Zoomed in, the page scrolls inside this window instead of growing the
-              editor. At normal size it is the same fitted preview as always. */}
-          <ZoomViewport api={zoom} className="max-h-[45vh] overflow-auto">
-            <ZoomFrame zoom={zoom.zoom} fit={`min(100%, calc(45vh * ${page.processedWidth / page.processedHeight}))`}>
-              {/* The wrapper is exactly as big as the image, so marks drawn over it
-                  (see AnnotationOverlay) line up with the page at any zoom. */}
-              <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL */}
-                <img src={page.processedDataUrl} alt={`Page ${index + 1} preview`} className="block h-auto w-full" />
-                <AnnotationOverlay page={page} />
-              </div>
-            </ZoomFrame>
-          </ZoomViewport>
-          {processing && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-medium text-white">
-              {page.statusLabel ?? "Processing…"}
-            </div>
-          )}
-        </div>
-        <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-zinc-500">Zoom in to check details: pinch, or use + and −.</p>
-          <ZoomControls api={zoom} />
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Crop</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={onAdjustCrop}
-                disabled={processing}
-                className="min-h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
-              >
-                Adjust crop
-              </button>
-              {hasQuad && (
-                <button
-                  type="button"
-                  onClick={onToggleCrop}
-                  disabled={processing}
-                  className="min-h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
+        <div className="min-h-0 flex-1 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:overflow-hidden">
+          <div className="p-4 [--ph:45vh] lg:overflow-y-auto lg:[--ph:66vh]">
+            {/* shrink-0: this is a flex item with overflow-hidden, which lets it
+                collapse to 0px (hiding the preview entirely) whenever the editor
+                is taller than the screen. It should scroll instead. */}
+            <div className="relative mb-2 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
+              {/* Zoomed in, the page scrolls inside this window instead of growing the
+                  editor. At normal size it is the same fitted preview as always. */}
+              <ZoomViewport api={zoom} className="max-h-[var(--ph)] overflow-auto">
+                <ZoomFrame zoom={zoom.zoom} fit={`min(100%, calc(var(--ph) * ${page.processedWidth / page.processedHeight}))`}>
+                  {/* The wrapper is exactly as big as the image, so marks drawn over it
+                      (see AnnotationOverlay) line up with the page at any zoom. */}
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL */}
+                    <img src={page.processedDataUrl} alt={`Page ${index + 1} preview`} className="block h-auto w-full" />
+                    <AnnotationOverlay page={page} />
+                  </div>
+                </ZoomFrame>
+              </ZoomViewport>
+              {processing && (
+                <div
+                  role="status"
+                  className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-medium text-white"
                 >
-                  {page.cropEnabled ? "Remove crop" : "Use crop"}
-                </button>
+                  {page.statusLabel ?? "Processing…"}
+                </div>
               )}
             </div>
-            {!hasQuad && (
-              <p className="mt-2 text-sm text-zinc-500">
-                No document boundary was detected, so the original framing is kept. Use Adjust crop to
-                set it yourself.
-              </p>
-            )}
-          </div>
-
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Rotate</p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => onRotate("left")}
-                disabled={processing}
-                aria-label="Rotate left"
-                className="flex h-11 w-11 items-center justify-center rounded-md border border-zinc-300 disabled:opacity-50 dark:border-zinc-700"
-              >
-                ↺
-              </button>
-              <button
-                type="button"
-                onClick={() => onRotate("right")}
-                disabled={processing}
-                aria-label="Rotate right"
-                className="flex h-11 w-11 items-center justify-center rounded-md border border-zinc-300 disabled:opacity-50 dark:border-zinc-700"
-              >
-                ↻
-              </button>
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+              <p className="muted text-xs">Zoom in to check details: pinch, or use + and −.</p>
+              <ZoomControls api={zoom} />
             </div>
           </div>
 
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Enhancement</p>
-            <div className="flex flex-wrap gap-2">
-              {ENHANCEMENT_MODES.map((m) => (
-                <button
-                  key={m.value}
-                  type="button"
-                  onClick={() => onEnhancementChange(m.value)}
-                  disabled={processing}
-                  aria-pressed={page.enhancement === m.value}
-                  className={`min-h-11 rounded-md border px-3 text-sm font-medium disabled:opacity-50 ${
-                    page.enhancement === m.value
-                      ? "border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-black"
-                      : "border-zinc-300 dark:border-zinc-700"
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">Adjust</p>
-            <p className="mb-1 text-xs text-zinc-500">Adjust brightness and contrast below.</p>
-            <AdjustmentSlider
-              label="Brightness"
-              value={page.brightness}
-              disabled={processing}
-              onCommit={(brightness) => onAdjustmentChange({ brightness })}
-            />
-            <AdjustmentSlider
-              label="Contrast"
-              value={page.contrast}
-              disabled={processing}
-              onCommit={(contrast) => onAdjustmentChange({ contrast })}
-            />
-          </div>
-
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Annotate</p>
-            <button
-              type="button"
-              onClick={onAnnotate}
-              disabled={processing}
-              className="min-h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
-            >
-              {page.annotations.length > 0
-                ? `Edit text, signature & marks (${page.annotations.length})`
-                : "Add text, signature & marks"}
-            </button>
-          </div>
-
-          {onExtractText && (
+          <div className="space-y-5 border-t border-zinc-200 p-4 dark:border-zinc-800 lg:overflow-y-auto lg:border-l lg:border-t-0">
             <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Text</p>
-              <button
-                type="button"
-                onClick={onExtractText}
-                disabled={processing || extractTextDisabled}
-                className="min-h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
-              >
-                Extract text from this page
-              </button>
+              <p className="panel-title mb-2">Crop</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={onAdjustCrop} disabled={processing} className="btn btn-secondary">
+                  <Icon name="crop" size={18} />
+                  Adjust crop
+                </button>
+                {hasQuad && (
+                  <button type="button" onClick={onToggleCrop} disabled={processing} className="btn btn-secondary">
+                    {page.cropEnabled ? "Remove crop" : "Use crop"}
+                  </button>
+                )}
+              </div>
+              {!hasQuad && (
+                <p className="muted mt-2 text-sm">
+                  No document boundary was detected, so the original framing is kept. Use Adjust crop to set it yourself.
+                </p>
+              )}
             </div>
-          )}
 
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Print</p>
-            <div className="flex flex-wrap gap-2">
-              <PrintButton
-                source="editor_page"
-                title={`page-${index + 1}`}
-                label="Print this page"
+            <div>
+              <p className="panel-title mb-2">Rotate</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onRotate("left")}
+                  disabled={processing}
+                  aria-label="Rotate left"
+                  className="btn btn-icon btn-secondary"
+                >
+                  <Icon name="rotate-left" size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRotate("right")}
+                  disabled={processing}
+                  aria-label="Rotate right"
+                  className="btn btn-icon btn-secondary"
+                >
+                  <Icon name="rotate-right" size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <p className="panel-title mb-2">Enhancement</p>
+              <div className="flex flex-wrap gap-2">
+                {ENHANCEMENT_MODES.map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    onClick={() => onEnhancementChange(m.value)}
+                    disabled={processing}
+                    aria-pressed={page.enhancement === m.value}
+                    className={`btn px-3 ${page.enhancement === m.value ? "btn-primary" : "btn-secondary"}`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="panel-title mb-1">Adjust</p>
+              <p className="muted mb-1 text-xs">Adjust brightness and contrast below.</p>
+              <AdjustmentSlider
+                label="Brightness"
+                value={page.brightness}
                 disabled={processing}
-                getPages={() => scannerPagesToPrintPages([page])}
+                onCommit={(brightness) => onAdjustmentChange({ brightness })}
+              />
+              <AdjustmentSlider
+                label="Contrast"
+                value={page.contrast}
+                disabled={processing}
+                onCommit={(contrast) => onAdjustmentChange({ contrast })}
               />
             </div>
-          </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-            <button
-              type="button"
-              onClick={onResetToOriginal}
-              disabled={processing || !isModified}
-              className="min-h-11 rounded-md px-4 text-sm font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800"
-            >
-              Reset to original
-            </button>
-            <button
-              type="button"
-              onClick={onRemove}
-              className="min-h-11 rounded-md px-4 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
-            >
-              Remove page
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="min-h-11 flex-1 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white dark:bg-white dark:text-black"
-            >
-              Done
-            </button>
+            <div>
+              <p className="panel-title mb-2">Annotate</p>
+              <button type="button" onClick={onAnnotate} disabled={processing} className="btn btn-secondary">
+                <Icon name="signature" size={18} />
+                {page.annotations.length > 0
+                  ? `Edit text, signature & marks (${page.annotations.length})`
+                  : "Add text, signature & marks"}
+              </button>
+            </div>
+
+            {onExtractText && (
+              <div>
+                <p className="panel-title mb-2">Text</p>
+                <button
+                  type="button"
+                  onClick={onExtractText}
+                  disabled={processing || extractTextDisabled}
+                  className="btn btn-secondary"
+                >
+                  <Icon name="ocr" size={18} />
+                  Extract text from this page
+                </button>
+              </div>
+            )}
+
+            <div>
+              <p className="panel-title mb-2">Print</p>
+              <div className="flex flex-wrap gap-2">
+                <PrintButton
+                  source="editor_page"
+                  title={`page-${index + 1}`}
+                  label="Print this page"
+                  disabled={processing}
+                  getPages={() => scannerPagesToPrintPages([page])}
+                />
+              </div>
+            </div>
           </div>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
+          <button
+            type="button"
+            onClick={onResetToOriginal}
+            disabled={processing || !isModified}
+            className="btn btn-ghost"
+          >
+            Reset to original
+          </button>
+          <button type="button" onClick={onRemove} className="btn btn-ghost text-red-700 dark:text-red-400">
+            Remove page
+          </button>
+          <button type="button" onClick={onClose} className="btn btn-primary min-w-28 flex-1 sm:ml-auto sm:flex-none">
+            Done
+          </button>
         </div>
       </div>
     </div>

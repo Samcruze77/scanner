@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 // the emailed link creates in the browser.
 export default function ResetPasswordPage() {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 px-4 py-10">
+    <main id="main" className="mx-auto w-full max-w-md flex-1 px-4 py-10">
       <ResetPasswordForm />
     </main>
   );

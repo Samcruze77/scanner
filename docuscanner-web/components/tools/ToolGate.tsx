@@ -41,21 +41,21 @@ export function LoginRequiredDialog({ toolId, toolTitle, onBack }: { toolId: str
             ref={firstRef}
             type="button"
             onClick={() => openAuthModal("login")}
-            className="min-h-11 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white dark:bg-white dark:text-black"
+            className="btn btn-primary"
           >
             Sign In
           </button>
           <button
             type="button"
             onClick={() => openAuthModal("signup")}
-            className="min-h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium dark:border-zinc-700"
+            className="btn btn-secondary"
           >
             Create Account
           </button>
           <button
             type="button"
             onClick={onBack}
-            className="min-h-11 rounded-md px-4 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            className="btn btn-ghost"
           >
             Back
           </button>
@@ -72,7 +72,7 @@ export function ToolGate({ tool, children }: { tool: ToolDef; children: React.Re
   if (!tool.requiresAuth) return <>{children}</>;
   if (loading) {
     return (
-      <p role="status" className="text-sm text-zinc-500">
+      <p role="status" className="text-sm text-zinc-500 dark:text-zinc-400">
         Checking your account…
       </p>
     );

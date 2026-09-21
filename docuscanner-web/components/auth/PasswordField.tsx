@@ -102,7 +102,7 @@ export function PasswordField({
           spellCheck={false}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          className="password-input min-h-11 w-full rounded-md border border-zinc-300 py-2 pl-3 pr-12 text-sm dark:border-zinc-700 dark:bg-black"
+          className="password-input field pr-12"
         />
         <button
           type="button"
@@ -112,13 +112,13 @@ export function PasswordField({
           aria-label={visible ? `Hide ${lower}` : `Show ${lower}`}
           aria-controls={id}
           title={visible ? `Hide ${lower}` : `Show ${lower}`}
-          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-zinc-500 hover:text-zinc-900 focus-visible:text-zinc-900 dark:text-zinc-400 dark:hover:text-white dark:focus-visible:text-white"
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-zinc-500 hover:text-zinc-900 focus-visible:text-zinc-900 dark:text-zinc-400 dark:hover:text-white dark:focus-visible:text-white"
         >
           <EyeIcon off={visible} />
         </button>
       </div>
       {hint && !error && (
-        <p id={`${id}-hint`} className="mt-1 text-xs text-zinc-500">
+        <p id={`${id}-hint`} className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           {hint}
         </p>
       )}

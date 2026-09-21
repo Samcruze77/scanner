@@ -63,7 +63,7 @@ export function ExcelToPdfTool() {
   });
 
   if (!available) {
-    return <p className="text-sm text-zinc-500">This tool isn&apos;t available on your plan.</p>;
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">This tool isn&apos;t available on your plan.</p>;
   }
 
   async function handleFile(file: File) {
@@ -151,7 +151,7 @@ export function ExcelToPdfTool() {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 card p-3">
             <p className="min-w-0 truncate text-sm font-medium">{fileName}</p>
             <button
               type="button"
@@ -160,14 +160,14 @@ export function ExcelToPdfTool() {
                 setStage({ name: "idle" });
                 setError(null);
               }}
-              className="min-h-11 rounded-md px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-900"
+              className="btn btn-ghost"
             >
               Choose a different file
             </button>
           </div>
 
           <fieldset disabled={working} className="space-y-2">
-            <legend className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">Sheets to include</legend>
+            <legend className="panel-title mb-1">Sheets to include</legend>
             {loaded.sheets.map((sheet) => (
               <label
                 key={sheet.name}
@@ -181,7 +181,7 @@ export function ExcelToPdfTool() {
                   className="h-4 w-4 accent-blue-600"
                 />
                 <span className="min-w-0 flex-1 truncate font-medium">{sheet.name}</span>
-                <span className="shrink-0 text-zinc-500">
+                <span className="shrink-0 text-zinc-500 dark:text-zinc-400">
                   {sheet.rows === 0 ? "empty" : `${sheet.rows} rows × ${sheet.columns} columns`}
                 </span>
               </label>
@@ -198,7 +198,7 @@ export function ExcelToPdfTool() {
                   setOrientation(e.target.value as Orientation);
                   invalidateResult();
                 }}
-                className="min-h-11 rounded-md border border-zinc-300 bg-transparent px-2 dark:border-zinc-700"
+                className="field"
               >
                 {ORIENTATIONS.map((o) => (
                   <option key={o.value} value={o.value} className="text-black">
@@ -222,7 +222,7 @@ export function ExcelToPdfTool() {
             </label>
           </div>
 
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Values, fonts, colours, borders and merged cells are kept. Charts, pictures and non-Latin text
             (for example Chinese or Arabic) can&apos;t be included.
           </p>
@@ -238,7 +238,7 @@ export function ExcelToPdfTool() {
                 type="button"
                 onClick={handleConvert}
                 disabled={working || selected.size === 0}
-                className="min-h-11 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+                className="btn btn-primary"
               >
                 {stage.name === "converting" ? "Converting…" : "Convert to PDF"}
               </button>
@@ -247,7 +247,7 @@ export function ExcelToPdfTool() {
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="min-h-11 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-black"
+                  className="btn btn-primary"
                 >
                   Download PDF
                 </button>
@@ -259,14 +259,14 @@ export function ExcelToPdfTool() {
                 <button
                   type="button"
                   onClick={handleConvert}
-                  className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700"
+                  className="btn btn-secondary"
                 >
                   Convert again
                 </button>
               </>
             )}
             {stage.name === "converting" && (
-              <p role="status" className="text-sm text-zinc-500">
+              <p role="status" className="text-sm text-zinc-500 dark:text-zinc-400">
                 {Math.round(stage.progress * 100)}%
               </p>
             )}

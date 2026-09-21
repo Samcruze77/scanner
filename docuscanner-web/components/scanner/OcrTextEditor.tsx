@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "@/components/ui/icons";
 import { findMatches } from "@/utils/ocr/text";
 
-const BUTTON = "min-h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium dark:border-zinc-700";
+const BUTTON = "btn btn-secondary";
 
 // Editable extracted text with select-all, download and in-text search. While
 // a search is active the text is shown read-only with highlighted matches
@@ -86,7 +87,7 @@ export function OcrTextEditor({
         <button
           type="button"
           onClick={discard}
-          className="min-h-11 rounded-md px-4 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+          className="btn btn-ghost text-red-700 dark:text-red-400"
         >
           Discard
         </button>
@@ -108,10 +109,10 @@ export function OcrTextEditor({
           }}
           placeholder="Search in text"
           aria-label="Search extracted text"
-          className="min-h-11 min-w-0 flex-1 rounded-md border border-zinc-300 bg-transparent px-3 text-base dark:border-zinc-700"
+          className="field min-w-0 flex-1"
         />
         {searching && (
-          <span role="status" className="whitespace-nowrap text-sm text-zinc-500">
+          <span role="status" className="whitespace-nowrap text-sm text-zinc-500 dark:text-zinc-400">
             {matches.length === 0 ? "No matches" : `${current + 1} of ${matches.length}`}
           </span>
         )}
@@ -120,18 +121,18 @@ export function OcrTextEditor({
           onClick={() => step(-1)}
           disabled={matches.length === 0}
           aria-label="Previous match"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-zinc-300 disabled:opacity-40 dark:border-zinc-700"
+          className="btn btn-icon btn-secondary shrink-0"
         >
-          ↑
+          <Icon name="arrow-up" size={18} />
         </button>
         <button
           type="button"
           onClick={() => step(1)}
           disabled={matches.length === 0}
           aria-label="Next match"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-zinc-300 disabled:opacity-40 dark:border-zinc-700"
+          className="btn btn-icon btn-secondary shrink-0"
         >
-          ↓
+          <Icon name="arrow-down" size={18} />
         </button>
       </div>
 

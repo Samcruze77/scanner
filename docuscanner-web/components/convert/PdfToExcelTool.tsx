@@ -57,7 +57,7 @@ export function PdfToExcelTool() {
   const abortRef = useRef<AbortController | null>(null);
 
   if (!available) {
-    return <p className="text-sm text-zinc-500">This tool isn&apos;t available on your plan.</p>;
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">This tool isn&apos;t available on your plan.</p>;
   }
 
   const converting = progress !== null;
@@ -135,7 +135,7 @@ export function PdfToExcelTool() {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 card p-3">
             <p className="min-w-0 truncate text-sm font-medium">{file.name}</p>
             <button
               type="button"
@@ -145,14 +145,14 @@ export function PdfToExcelTool() {
                 setResult(null);
                 setError(null);
               }}
-              className="min-h-11 rounded-md px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-900"
+              className="btn btn-ghost"
             >
               Choose a different file
             </button>
           </div>
 
           <fieldset disabled={converting} className="space-y-2">
-            <legend className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">Layout</legend>
+            <legend className="panel-title mb-1">Layout</legend>
             {LAYOUTS.map((option) => (
               <label
                 key={option.value}
@@ -170,13 +170,13 @@ export function PdfToExcelTool() {
                 />
                 <span>
                   <span className="font-medium">{option.label}</span>
-                  <span className="block text-zinc-500">{option.hint}</span>
+                  <span className="block text-zinc-500 dark:text-zinc-400">{option.hint}</span>
                 </span>
               </label>
             ))}
           </fieldset>
 
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Works best on PDFs made from spreadsheets, invoices and reports, where the text is selectable.
             {ocrEnabled
               ? " Scanned pages are read with text recognition instead and come out one line per row."
@@ -189,14 +189,14 @@ export function PdfToExcelTool() {
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="min-h-11 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-black"
+                  className="btn btn-primary"
                 >
                   Download Excel file
                 </button>
                 <button
                   type="button"
                   onClick={handleConvert}
-                  className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700"
+                  className="btn btn-secondary"
                 >
                   Convert again
                 </button>
@@ -206,7 +206,7 @@ export function PdfToExcelTool() {
                 type="button"
                 onClick={handleConvert}
                 disabled={converting}
-                className="min-h-11 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+                className="btn btn-primary"
               >
                 {converting ? "Converting…" : "Convert to Excel"}
               </button>
@@ -216,11 +216,11 @@ export function PdfToExcelTool() {
                 <button
                   type="button"
                   onClick={() => abortRef.current?.abort()}
-                  className="min-h-11 rounded-md px-4 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                  className="btn btn-ghost"
                 >
                   Cancel
                 </button>
-                <p role="status" className="text-sm text-zinc-500">
+                <p role="status" className="text-sm text-zinc-500 dark:text-zinc-400">
                   {progress ? progressLabel(progress) : ""}
                 </p>
               </>
@@ -253,7 +253,7 @@ export function PdfToExcelTool() {
               </div>
 
               <div>
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+                <p className="panel-title mb-1">
                   Preview (first {result.preview.length} rows)
                 </p>
                 <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">

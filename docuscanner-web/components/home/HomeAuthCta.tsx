@@ -8,16 +8,14 @@ export function HomeAuthCta() {
   if (loading || user) return null;
 
   return (
-    <p className="text-sm text-zinc-500">
-      Already scanning without an account?{" "}
-      <button
-        type="button"
-        onClick={() => openAuthModal("signup")}
-        className="inline-flex min-h-11 items-center font-medium text-zinc-900 underline dark:text-white"
-      >
+    <div className="card flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm">
+        <span className="font-semibold">Want to keep your documents?</span>{" "}
+        <span className="muted">Create a free account to save them and open them from any device. Scanning stays free without one.</span>
+      </p>
+      <button type="button" onClick={() => openAuthModal("signup")} className="btn btn-secondary shrink-0">
         Create a free account
-      </button>{" "}
-      to save your documents and access them from any device.
-    </p>
+      </button>
+    </div>
   );
 }

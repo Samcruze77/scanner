@@ -1,4 +1,5 @@
 import { ScannerWorkspace } from "@/components/scanner/ScannerWorkspace";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
 
 export default async function ScanPage({
@@ -10,11 +11,10 @@ export default async function ScanPage({
   const initialMode = mode === "camera" || mode === "upload" ? mode : undefined;
 
   return (
-    <PageShell>
-      <h1 className="mb-1 text-xl font-semibold">Scan, edit &amp; sign a document</h1>
-      <p className="mb-6 text-sm text-zinc-500">
-        Free to use as a guest. Everything happens in your browser. Sign in if you&apos;d like to save a document to your account.
-      </p>
+    <PageShell width="workspace" ads="workflow">
+      <PageHeader title="Scan, edit &amp; sign a document">
+        Free to use as a guest, and everything happens in your browser. Sign in if you&apos;d like to save a document to your account.
+      </PageHeader>
       <ScannerWorkspace initialMode={initialMode} />
     </PageShell>
   );

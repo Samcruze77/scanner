@@ -600,7 +600,7 @@ await test("after a one-page job from the editor finishes, the browser print is 
   await setFiles([fixtures.multi]);
   await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(5 page/.test(b.innerText) && !b.disabled)`, "import", 90000);
   await waitFor(armedReady, "armed", 30000);
-  await evaluate(`document.querySelector('ul button, li button').click()`);
+  await evaluate(`document.querySelector('[aria-label="Edit page 1"]').click()`);
   await waitFor(`document.querySelector('[role=dialog][aria-label="Edit page 1"]')`, "editor");
   await clickButton("Print this page");
   await waitFor("window.__printCalls.length === 1", "print");
@@ -619,7 +619,7 @@ await test("editing changes what the browser prints: rotate in the editor and th
   await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(1 page/.test(b.innerText) && !b.disabled)`, "scan", 60000);
   await waitFor(armedReady, "armed", 30000);
   assert.equal(await evaluate(`${standing}.querySelector('.print-page').dataset.orientation`), "portrait");
-  await evaluate(`document.querySelector('ul button, li button').click()`);
+  await evaluate(`document.querySelector('[aria-label="Edit page 1"]').click()`);
   await waitFor(`document.querySelector('[role=dialog][aria-label="Edit page 1"]')`, "editor");
   await evaluate(`document.querySelector('[aria-label="Rotate right"]').click()`);
   await sleep(1500);
@@ -801,7 +801,7 @@ await test("375px: the page editor's Print this page button is reachable", async
   await open("/scan", { width: 375, height: 812, mobile: true });
   await setFiles([fixtures.scan]);
   await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(1 page/.test(b.innerText) && !b.disabled)`, "scan", 60000);
-  await evaluate(`document.querySelector('ul button, li button').click()`);
+  await evaluate(`document.querySelector('[aria-label="Edit page 1"]').click()`);
   await waitFor(`document.querySelector('[role=dialog]')`, "editor");
   const geo = await evaluate(`(() => { const b = [...document.querySelectorAll('button')].find(b => b.innerText.trim() === 'Print this page'); b.scrollIntoView(); const r = b.getBoundingClientRect(); return { left: r.left, right: r.right, height: r.height, vw: innerWidth }; })()`);
   log(JSON.stringify(geo));

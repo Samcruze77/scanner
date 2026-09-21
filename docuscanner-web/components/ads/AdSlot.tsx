@@ -54,7 +54,7 @@ function AdSlot({ placement, className }: { placement: AdPlacement; className?: 
       data-ad-placement={placement}
       className={`min-w-0 max-w-full overflow-hidden ${className ?? ""}`}
     >
-      <p className="mb-1 text-center text-[11px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-600">
+      <p className="mb-1.5 text-center text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
         Advertisement
       </p>
       <div
@@ -62,7 +62,7 @@ function AdSlot({ placement, className }: { placement: AdPlacement; className?: 
         onClick={() => {
           if (ADS_LIVE && AD_PROVIDER) void trackAdClick(placement, AD_PROVIDER);
         }}
-        className={`flex items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 text-xs font-medium uppercase tracking-wide text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-600 ${BOX[placement]}`}
+        className={`flex items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100/60 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-500 ${BOX[placement]}`}
       >
         {ADS_LIVE ? null : "Ad space"}
       </div>

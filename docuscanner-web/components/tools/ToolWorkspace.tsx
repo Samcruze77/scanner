@@ -16,12 +16,12 @@ import type { ToolDef } from "@/utils/tools/registry";
 
 const ScannerWorkspace = dynamic(() => import("@/components/scanner/ScannerWorkspace").then((m) => m.ScannerWorkspace), {
   ssr: false,
-  loading: () => <p className="text-sm text-zinc-500">Loading…</p>,
+  loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
 });
 
 const CompressTool = dynamic(() => import("@/components/tools/CompressTool").then((m) => m.CompressTool), {
   ssr: false,
-  loading: () => <p className="text-sm text-zinc-500">Loading…</p>,
+  loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
 });
 
 export function ToolWorkspace({ tool }: { tool: ToolDef }) {
@@ -34,7 +34,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDef }) {
 
   return (
     <div className="space-y-4">
-      <nav aria-label="Breadcrumb" className="text-sm text-zinc-500">
+      <nav aria-label="Breadcrumb" className="text-sm text-zinc-500 dark:text-zinc-400">
         <Link href="/tools" className="inline-flex min-h-11 min-w-11 items-center justify-center hover:underline">
           Tools
         </Link>
@@ -42,12 +42,12 @@ export function ToolWorkspace({ tool }: { tool: ToolDef }) {
         <span>{tool.title}</span>
       </nav>
       <div>
-        <h1 className="text-xl font-semibold">{tool.title}</h1>
-        <p className="mt-1 text-sm text-zinc-500">{tool.body}</p>
+        <h1 className="page-title">{tool.title}</h1>
+        <p className="muted mt-1 text-sm">{tool.body}</p>
       </div>
 
       {!available ? (
-        <p className="text-sm text-zinc-500">This tool isn&apos;t available right now.</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">This tool isn&apos;t available right now.</p>
       ) : (
         <ToolGate tool={tool}>
           {tool.kind === "editor" ? (

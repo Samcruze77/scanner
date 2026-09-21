@@ -287,7 +287,7 @@ export function ZoomViewport({ api, className, children }: { api: ZoomApi; class
 export function ZoomControls({ api, className = "" }: { api: ZoomApi; className?: string }) {
   const percent = Math.round(api.zoom * 100);
   const zoomed = api.zoom !== ZOOM_NORMAL;
-  const button = "flex h-11 items-center justify-center rounded-md border border-zinc-300 bg-white text-sm font-medium disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900";
+  const button = "flex h-11 items-center justify-center rounded-lg border border-zinc-300 bg-white text-sm font-medium disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900";
   return (
     <div role="group" aria-label="Zoom" className={`flex items-center gap-1 ${className}`}>
       <button type="button" aria-label="Zoom out" title="Zoom out (−)" disabled={api.zoom <= ZOOM_MIN} onClick={api.zoomOut} className={`${button} w-11 text-lg`}>

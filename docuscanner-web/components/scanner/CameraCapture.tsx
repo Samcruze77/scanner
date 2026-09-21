@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/ui/icons";
 import { useEffect, useRef, useState } from "react";
 import { captureVideoFrame, type CapturedImage } from "@/utils/scanner/image";
 
@@ -69,7 +70,7 @@ export function CameraCapture({
 
   return (
     <div className="space-y-3">
-      <div className="relative overflow-hidden rounded-lg bg-black">
+      <div className="relative overflow-hidden rounded-xl bg-black">
         <video
           ref={videoRef}
           playsInline
@@ -87,14 +88,15 @@ export function CameraCapture({
           type="button"
           onClick={handleCapture}
           disabled={!ready}
-          className="min-h-11 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+          className="btn btn-primary btn-lg flex-1 sm:flex-none"
         >
+          <Icon name="camera" size={20} />
           Capture page
         </button>
         <button
           type="button"
           onClick={handleClose}
-          className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700"
+          className="btn btn-secondary btn-lg"
         >
           Done
         </button>

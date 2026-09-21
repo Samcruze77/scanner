@@ -51,7 +51,7 @@ export function ExportsClient() {
 
   if (!allowed) {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
         Your role ({role ?? "unknown"}) doesn&apos;t have export access.
       </p>
     );
@@ -61,7 +61,7 @@ export function ExportsClient() {
     <div className="space-y-8">
       <div>
         <h1 className="text-lg font-semibold">Exports</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           This is the UI foundation for exports. No export Edge Function is deployed yet, so
           nothing below actually generates a file or sends an email -- it&apos;s wired up and
           ready to connect once that backend exists.
@@ -71,7 +71,7 @@ export function ExportsClient() {
       <div className="max-w-xl space-y-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="grid grid-cols-2 gap-3">
           <label className="text-sm">
-            <span className="mb-1 block text-zinc-500">From</span>
+            <span className="mb-1 block text-zinc-500 dark:text-zinc-400">From</span>
             <input
               type="date"
               value={range.from}
@@ -81,7 +81,7 @@ export function ExportsClient() {
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-zinc-500">To</span>
+            <span className="mb-1 block text-zinc-500 dark:text-zinc-400">To</span>
             <input
               type="date"
               value={range.to}
@@ -93,7 +93,7 @@ export function ExportsClient() {
         </div>
 
         <label className="block text-sm">
-          <span className="mb-1 block text-zinc-500">Report type</span>
+          <span className="mb-1 block text-zinc-500 dark:text-zinc-400">Report type</span>
           <select
             value={reportType}
             onChange={(e) => setReportType(e.target.value)}
@@ -109,7 +109,7 @@ export function ExportsClient() {
 
         <div className="grid grid-cols-2 gap-3">
           <label className="text-sm">
-            <span className="mb-1 block text-zinc-500">Device (optional)</span>
+            <span className="mb-1 block text-zinc-500 dark:text-zinc-400">Device (optional)</span>
             <input
               type="text"
               value={device}
@@ -119,7 +119,7 @@ export function ExportsClient() {
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-zinc-500">Country (optional)</span>
+            <span className="mb-1 block text-zinc-500 dark:text-zinc-400">Country (optional)</span>
             <input
               type="text"
               value={country}
@@ -131,7 +131,7 @@ export function ExportsClient() {
         </div>
 
         <label className="block text-sm">
-          <span className="mb-1 block text-zinc-500">Email destination (for email report)</span>
+          <span className="mb-1 block text-zinc-500 dark:text-zinc-400">Email destination (for email report)</span>
           <input
             type="email"
             value={emailTo}
@@ -174,7 +174,7 @@ export function ExportsClient() {
       </div>
 
       <div>
-        <p className="mb-2 text-xs font-medium text-zinc-500">Recent exports</p>
+        <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">Recent exports</p>
         <p className="text-sm text-zinc-400">
           Export history will appear here once the backend integration is live.
         </p>

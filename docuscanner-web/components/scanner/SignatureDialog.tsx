@@ -225,7 +225,7 @@ export function SignatureDialog({
       <div className="flex max-h-full w-full flex-col gap-4 overflow-y-auto rounded-t-xl bg-white p-4 dark:bg-zinc-900 sm:max-w-lg sm:rounded-xl">
         <div>
           <h2 className="text-base font-semibold">Add your signature</h2>
-          <p className="mt-0.5 text-sm text-zinc-500">Draw your signature or upload an existing signature image.</p>
+          <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">Draw your signature or upload an existing signature image.</p>
         </div>
 
         {saved && (
@@ -292,7 +292,7 @@ export function SignatureDialog({
 
         {(tab === "draw" || tab === "type") && (
           <div className="flex items-center gap-2" role="group" aria-label="Ink colour">
-            <span className="text-sm text-zinc-500">Ink</span>
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Ink</span>
             {INK_COLORS.map((c) => (
               <button
                 key={c.value}
@@ -325,7 +325,7 @@ export function SignatureDialog({
               className="w-full cursor-crosshair rounded-lg border border-dashed border-zinc-400 bg-white"
               style={{ aspectRatio: `${PAD_WIDTH} / ${PAD_HEIGHT}`, touchAction: "none" }}
             />
-            <p className="mt-1 text-xs text-zinc-500">Sign above using your mouse, finger or pen.</p>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Sign above using your mouse, finger or pen.</p>
           </div>
         )}
 
@@ -338,7 +338,7 @@ export function SignatureDialog({
               onChange={(e) => setTyped(e.target.value)}
               placeholder="Type your name"
               aria-label="Type your signature"
-              className="min-h-11 w-full rounded-md border border-zinc-300 bg-transparent px-3 dark:border-zinc-700"
+              className="field w-full"
             />
             <div className="flex h-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-zinc-400 bg-white p-2">
               {typedResult ? (
@@ -355,7 +355,7 @@ export function SignatureDialog({
 
         {tab === "upload" && (
           <div className="space-y-2">
-            <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-zinc-300 px-3 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
+            <label className="btn btn-secondary cursor-pointer">
               {upload ? "Choose a different image" : "Choose an image of your signature"}
               <input
                 type="file"
@@ -381,7 +381,7 @@ export function SignatureDialog({
             </label>
             <div className="flex h-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-zinc-400 bg-white p-2">
               {busy ? (
-                <span className="text-sm text-zinc-500">Reading image…</span>
+                <span className="text-sm text-zinc-500 dark:text-zinc-400">Reading image…</span>
               ) : upload?.result ? (
                 // eslint-disable-next-line @next/next/no-img-element -- client-generated data URL
                 <img src={upload.result.dataUrl} alt="Uploaded signature preview" className="max-h-full max-w-full object-contain" />
@@ -401,7 +401,7 @@ export function SignatureDialog({
           />
           <span>
             Save this signature on this device
-            <span className="block text-xs text-zinc-500">
+            <span className="block text-xs text-zinc-500 dark:text-zinc-400">
               Kept in this browser only, so you don&apos;t have to redraw it next time. You can remove it any time.
             </span>
           </span>
@@ -419,7 +419,7 @@ export function SignatureDialog({
               type="button"
               onClick={clearPad}
               disabled={!hasInk}
-              className="min-h-11 rounded-md px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              className="btn btn-ghost"
             >
               Clear
             </button>
@@ -427,7 +427,7 @@ export function SignatureDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-11 rounded-md px-4 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            className="btn btn-ghost"
           >
             Cancel
           </button>
@@ -435,7 +435,7 @@ export function SignatureDialog({
             type="button"
             onClick={handleApply}
             disabled={!canApply || busy}
-            className="min-h-11 flex-1 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+            className="btn btn-primary flex-1"
           >
             Apply
           </button>

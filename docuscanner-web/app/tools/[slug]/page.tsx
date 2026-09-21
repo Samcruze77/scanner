@@ -21,7 +21,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
   if (!tool) notFound();
 
   return (
-    <PageShell>
+    <PageShell width={tool.kind === "editor" ? "workspace" : "narrow"} ads="workflow">
       <ToolWorkspace tool={tool} />
     </PageShell>
   );

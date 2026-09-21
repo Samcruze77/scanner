@@ -38,7 +38,7 @@ function linkExpired(): boolean {
   return /otp_expired|access_denied/.test(text);
 }
 
-const CARD = "space-y-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900";
+const CARD = "card space-y-4 p-6 shadow-sm";
 
 export function ResetPasswordForm() {
   const { session, loading, passwordRecovery, clearPasswordRecovery, openAuthModal } = useAuth();
@@ -118,7 +118,7 @@ export function ResetPasswordForm() {
     return (
       <div role="status" className={CARD}>
         <h1 className="text-lg font-semibold">Checking your link…</h1>
-        <p className="text-sm text-zinc-500">One moment.</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">One moment.</p>
       </div>
     );
   }
@@ -128,7 +128,7 @@ export function ResetPasswordForm() {
       <div role="status" className={CARD}>
         <h1 className="text-lg font-semibold">Password updated</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">Your new password is set and you&apos;re signed in. Taking you back to DocuScanner…</p>
-        <Link href="/" className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white dark:bg-white dark:text-black">
+        <Link href="/" className="btn btn-primary w-full">
           Continue to DocuScanner
         </Link>
       </div>
@@ -146,7 +146,7 @@ export function ResetPasswordForm() {
         <button
           type="button"
           onClick={() => openAuthModal("forgot")}
-          className="min-h-11 w-full rounded-md bg-zinc-900 px-4 text-sm font-medium text-white dark:bg-white dark:text-black"
+          className="btn btn-primary w-full"
         >
           Send me a new link
         </button>
@@ -167,7 +167,7 @@ export function ResetPasswordForm() {
       <div>
         <h1 className="text-lg font-semibold">Choose a new password</h1>
         {session?.user.email && (
-          <p className="mt-1 break-words text-sm text-zinc-500">
+          <p className="mt-1 break-words text-sm text-zinc-500 dark:text-zinc-400">
             For <span className="font-medium text-zinc-700 dark:text-zinc-300">{session.user.email}</span>
           </p>
         )}
@@ -205,7 +205,7 @@ export function ResetPasswordForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="min-h-11 w-full rounded-md bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+        className="btn btn-primary w-full"
       >
         {submitting ? "Updating…" : "Update password"}
       </button>

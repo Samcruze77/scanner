@@ -238,8 +238,8 @@ export function CompressTool({ kind }: { kind: CompressKind }) {
     void trackDocumentDownloaded(formatOf(report.mime));
   }
 
-  const fieldBase = "min-h-11 rounded-md border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-black";
-  const field = `${fieldBase} w-full`;
+  const fieldBase = "field";
+  const field = "field";
 
   const locked = targetChoice !== "none";
   const current = activeFile && estimates?.file === activeFile && estimates.maxDim === maxDim ? estimates : null;
@@ -251,23 +251,23 @@ export function CompressTool({ kind }: { kind: CompressKind }) {
 
       {stage.name === "idle" && (
         <>
-          <p className="text-sm text-zinc-500">{copy.help}</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">{copy.help}</p>
           <FileDropzone accept={COMPRESS_ACCEPT[kind]} title={copy.title} hint={copy.hint} onFile={(file) => void choose(file)} />
         </>
       )}
 
       {(stage.name === "ready" || stage.name === "working") && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+          <div className="card flex flex-wrap items-center justify-between gap-2 p-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{stage.file.name}</p>
-              <p className="text-xs text-zinc-500">{formatBytes(stage.file.size)}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{formatBytes(stage.file.size)}</p>
             </div>
             {stage.name === "ready" && (
               <button
                 type="button"
                 onClick={() => setStage({ name: "idle" })}
-                className="min-h-11 rounded-md px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                className="btn btn-ghost"
               >
                 Choose a different file
               </button>
@@ -287,10 +287,10 @@ export function CompressTool({ kind }: { kind: CompressKind }) {
 
             <Notices kind={kind} noun={copy.noun} size={stage.file.size} analysis={current?.analysis ?? null} />
 
-            <details className="rounded-lg border border-zinc-200 dark:border-zinc-800">
+            <details className="card">
               <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-2 px-3 text-sm font-medium">
                 <span>More options</span>
-                <span className="text-xs font-normal text-zinc-500">{targetChoice !== "none" ? "Target size set" : kind === "image" ? "Target size, image size" : "Target size"}</span>
+                <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">{targetChoice !== "none" ? "Target size set" : kind === "image" ? "Target size, image size" : "Target size"}</span>
               </summary>
               <div className="space-y-4 border-t border-zinc-200 p-3 dark:border-zinc-800">
                 <div>
@@ -306,7 +306,7 @@ export function CompressTool({ kind }: { kind: CompressKind }) {
                     ))}
                     <option value="custom">Custom size…</option>
                   </select>
-                  <p className="mt-1 text-xs text-zinc-500">We pick the lightest compression that fits. If it can&apos;t fit without wrecking quality, we say so.</p>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">We pick the lightest compression that fits. If it can&apos;t fit without wrecking quality, we say so.</p>
                   {targetChoice === "custom" && (
                     <div className="mt-2 flex gap-2">
                       <input
@@ -348,14 +348,14 @@ export function CompressTool({ kind }: { kind: CompressKind }) {
               <button
                 type="button"
                 onClick={() => void run(stage.file, false)}
-                className="min-h-11 w-full rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white sm:w-auto dark:bg-white dark:text-black"
+                className="btn btn-primary btn-lg w-full sm:w-auto"
               >
                 Compress {copy.noun}
               </button>
-              <p className="text-xs text-zinc-500">Your original file is never changed. You download the compressed copy separately.</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Your original file is never changed. You download the compressed copy separately.</p>
             </div>
           ) : (
-            <p role="status" className="rounded-lg border border-zinc-200 p-3 text-sm text-zinc-500 dark:border-zinc-800">
+            <p role="status" className="notice notice-info">
               {stage.label}
             </p>
           )}
@@ -398,7 +398,7 @@ function Notices({ kind, noun, size, analysis }: { kind: CompressKind; noun: str
   }
   if (notices.length === 0) return null;
   return (
-    <ul className="space-y-1 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+    <ul className="notice notice-warning !block space-y-1">
       {notices.map((n) => (
         <li key={n}>{n}</li>
       ))}
@@ -454,11 +454,7 @@ function Result({
     <div className="space-y-3">
       <div
         role="status"
-        className={`space-y-2 rounded-lg border p-4 text-sm ${
-          report.meaningful
-            ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
-            : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
-        }`}
+        className={`notice !block space-y-2 p-4 ${report.meaningful ? "notice-success" : "notice-warning"}`}
       >
         {report.meaningful ? (
           <>
@@ -505,47 +501,11 @@ function Result({
         )}
       </div>
 
-      {report.notes.length > 0 && (
-        <ul className="list-disc space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-400">
-          {report.notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-      )}
-
-      {kind === "image" && previewUrl && (
-        <div>
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">Preview</p>
-          {/* eslint-disable-next-line @next/next/no-img-element -- client-generated blob URL */}
-          <img src={previewUrl} alt="Compressed image preview" className="max-h-64 max-w-full rounded-lg border border-zinc-200 dark:border-zinc-800" />
-        </div>
-      )}
-
-      {report.strongAvailable && (
-        <div className="rounded-lg border border-dashed border-zinc-300 p-3 text-sm dark:border-zinc-700">
-          <p className="font-medium">Need it smaller?</p>
-          <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-            Stronger compression redraws each page as a picture at a lower resolution. It gets much smaller, but the text can no longer be selected or searched.
-          </p>
-          <button
-            type="button"
-            onClick={onStrong}
-            className="mt-2 min-h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium dark:border-zinc-700"
-          >
-            Try stronger compression
-          </button>
-        </div>
-      )}
-
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => onDownload(report)}
-          className={
-            report.meaningful
-              ? "min-h-11 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-black"
-              : "min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700"
-          }
+          className={report.meaningful ? "btn btn-primary btn-lg" : "btn btn-secondary btn-lg"}
         >
           {report.meaningful ? "Download compressed file" : "Download original file"}
         </button>
@@ -560,14 +520,47 @@ function Result({
             }
           />
         )}
-        <button type="button" onClick={onAgain} className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700">
+        <button type="button" onClick={onAgain} className="btn btn-secondary">
           Try another level
         </button>
-        <button type="button" onClick={onReset} className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700">
+        <button type="button" onClick={onReset} className="btn btn-secondary">
           Compress another file
         </button>
       </div>
-      {report.meaningful && <p className="text-xs text-zinc-500">Your original file was not changed.</p>}
+      {report.meaningful && <p className="muted text-xs">Your original file was not changed.</p>}
+
+      {report.notes.length > 0 && (
+        <ul className="list-disc space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-400">
+          {report.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      )}
+
+      {kind === "image" && previewUrl && (
+        <div>
+          <p className="panel-title mb-1">Preview</p>
+          {/* eslint-disable-next-line @next/next/no-img-element -- client-generated blob URL */}
+          <img src={previewUrl} alt="Compressed image preview" className="max-h-64 max-w-full rounded-lg border border-zinc-200 dark:border-zinc-800" />
+        </div>
+      )}
+
+      {report.strongAvailable && (
+        <div className="card border-dashed p-3 text-sm">
+          <p className="font-medium">Need it smaller?</p>
+          <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+            Stronger compression redraws each page as a picture at a lower resolution. It gets much smaller, but the text can no longer be selected or searched.
+          </p>
+          <button
+            type="button"
+            onClick={onStrong}
+            className="btn btn-secondary mt-2"
+          >
+            Try stronger compression
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }

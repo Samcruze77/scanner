@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
 import { ToolCard } from "@/components/tools/ToolCard";
 import { TOOL_GROUPS, toolsInGroup } from "@/utils/tools/registry";
@@ -12,25 +13,22 @@ export const metadata: Metadata = {
 export default function ToolsHubPage() {
   return (
     <PageShell>
-      <h1 className="mb-1 text-xl font-semibold">Tools</h1>
-      <p className="mb-2 text-sm text-zinc-500">
-        Edit, sign and compress your documents. Everything runs in your browser, so your files are never uploaded.
-      </p>
-      <p className="mb-6 text-sm text-zinc-500">
-        Need to change a file&apos;s type, like Word to PDF? Use{" "}
-        <Link href="/convert" className="inline-flex min-h-11 min-w-11 items-center justify-center font-medium text-zinc-900 underline dark:text-white">
+      <PageHeader title="Tools">
+        Edit, sign and compress your documents. Everything runs in your browser, so your files are never uploaded. To change a
+        file&apos;s type, like Word to PDF, use{" "}
+        <Link href="/convert" className="link-inline">
           Convert
         </Link>
         .
-      </p>
+      </PageHeader>
 
       <div className="space-y-8">
         {TOOL_GROUPS.map((group) => (
           <section key={group.id} aria-labelledby={`group-${group.id}`}>
-            <h2 id={`group-${group.id}`} className="text-base font-semibold">
+            <h2 id={`group-${group.id}`} className="section-title">
               {group.title}
             </h2>
-            <p className="mb-3 text-sm text-zinc-500">{group.body}</p>
+            <p className="muted mb-3 mt-0.5 text-sm">{group.body}</p>
             <ul className="grid gap-3 sm:grid-cols-2">
               {toolsInGroup(group.id).map((tool) => (
                 <li key={tool.slug}>

@@ -1,18 +1,20 @@
+import { Icon } from "@/components/ui/icons";
+
 export function ErrorBanner({ message, onDismiss }: { message: string; onDismiss?: () => void }) {
   return (
     <div
       role="alert"
-      className="flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+      className="notice notice-error"
     >
-      <span>{message}</span>
+      <span className="min-w-0 flex-1">{message}</span>
       {onDismiss && (
         <button
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss error"
-          className="-my-2 -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded text-red-500 hover:text-red-700 dark:hover:text-red-100"
+          className="btn btn-icon btn-ghost -my-2 -mr-2 shrink-0"
         >
-          ✕
+          <Icon name="x" size={18} />
         </button>
       )}
     </div>

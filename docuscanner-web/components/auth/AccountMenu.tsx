@@ -37,7 +37,7 @@ export function AccountMenu() {
         type="button"
         onClick={handleLogout}
         disabled={signingOut}
-        className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+        className="btn btn-secondary px-3"
       >
         {signingOut ? "Logging out…" : "Log out"}
       </button>

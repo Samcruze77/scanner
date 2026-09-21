@@ -49,7 +49,7 @@ export function PdfToWordTool() {
   const abortRef = useRef<AbortController | null>(null);
 
   if (!available) {
-    return <p className="text-sm text-zinc-500">This tool isn&apos;t available on your plan.</p>;
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">This tool isn&apos;t available on your plan.</p>;
   }
 
   const converting = progress !== null;
@@ -129,7 +129,7 @@ export function PdfToWordTool() {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 card p-3">
             <p className="min-w-0 truncate text-sm font-medium">{file.name}</p>
             <button
               type="button"
@@ -139,7 +139,7 @@ export function PdfToWordTool() {
                 setResult(null);
                 setError(null);
               }}
-              className="min-h-11 rounded-md px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-900"
+              className="btn btn-ghost"
             >
               Choose a different file
             </button>
@@ -164,14 +164,14 @@ export function PdfToWordTool() {
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="min-h-11 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-black"
+                  className="btn btn-primary"
                 >
                   Download Word file
                 </button>
                 <button
                   type="button"
                   onClick={handleConvert}
-                  className="min-h-11 rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium dark:border-zinc-700"
+                  className="btn btn-secondary"
                 >
                   Convert again
                 </button>
@@ -181,7 +181,7 @@ export function PdfToWordTool() {
                 type="button"
                 onClick={handleConvert}
                 disabled={converting}
-                className="min-h-11 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+                className="btn btn-primary"
               >
                 {converting ? "Converting…" : "Convert to Word"}
               </button>
@@ -191,11 +191,11 @@ export function PdfToWordTool() {
                 <button
                   type="button"
                   onClick={() => abortRef.current?.abort()}
-                  className="min-h-11 rounded-md px-4 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                  className="btn btn-ghost"
                 >
                   Cancel
                 </button>
-                <p role="status" className="text-sm text-zinc-500">
+                <p role="status" className="text-sm text-zinc-500 dark:text-zinc-400">
                   {progress ? progressLabel(progress) : ""}
                 </p>
               </>
@@ -231,13 +231,13 @@ export function PdfToWordTool() {
               </div>
 
               <div>
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+                <p className="panel-title mb-1">
                   What was rebuilt (first {result.preview.length} items)
                 </p>
                 <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 text-sm dark:divide-zinc-900 dark:border-zinc-800">
                   {result.preview.map((line, index) => (
                     <li key={index} className="flex gap-3 px-3 py-1.5">
-                      <span className="w-20 shrink-0 text-xs text-zinc-500">{KIND_LABELS[line.kind]}</span>
+                      <span className="w-20 shrink-0 text-xs text-zinc-500 dark:text-zinc-400">{KIND_LABELS[line.kind]}</span>
                       <span className="min-w-0 truncate">{line.text}</span>
                     </li>
                   ))}

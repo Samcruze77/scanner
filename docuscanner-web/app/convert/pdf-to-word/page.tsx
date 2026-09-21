@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
 import { PdfToWordTool } from "@/components/convert/PdfToWordTool";
 
@@ -10,11 +11,10 @@ export const metadata: Metadata = {
 
 export default function PdfToWordPage() {
   return (
-    <PageShell>
-      <h1 className="mb-1 text-xl font-semibold">PDF to Word</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+    <PageShell width="narrow" ads="workflow">
+      <PageHeader title="PDF to Word">
         Free, no account needed. The conversion happens in your browser, so your file is never uploaded.
-      </p>
+      </PageHeader>
       <PdfToWordTool />
     </PageShell>
   );

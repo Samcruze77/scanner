@@ -6,6 +6,7 @@
 // its own undo/redo history and hands the result back on Done, so nothing
 // changes on the page until then.
 
+import { Icon, type IconName } from "@/components/ui/icons";
 import { useEffect, useRef, useState } from "react";
 import {
   clamp,
@@ -28,15 +29,15 @@ import { AnnotationCanvas, type AnnotationDefaults } from "./AnnotationCanvas";
 import { SignatureDialog, type Tab as SignatureTab } from "./SignatureDialog";
 import { useZoom, ZoomControls, ZoomFrame, ZoomViewport } from "./zoom";
 
-const TOOLS: { value: AnnotationTool; label: string; icon: string }[] = [
-  { value: "select", label: "Select", icon: "↖" },
-  { value: "text", label: "Text", icon: "T" },
-  { value: "draw", label: "Draw", icon: "✎" },
-  { value: "highlight", label: "Highlight", icon: "▬" },
-  { value: "check", label: "Check", icon: "✓" },
-  { value: "cross", label: "X", icon: "✕" },
-  { value: "date", label: "Date", icon: "▦" },
-  { value: "signature", label: "Signature", icon: "✍" },
+const TOOLS: { value: AnnotationTool; label: string; icon: IconName }[] = [
+  { value: "select", label: "Select", icon: "pointer" },
+  { value: "text", label: "Text", icon: "text" },
+  { value: "draw", label: "Draw", icon: "pen" },
+  { value: "highlight", label: "Highlight", icon: "highlight" },
+  { value: "check", label: "Check", icon: "check" },
+  { value: "cross", label: "X", icon: "x" },
+  { value: "date", label: "Date", icon: "calendar" },
+  { value: "signature", label: "Signature", icon: "signature" },
 ];
 
 const HINTS: Record<AnnotationTool, string> = {
@@ -298,7 +299,7 @@ export function AnnotationEditor({
   const showPen = targetType === "ink";
   const pageAspect = page.processedWidth / page.processedHeight;
 
-  const chip = "flex h-11 min-w-11 shrink-0 items-center justify-center rounded-md border px-2 text-sm font-medium";
+  const chip = "flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border px-2 text-sm font-medium";
 
   return (
     <div
@@ -316,7 +317,7 @@ export function AnnotationEditor({
           aria-label="Undo"
           className={`${chip} border-zinc-300 disabled:opacity-40 dark:border-zinc-700`}
         >
-          ↶
+          <Icon name="undo" size={18} />
         </button>
         <button
           type="button"
@@ -325,12 +326,12 @@ export function AnnotationEditor({
           aria-label="Redo"
           className={`${chip} border-zinc-300 disabled:opacity-40 dark:border-zinc-700`}
         >
-          ↷
+          <Icon name="redo" size={18} />
         </button>
         <button
           type="button"
           onClick={() => onDone(resolveFinal())}
-          className="min-h-11 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white dark:bg-white dark:text-black"
+          className="btn btn-primary"
         >
           Done
         </button>
@@ -350,11 +351,11 @@ export function AnnotationEditor({
             onClick={() => chooseTool(t.value)}
             className={`${chip} gap-1.5 whitespace-nowrap ${
               tool === t.value && t.value !== "signature"
-                ? "border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-black"
+                ? "border-blue-600 bg-blue-600 text-white"
                 : "border-zinc-300 dark:border-zinc-700"
             }`}
           >
-            <span aria-hidden>{t.icon}</span>
+            <Icon name={t.icon} size={18} />
             {t.label}
           </button>
         ))}
@@ -474,7 +475,7 @@ export function AnnotationEditor({
         )}
 
         {!showText && !showColor && !showHighlightColors && !showPen && !selected && (
-          <p className="whitespace-nowrap text-sm text-zinc-500">{HINTS[tool] || HINTS.select}</p>
+          <p className="whitespace-nowrap text-sm text-zinc-500 dark:text-zinc-400">{HINTS[tool] || HINTS.select}</p>
         )}
       </div>
 
@@ -504,14 +505,14 @@ export function AnnotationEditor({
           />
           </ZoomFrame>
           {(tool !== "select" || annotations.length > 0) && (
-            <p className="mt-2 text-center text-xs text-zinc-500">
+            <p className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
               {tool === "select" && selected?.type === "signature"
                 ? "Drag to move your signature. Drag the corner dot to resize it."
                 : HINTS[tool]}
             </p>
           )}
           {zoom.zoom > 1 && (
-            <p className="mt-1 text-center text-xs text-zinc-500">Zoomed in: use two fingers, the scroll bars or the mouse wheel to move around.</p>
+            <p className="mt-1 text-center text-xs text-zinc-500 dark:text-zinc-400">Zoomed in: use two fingers, the scroll bars or the mouse wheel to move around.</p>
           )}
           {/* Room so the floating zoom controls never cover the bottom of the page. */}
           <div aria-hidden className="h-14" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/ui/icons";
 import type { ScannerPage } from "@/utils/scanner/page";
 import { OCR_LOW_CONFIDENCE_THRESHOLD } from "@/utils/ocr/config";
 import { isRetryableOcrError, ocrErrorMessage } from "@/utils/ocr/messages";
@@ -8,7 +9,7 @@ import type { OcrDocumentResult, OcrErrorCode, OcrProgress } from "@/utils/ocr/t
 import { OcrTextEditor } from "./OcrTextEditor";
 import type { OcrController } from "./useOcr";
 
-const BUTTON = "min-h-11 rounded-md border border-zinc-300 px-4 text-sm font-medium dark:border-zinc-700";
+const BUTTON = "btn btn-secondary";
 
 // Tracks the *visible* area so that, on phones, the on-screen keyboard shrinks
 // the panel instead of covering it -- the header (Copy / Close) and the search
@@ -129,7 +130,7 @@ export function OcrPanel({ ocr, pages }: { ocr: OcrController; pages: ScannerPag
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-base font-semibold">Extracted text</h2>
             {done && (
-              <p className="truncate text-xs text-zinc-500">
+              <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
                 {pageCount} page{pageCount === 1 ? "" : "s"} · English
               </p>
             )}
@@ -138,7 +139,7 @@ export function OcrPanel({ ocr, pages }: { ocr: OcrController; pages: ScannerPag
             <button
               type="button"
               onClick={handleCopy}
-              className="min-h-11 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+              className="btn btn-primary"
               disabled={text.length === 0}
             >
               {copyStatus === "copied" ? "Copied ✓" : "Copy text"}
@@ -149,9 +150,9 @@ export function OcrPanel({ ocr, pages }: { ocr: OcrController; pages: ScannerPag
             type="button"
             onClick={closePanel}
             aria-label={closeLabel}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            className="btn btn-icon btn-ghost shrink-0"
           >
-            ✕
+            <Icon name="x" />
           </button>
         </div>
 
@@ -173,14 +174,14 @@ export function OcrPanel({ ocr, pages }: { ocr: OcrController; pages: ScannerPag
                   className="h-2 w-full max-w-sm overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
                 >
                   <div
-                    className="h-full rounded-full bg-zinc-900 transition-[width] duration-300 dark:bg-white"
+                    className="h-full rounded-full bg-blue-600 transition-[width] duration-300"
                     style={{ width: `${percent}%` }}
                   />
                 </div>
                 <p role="status" className="text-sm font-medium">
                   {label}
                 </p>
-                <p className="max-w-sm text-xs text-zinc-500">
+                <p className="max-w-sm text-xs text-zinc-500 dark:text-zinc-400">
                   Text is read on your device -- your document is never uploaded. The first run downloads the text
                   engine, so it can take a little longer.
                 </p>
@@ -201,7 +202,7 @@ export function OcrPanel({ ocr, pages }: { ocr: OcrController; pages: ScannerPag
                 <button
                   type="button"
                   onClick={ocr.retry}
-                  className="min-h-11 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white dark:bg-white dark:text-black"
+                  className="btn btn-primary"
                 >
                   Try again
                 </button>
@@ -218,7 +219,7 @@ export function OcrPanel({ ocr, pages }: { ocr: OcrController; pages: ScannerPag
             <p role="status" className="text-sm font-medium">
               No text found.
             </p>
-            <p className="max-w-md text-sm text-zinc-500">
+            <p className="max-w-md text-sm text-zinc-500 dark:text-zinc-400">
               Text extraction works best on printed text in English. Make sure the page is upright, well lit and in
               focus, then try the Black &amp; White enhancement.
             </p>
@@ -242,7 +243,7 @@ export function OcrPanel({ ocr, pages }: { ocr: OcrController; pages: ScannerPag
                     alt={`Page ${read.pageNumber} preview`}
                     className="w-full rounded-md border border-zinc-200 object-contain dark:border-zinc-800"
                   />
-                  <figcaption className="text-xs text-zinc-500">Page {read.pageNumber}</figcaption>
+                  <figcaption className="text-xs text-zinc-500 dark:text-zinc-400">Page {read.pageNumber}</figcaption>
                 </figure>
               ))}
             </aside>

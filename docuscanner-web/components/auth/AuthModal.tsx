@@ -10,6 +10,7 @@ import {
   trackSignupStarted,
 } from "@/utils/analytics/events";
 import { authErrorCode, authErrorMessage, GENERIC_AUTH_ERROR, isRateLimited } from "@/utils/auth/messages";
+import { Icon } from "@/components/ui/icons";
 import { authRedirectUrl } from "@/utils/auth/redirects";
 import { confirmProblem, emailProblem, PASSWORD_HINT, passwordProblem } from "@/utils/auth/validation";
 import { PasswordField } from "./PasswordField";
@@ -33,8 +34,8 @@ interface FieldErrors {
 // How long "Send again" waits, so the reset email can't be hammered.
 const RESEND_SECONDS = 60;
 
-const INPUT_CLASS = "min-h-11 w-full rounded-md border border-zinc-300 px-3 text-sm dark:border-zinc-700 dark:bg-black";
-const LINK_BUTTON = "inline-flex min-h-11 items-center font-medium text-zinc-900 underline dark:text-white";
+const INPUT_CLASS = "field";
+const LINK_BUTTON = "inline-flex min-h-11 items-center font-medium text-blue-700 underline underline-offset-2 dark:text-blue-400";
 
 function AuthModalDialog() {
   const { authModalMode, closeAuthModal, openAuthModal } = useAuth();
@@ -206,7 +207,7 @@ function AuthModalDialog() {
         if (e.target === e.currentTarget) closeAuthModal();
       }}
     >
-      <div className="my-auto w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-zinc-900">
+      <div className="my-auto w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-900">
         <div className="mb-4 flex items-center justify-between">
           <h2 id="auth-modal-title" className="text-lg font-semibold">
             {title}
@@ -215,15 +216,15 @@ function AuthModalDialog() {
             type="button"
             onClick={closeAuthModal}
             aria-label="Close"
-            className="flex h-11 w-11 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800"
+            className="btn btn-icon btn-ghost -mr-2"
           >
-            ✕
+            <Icon name="x" size={18} />
           </button>
         </div>
 
         {resetSentTo ? (
           <div className="space-y-3">
-            <div role="status" className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+            <div role="status" className="notice notice-success !block space-y-2">
               <p>
                 If an account exists for <strong className="break-words">{resetSentTo}</strong>, we&apos;ve sent a link to reset its password.
               </p>
@@ -239,21 +240,21 @@ function AuthModalDialog() {
               type="button"
               onClick={handleResend}
               disabled={cooldown > 0 || submitting}
-              className="min-h-11 w-full rounded-md border border-zinc-300 px-4 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
+              className="btn btn-secondary w-full"
             >
               {submitting ? "Sending…" : cooldown > 0 ? `Send again in ${cooldown}s` : "Send the link again"}
             </button>
             <button
               type="button"
               onClick={() => switchMode("login")}
-              className="min-h-11 w-full rounded-md bg-zinc-900 px-4 text-sm font-medium text-white dark:bg-white dark:text-black"
+              className="btn btn-primary w-full"
             >
               Back to log in
             </button>
           </div>
         ) : (
           <>
-            <p className="mb-4 text-sm text-zinc-500">
+            <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
               {mode === "signup"
                 ? "Free, no credit card. You can keep scanning as a guest too."
                 : mode === "forgot"
@@ -320,7 +321,7 @@ function AuthModalDialog() {
 
               {mode === "login" && (
                 <div className="-mt-1 flex justify-end">
-                  <button type="button" onClick={() => switchMode("forgot")} className="inline-flex min-h-11 items-center text-sm font-medium text-zinc-700 underline dark:text-zinc-300">
+                  <button type="button" onClick={() => switchMode("forgot")} className="inline-flex min-h-11 items-center text-sm font-medium text-blue-700 underline underline-offset-2 dark:text-blue-400">
                     Forgot password?
                   </button>
                 </div>
@@ -340,13 +341,13 @@ function AuthModalDialog() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="min-h-11 w-full rounded-md bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+                className="btn btn-primary w-full"
               >
                 {submitting ? "Please wait…" : mode === "signup" ? "Sign up" : mode === "forgot" ? "Send reset link" : "Log in"}
               </button>
             </form>
 
-            <p className="mt-4 text-center text-sm text-zinc-500">
+            <p className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
               {mode === "signup" ? (
                 <>
                   Already have an account?{" "}

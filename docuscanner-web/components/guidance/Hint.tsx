@@ -5,6 +5,7 @@
 // tutorial: one short line, exactly where the person needs it.
 
 import { useSyncExternalStore } from "react";
+import { Icon } from "@/components/ui/icons";
 
 const CHANGE_EVENT = "docuscanner:hint-change";
 const key = (id: string) => `docuscanner.hint.${id}`;
@@ -40,11 +41,9 @@ export function Hint({ id, children, className }: { id: string; children: React.
   return (
     <div
       role="note"
-      className={`flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100 ${className ?? ""}`}
+      className={`notice notice-info ${className ?? ""}`}
     >
-      <span aria-hidden className="mt-0.5">
-        💡
-      </span>
+      <Icon name="info" size={18} className="mt-0.5" />
       <p className="min-w-0 flex-1">{children}</p>
       <button
         type="button"
@@ -56,7 +55,7 @@ export function Hint({ id, children, className }: { id: string; children: React.
           }
           window.dispatchEvent(new Event(CHANGE_EVENT));
         }}
-        className="min-h-11 shrink-0 rounded-md px-3 text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900"
+        className="btn btn-ghost -my-2 -mr-2 shrink-0"
       >
         Got it
       </button>
@@ -66,5 +65,5 @@ export function Hint({ id, children, className }: { id: string; children: React.
 
 // A short, permanent line of helper text (for things people need every time).
 export function HelperText({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <p className={`text-sm text-zinc-500 ${className ?? ""}`}>{children}</p>;
+  return <p className={`text-sm text-zinc-500 dark:text-zinc-400 ${className ?? ""}`}>{children}</p>;
 }

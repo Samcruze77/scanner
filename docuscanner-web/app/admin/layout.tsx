@@ -40,7 +40,7 @@ export default async function AdminLayout({
       <div className="flex flex-1 items-center justify-center p-8 text-center">
         <div>
           <h1 className="text-xl font-semibold">Access restricted</h1>
-          <p className="mt-2 text-sm text-zinc-500">
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
             This area is limited to DocuScanner admins.
           </p>
         </div>
@@ -52,7 +52,7 @@ export default async function AdminLayout({
     <AdminRoleProvider role={role}>
       <div className="flex flex-1 flex-col md:flex-row">
         <AdminNav role={role} />
-        <main className="min-w-0 flex-1 p-4 md:p-8">{children}</main>
+        <main id="main" className="min-w-0 flex-1 p-4 md:p-8">{children}</main>
       </div>
     </AdminRoleProvider>
   );

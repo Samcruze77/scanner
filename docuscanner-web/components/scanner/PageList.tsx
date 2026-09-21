@@ -1,37 +1,28 @@
 import type { ScannerPage } from "@/utils/scanner/page";
 import { PageThumbnail } from "./PageThumbnail";
 
+// The pages as a strip under the preview. Choosing one shows it in the preview;
+// reordering and removing act on the chosen page (see ScannerWorkspace).
 export function PageList({
   pages,
-  onEdit,
-  onRemove,
-  onMove,
+  selectedId,
+  onSelect,
 }: {
   pages: ScannerPage[];
-  onEdit: (id: string) => void;
-  onRemove: (id: string) => void;
-  onMove: (id: string, direction: "up" | "down") => void;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }) {
-  if (pages.length === 0) {
-    return (
-      <p className="rounded-lg border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700">
-        No pages yet. Use the camera, or upload a document (PDF, Word, Excel, CSV or image), to add your first page.
-      </p>
-    );
-  }
+  if (pages.length === 0) return null;
 
   return (
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+    <ul aria-label="Pages" className="flex gap-2 overflow-x-auto pb-2">
       {pages.map((page, index) => (
         <PageThumbnail
           key={page.id}
           page={page}
           index={index}
-          total={pages.length}
-          onEdit={() => onEdit(page.id)}
-          onRemove={() => onRemove(page.id)}
-          onMoveUp={() => onMove(page.id, "up")}
-          onMoveDown={() => onMove(page.id, "down")}
+          selected={page.id === selectedId}
+          onSelect={() => onSelect(page.id)}
         />
       ))}
     </ul>

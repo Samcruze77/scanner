@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
 import { ScannerWorkspace } from "@/components/scanner/ScannerWorkspace";
 
@@ -10,12 +11,10 @@ export const metadata: Metadata = {
 
 export default function ImageToPdfPage() {
   return (
-    <PageShell>
-      <h1 className="mb-1 text-xl font-semibold">Image to PDF</h1>
-      <p className="mb-6 text-sm text-zinc-500">
-        Add one or more pictures, crop and reorder them, then create one PDF. Free, no account needed. Your pictures stay
-        on your device.
-      </p>
+    <PageShell width="workspace" ads="workflow">
+      <PageHeader title="Image to PDF">
+        Add one or more pictures, crop and reorder them, then create one PDF. Free, no account needed. Your pictures stay on your device.
+      </PageHeader>
       <ScannerWorkspace />
     </PageShell>
   );

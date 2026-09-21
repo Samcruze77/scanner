@@ -1,36 +1,51 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
 import { CONVERT_TOOLS, SCAN_TOOL } from "@/components/convert/tools";
+import { Icon, type IconName } from "@/components/ui/icons";
 
 export const metadata: Metadata = {
   title: "Convert files - DocuScanner",
   description: "Scan, edit and sign documents, and convert between Word, PDF and Excel. Free, in your browser.",
 };
 
+const ICONS: Record<string, IconName> = {
+  "/scan": "camera",
+  "/convert/image-to-pdf": "image",
+  "/convert/word-to-pdf": "document",
+  "/convert/pdf-to-word": "document",
+  "/convert/excel-to-pdf": "documents",
+  "/convert/pdf-to-excel": "documents",
+};
+
 export default function ConvertHubPage() {
   return (
     <PageShell>
-      <h1 className="mb-1 text-xl font-semibold">Convert</h1>
-      <p className="mb-2 text-sm text-zinc-500">
-        Everything runs in your browser, so your files are never uploaded.
-      </p>
-      <p className="mb-6 text-sm text-zinc-500">
-        Use Convert to change a file&apos;s type. To edit, sign or compress a file, use{" "}
-        <Link href="/tools" className="inline-flex min-h-11 min-w-11 items-center justify-center font-medium text-zinc-900 underline dark:text-white">
+      <PageHeader title="Convert">
+        Change a file&apos;s type without uploading it: everything runs in your browser. To edit, sign or compress a file, use{" "}
+        <Link href="/tools" className="link-inline">
           Tools
         </Link>
         .
-      </p>
-      <ul className="grid gap-4 sm:grid-cols-2">
+      </PageHeader>
+      <ul className="grid gap-3 sm:grid-cols-2">
         {[SCAN_TOOL, ...CONVERT_TOOLS].map((tool) => (
           <li key={tool.href}>
             <Link
               href={tool.href}
-              className="block h-full rounded-lg border border-zinc-200 p-5 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+              className="card group flex h-full items-start gap-3 p-4 transition-colors hover:border-blue-300 hover:bg-blue-50/40 dark:hover:border-blue-800 dark:hover:bg-blue-950/30"
             >
-              <h2 className="font-semibold">{tool.title}</h2>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{tool.body}</p>
+              <span
+                aria-hidden
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
+              >
+                <Icon name={ICONS[tool.href] ?? "document"} size={20} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <h2 className="font-semibold">{tool.title}</h2>
+                <p className="muted mt-0.5 text-sm">{tool.body}</p>
+              </span>
             </Link>
           </li>
         ))}

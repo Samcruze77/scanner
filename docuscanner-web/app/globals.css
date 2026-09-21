@@ -1,8 +1,32 @@
 @import "tailwindcss";
 
+/* ==== DocuScanner design system ================================================
+   One place for how the product looks, so screens stay consistent. Plain Tailwind:
+   tokens here, shared component classes below (@layer components), and screens
+   compose them. There is no component library.
+
+   Type     Geist Sans. Page title text-2xl semibold; section title text-lg
+            semibold; card title text-base semibold; body text-sm (text-base on
+            marketing copy); captions text-xs. Weights: 400 body, 500 controls,
+            600 headings. No bold (700) except the logo mark.
+   Space    4px grid. Page gutter 16px (phone) / 24px (desktop); sections 32px apart;
+            controls 8px apart; page width max-w-6xl, workspace max-w-7xl.
+   Shape    Controls 8px radius (rounded-lg), cards and panels 12px (rounded-xl),
+            dialogs 16px, pills fully round. Borders 1px zinc-200 / zinc-800.
+            Shadows only on things that float (dialogs, menus).
+   Colour   Neutral zinc surfaces, ONE accent (blue-600) for the primary action
+            and focus. Green = success, amber = caution, red = error/destructive.
+   Motion   Colour transitions only (150ms), and none at all when the person has
+            asked for reduced motion.
+   Touch    Every control is at least 44px tall.
+   ============================================================================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafafa;
+  --surface: #ffffff;
+  --foreground: #18181b;
+  /* Lets the browser draw its own controls (scrollbars, sliders, pickers) to match. */
+  color-scheme: light;
 }
 
 @theme inline {
@@ -14,15 +38,17 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #09090b;
+    --surface: #18181b;
+    --foreground: #f4f4f5;
+    color-scheme: dark;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Consistent, visible keyboard focus across every interactive element --
@@ -31,9 +57,101 @@ a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
-textarea:focus-visible {
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
+}
+
+/* People who ask their system for less motion get none. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  /* ---- buttons: .btn plus one of the variants ---- */
+  .btn {
+    @apply inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 dark:hover:bg-blue-500;
+  }
+  .btn-secondary {
+    @apply border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 active:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800;
+  }
+  .btn-ghost {
+    @apply text-zinc-700 hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800;
+  }
+  .btn-danger {
+    @apply border border-red-200 bg-white text-red-700 hover:bg-red-50 dark:border-red-900 dark:bg-zinc-900 dark:text-red-400 dark:hover:bg-red-950;
+  }
+  /* A square, icon-only button: give it an aria-label. */
+  .btn-icon {
+    @apply min-w-11 px-0;
+  }
+  .btn-lg {
+    @apply min-h-12 px-6 text-base;
+  }
+
+  /* ---- form controls ---- */
+  .field {
+    @apply min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100;
+  }
+
+  /* ---- surfaces ---- */
+  .card {
+    @apply rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900;
+  }
+  .panel-title {
+    @apply text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400;
+  }
+
+  /* ---- type ---- */
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+  .section-title {
+    @apply text-lg font-semibold tracking-tight;
+  }
+  .muted {
+    @apply text-zinc-600 dark:text-zinc-400;
+  }
+  /* A link inside a sentence. It stays inline and looks like text, but an invisible
+     box around it (::after) makes the tappable area at least 44px tall without
+     changing the line spacing. Use it for at most one link per line. */
+  .link-inline {
+    @apply relative font-medium text-blue-700 underline underline-offset-2 dark:text-blue-400;
+  }
+  .link-inline::after {
+    content: "";
+    position: absolute;
+    inset: -14px -8px;
+  }
+
+  /* ---- status messages (success / caution / error / info) ---- */
+  .notice {
+    @apply flex items-start gap-3 rounded-lg border p-3 text-sm;
+  }
+  .notice-success {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200;
+  }
+  .notice-warning {
+    @apply border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200;
+  }
+  .notice-error {
+    @apply border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300;
+  }
+  .notice-info {
+    @apply border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100;
+  }
 }
 
 /* Compression level slider (components/tools/CompressionGauge.tsx). A native

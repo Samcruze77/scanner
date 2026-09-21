@@ -65,7 +65,7 @@ export function CompressionGauge({
               style={i === 0 ? { left: 0 } : i === last ? { right: 0 } : { left: `calc(${THUMB_INSET}px + (100% - ${THUMB_INSET * 2}px) * ${i / last})` }}
               className={`absolute top-0 flex h-11 min-w-11 items-center rounded-md px-1 text-xs disabled:cursor-not-allowed ${
                 i === 0 ? "justify-start" : i === last ? "justify-end" : "-translate-x-1/2 justify-center"
-              } ${i === level ? "font-semibold text-zinc-900 dark:text-white" : "text-zinc-500"}`}
+              } ${i === level ? "font-semibold text-zinc-900 dark:text-white" : "text-zinc-500 dark:text-zinc-400"}`}
             >
               {l.short}
             </button>

@@ -13,7 +13,7 @@ export function HistoryPrintButton({ url, title }: { url: string; title: string 
     <PrintButton
       source="history"
       title={title}
-      className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50 dark:border-zinc-700"
+      className="btn btn-secondary"
       getPages={async () => {
         let response: Response;
         try {

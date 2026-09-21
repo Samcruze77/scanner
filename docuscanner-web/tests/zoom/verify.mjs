@@ -164,7 +164,8 @@ await test("opens at normal size (the fitted preview) with the zoom controls, Re
   assert.equal(s.label, "100%");
   assert.equal(s.resetDisabled, true);
   assert.equal(s.inDisabled, false);
-  assert.ok(normal.h <= 900 * 0.45 + 1, "normal size still fits the 45vh window, as before zoom existed");
+  // Desktop (two-pane editor) gives the page up to 66vh; phones still get 45vh. Either way it must fit, not overflow.
+  assert.ok(normal.h <= 900 * 0.66 + 1, "normal size still fits the preview window, as before zoom existed");
   near(normal.w / normal.h, 1700 / 2400, 0.01, "aspect");
 });
 
