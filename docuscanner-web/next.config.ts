@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
     // that folder between deployments. The cached stylesheet was reused after
     // app/globals.css (and the classes used across the app) had changed, so production
     // shipped NEW pages with the PREVIOUS stylesheet: the theme rules were missing and
-    // Light / Soft Gray never appeared. A clean build of the same commit was correct.
+    // the middle theme never appeared. A clean build of the same commit was correct.
     // Compiling the stylesheet fresh on every build costs a few seconds and removes the
     // risk. (scripts/verify-theme-css.mjs also checks the result after every build.)
     turbopackFileSystemCacheForBuild: false,

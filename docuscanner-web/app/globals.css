@@ -20,7 +20,7 @@
             asked for reduced motion.
    Touch    Every control is at least 44px tall.
 
-   Themes   Three palettes -- Light, Soft Gray, Dark -- chosen by the person (see
+   Themes   Three palettes -- Light, Warm Beige, Dark -- chosen by the person (see
             components/theme). The choice is the `data-theme` attribute on <html>.
             Only COLOUR changes between them: layout, type, spacing, icons and the
             blue accent are shared.
@@ -28,7 +28,7 @@
                  theme below. The shared classes (.btn, .card, .field, .notice ...)
                  read them, so new UI should use those classes or the token utilities
                  (bg-surface, bg-chrome, bg-elevated ...) and never a raw colour.
-              2. Older screens still use Tailwind's zinc scale. Soft Gray re-maps that
+              2. Older screens still use Tailwind's zinc scale. Warm Beige re-maps that
                  scale, and Dark answers `dark:` utilities, so they follow the theme too.
               3. Documents are paper: anything that shows a scanned page or a signature
                  pad keeps `bg-white` and is never re-coloured by a theme.
@@ -79,55 +79,59 @@
   color-scheme: light;
 }
 
-/* Soft Gray: a cool, neutral middle -- not bright, not dark. Cool light-gray page,
-   slightly darker gray surfaces, strong soft text. The blue accent is unchanged. */
+/* Warm Beige: warm paper for comfortable long reading and editing. Light cream page,
+   soft beige surfaces, warm near-black text. Neutral, not yellow or brown. The blue
+   accent is unchanged and no second accent is added. Scanned pages stay paper-white. */
 @media screen {
-  :root[data-theme="soft"] {
-    --page: #e9ecf1;
-    --surface: #dfe3e9;
-    --elevated: #e7eaef;
-    --chrome: #dfe3e9;
-    --border: #c4cad4;
-    --border-strong: #a9b1be;
-    --text: #1b212b;
-    --text-2: #3b4452;
-    --text-muted: #4f5968;
-    --placeholder: #5a6473;
-    --field-bg: #f1f3f6;
-    --field-border: #98a1af;
-    --hover: #d2d7df;
-    --selected: #c3cad5;
-    --focus: #1d4ed8;
-    --link: #1d4ed8;
-    --success-bg: #d3e9dc;
-    --success-border: #9fcbb0;
-    --success-text: #14432a;
-    --warning-bg: #efe2c2;
-    --warning-border: #d6bd7c;
-    --warning-text: #5c3208;
-    --error-bg: #f0d4d4;
-    --error-border: #d9a1a1;
-    --error-text: #7a1a1a;
-    --info-bg: #d3deef;
-    --info-border: #a3b8d8;
+  :root[data-theme="beige"] {
+    --page: #e8e2d8;
+    --surface: #ddd5c8;
+    --elevated: #f0ebe3;
+    --chrome: #ddd5c8;
+    --border: #c9c0b3;
+    --border-strong: #ada396;
+    --text: #292722;
+    --text-2: #57524a;
+    --text-muted: #5c574f;
+    --placeholder: #6b665d;
+    --field-bg: #f0ebe3;
+    --field-border: #948a7c;
+    --hover: #d3cabc;
+    --selected: #c8beaf;
+    --focus: #1a44c9;
+    --link: #1a44c9;
+    --success-bg: #d3e3d0;
+    --success-border: #a6c4a2;
+    --success-text: #1b4326;
+    --warning-bg: #ebd9b0;
+    --warning-border: #d0b577;
+    --warning-text: #5b3a08;
+    --error-bg: #ebcfc8;
+    --error-border: #d3a198;
+    --error-text: #7a1d14;
+    --info-bg: #d3deea;
+    --info-border: #a5b9ce;
     --info-text: #1e3a70;
-    --scrim: rgb(20 26 36 / 0.45);
+    --scrim: rgb(30 26 20 / 0.45);
     color-scheme: light;
 
-    /* The zinc scale, re-mapped to cool grays, for screens that use it directly. */
-    --color-zinc-50: #eef0f4;
-    --color-zinc-100: #d5dae2;
-    --color-zinc-200: #c4cad4;
-    --color-zinc-300: #a9b1be;
-    --color-zinc-400: #6b7585;
-    --color-zinc-500: #4f5968;
-    --color-zinc-600: #3b4452;
-    --color-zinc-700: #2b3340;
-    --color-zinc-800: #212832;
-    --color-zinc-900: #1b212b;
-    --color-zinc-950: #12161d;
+    /* The zinc scale, re-mapped to warm neutrals, for screens that use it directly. */
+    --color-zinc-50: #f0ebe3;
+    --color-zinc-100: #d8d0c3;
+    --color-zinc-200: #c9c0b3;
+    --color-zinc-300: #ada396;
+    --color-zinc-400: #6f695f;
+    --color-zinc-500: #5c574f;
+    --color-zinc-600: #4a463f;
+    --color-zinc-700: #38352f;
+    --color-zinc-800: #292722;
+    --color-zinc-900: #292722;
+    --color-zinc-950: #1c1a17;
   }
 
+}
+
+@media screen {
   /* Dark: charcoal, not black. */
   :root[data-theme="dark"] {
     --page: #111113;

@@ -21,9 +21,9 @@ const shotArg = process.argv.find((a) => a.startsWith("--shots="));
 const SHOT_WIDTHS = shotArg ? shotArg.slice(8).split(",").map(Number) : [375, 1280];
 const WIDTHS = [375, 390, 768, 1024, 1280];
 const tag = process.env.TAG ?? "before";
-// THEME=light|soft|dark chooses the app theme the way a person would (saved preference).
+// THEME=light|beige|dark chooses the app theme the way a person would (saved preference).
 // With no THEME the app follows the system, which SCHEME=dark|light emulates.
-const THEME = ["light", "soft", "dark"].includes(process.env.THEME) ? process.env.THEME : null;
+const THEME = ["light", "beige", "dark"].includes(process.env.THEME) ? process.env.THEME : null;
 const SCHEME = process.env.SCHEME === "dark" ? "dark" : "light";
 const { createCanvas } = require("@napi-rs/canvas");
 const work = fs.mkdtempSync(path.join(os.tmpdir(), "ui-audit-"));

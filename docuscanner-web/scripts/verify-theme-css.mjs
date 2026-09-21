@@ -36,7 +36,7 @@ const css = files.map((f) => readFileSync(f, "utf8")).join("\n");
 
 // Each check names what would be visibly broken if it were missing.
 const CHECKS = [
-  [/\[data-theme=["']?soft["']?\]/, "Soft Gray palette (:root[data-theme=soft])"],
+  [/\[data-theme=["']?beige["']?\]/, "Warm Beige palette (:root[data-theme=beige])"],
   [/\[data-theme=["']?dark["']?\]\s*\{/, "Dark palette (:root[data-theme=dark])"],
   [/--page:\s*#fafafa/i, "Light palette tokens (--page)"],
   [/\.bg-surface\b/, "surface utility (bg-surface)"],
@@ -47,7 +47,7 @@ const CHECKS = [
 
 const missing = CHECKS.filter(([re]) => !re.test(css)).map(([, what]) => what);
 // The old system followed the operating system directly. If it is back, an explicit
-// Light or Soft Gray choice would be overridden by the OS's dark setting.
+// Light or Warm Beige choice would be overridden by the OS's dark setting.
 const osDark = /@media\s*\(prefers-color-scheme:\s*dark\)/.test(css);
 
 if (missing.length > 0 || osDark) {

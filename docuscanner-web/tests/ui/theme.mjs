@@ -1,4 +1,4 @@
-// Theme verification: the Light / Soft Gray / Dark selector and its behaviour, driven in
+// Theme verification: the Light / Warm Beige / Dark selector and its behaviour, driven in
 // real headless Chrome over the DevTools protocol.
 //
 //   node tests/ui/theme.mjs [baseUrl]        (default http://localhost:3000)
@@ -25,7 +25,7 @@ const profile = path.join(work, "profile");
 const CHROME = [process.env.CHROME, "C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"].find((p) => p && fs.existsSync(p));
 
 const PAPER = "rgb(255, 255, 255)";
-const PAGE = { light: "rgb(250, 250, 250)", soft: "rgb(233, 236, 241)", dark: "rgb(17, 17, 19)" };
+const PAGE = { light: "rgb(250, 250, 250)", beige: "rgb(232, 226, 216)", dark: "rgb(17, 17, 19)" };
 
 function pageImage(name, w, h, label) {
   const c = createCanvas(w, h);
@@ -149,7 +149,7 @@ await test("no saved theme + system light -> Light", async () => {
   assert.equal(await bodyBg(), PAGE.light);
   assert.equal(await triggerLabel(), "Theme: Light");
 });
-await test("no saved theme + system dark -> Dark (never Soft Gray)", async () => {
+await test("no saved theme + system dark -> Dark (never Warm Beige)", async () => {
   await scheme("dark");
   await open("/");
   assert.equal(await stored(), null);
@@ -168,12 +168,12 @@ await test("with nothing saved, a live system change is followed without a reloa
 });
 
 console.log("Choosing a theme");
-await test("the menu offers Light, Soft Gray and Dark with an icon each, and marks the current one", async () => {
+await test("the menu offers Light, Warm Beige and Dark with an icon each, and marks the current one", async () => {
   await scheme("light");
   await open("/");
   await openMenu();
   const items = await evaluate(`[...document.querySelectorAll('[role=group][aria-label="Theme"] button')].map(b => ({ t: b.innerText.trim(), icon: !!b.querySelector('svg'), pressed: b.getAttribute('aria-pressed') }))`);
-  assert.deepEqual(items.map((i) => i.t), ["Light", "Soft Gray", "Dark"]);
+  assert.deepEqual(items.map((i) => i.t), ["Light", "Warm Beige", "Dark"]);
   assert.ok(items.every((i) => i.icon), "every option has an icon");
   assert.deepEqual(items.map((i) => i.pressed), ["true", "false", "false"]);
 });
@@ -191,61 +191,61 @@ await test("clicking outside closes the menu", async () => {
   await sleep(150);
   assert.equal(await evaluate(`!!document.querySelector('[role=group][aria-label="Theme"]')`), false);
 });
-await test("choosing Soft Gray applies immediately (no reload), is saved, and the button reflects it", async () => {
+await test("choosing Warm Beige applies immediately (no reload), is saved, and the button reflects it", async () => {
   await evaluate(`window.__marker = 7`);
-  await pickTheme("Soft Gray");
-  assert.equal(await theme(), "soft");
-  assert.equal(await stored(), "soft");
-  assert.equal(await bodyBg(), PAGE.soft);
+  await pickTheme("Warm Beige");
+  assert.equal(await theme(), "beige");
+  assert.equal(await stored(), "beige");
+  assert.equal(await bodyBg(), PAGE.beige);
   assert.equal(await evaluate(`window.__marker`), 7, "no reload happened");
-  assert.equal(await triggerLabel(), "Theme: Soft Gray");
+  assert.equal(await triggerLabel(), "Theme: Warm Beige");
   assert.equal(await evaluate(`!!document.querySelector('[role=group][aria-label="Theme"]')`), false, "menu closed");
-  assert.equal(await evaluate(`document.activeElement?.getAttribute('aria-label')`), "Theme: Soft Gray");
+  assert.equal(await evaluate(`document.activeElement?.getAttribute('aria-label')`), "Theme: Warm Beige");
 });
 await test("the brief colour fade cleans itself up", async () => {
   await sleep(400);
   assert.equal(await evaluate(`document.documentElement.classList.contains('theme-switching')`), false);
 });
-await test("Soft Gray is its own palette: not the Light or Dark colours", async () => {
+await test("Warm Beige is its own palette: not the Light or Dark colours", async () => {
   const c = await evaluate(`(() => { const cs = getComputedStyle(document.documentElement); return { surface: cs.getPropertyValue('--surface').trim(), text: cs.getPropertyValue('--text').trim() }; })()`);
-  assert.equal(c.surface, "#dfe3e9");
-  assert.equal(c.text, "#1b212b");
+  assert.equal(c.surface, "#ddd5c8");
+  assert.equal(c.text, "#292722");
   const card = await evaluate(`(() => { const el = document.createElement('div'); el.className = 'card'; document.body.appendChild(el); const bg = getComputedStyle(el).backgroundColor; el.remove(); return bg; })()`);
-  assert.equal(card, "rgb(223, 227, 233)");
+  assert.equal(card, "rgb(221, 213, 200)");
 });
 
 console.log("Persistence");
 await test("an explicit choice beats the system setting", async () => {
   await scheme("dark");
   await sleep(300);
-  assert.equal(await theme(), "soft");
+  assert.equal(await theme(), "beige");
   await scheme("light");
   await sleep(300);
-  assert.equal(await theme(), "soft");
+  assert.equal(await theme(), "beige");
 });
-await test("Soft Gray is still there after a reload, and was set before the page finished loading", async () => {
+await test("Warm Beige is still there after a reload, and was set before the page finished loading", async () => {
   await send("Page.addScriptToEvaluateOnNewDocument", { source: `document.addEventListener('DOMContentLoaded', () => { window.__themeAtDcl = document.documentElement.getAttribute('data-theme'); });` });
   await open("/tools");
-  assert.equal(await theme(), "soft");
-  assert.equal(await bodyBg(), PAGE.soft);
-  assert.equal(await evaluate(`window.__themeAtDcl`), "soft", "applied before first paint, so no flash of the default theme");
+  assert.equal(await theme(), "beige");
+  assert.equal(await bodyBg(), PAGE.beige);
+  assert.equal(await evaluate(`window.__themeAtDcl`), "beige", "applied before first paint, so no flash of the default theme");
   const html = await (await fetch(BASE + "/tools")).text();
   assert.ok(html.indexOf("pdfscanner.theme") > -1 && html.indexOf("pdfscanner.theme") < html.indexOf("<body"), "the theme script is in <head>, ahead of the page");
 });
 await test("it carries across pages of the app", async () => {
   for (const route of ["/scan", "/convert", "/history"]) {
     await open(route);
-    assert.equal(await theme(), "soft", route);
+    assert.equal(await theme(), "beige", route);
   }
 });
-await test("Soft Gray survives closing and reopening the browser", async () => {
+await test("Warm Beige survives closing and reopening the browser", async () => {
   await closeBrowserGracefully();
   await launch();
   await scheme("light");
   await open("/");
-  assert.equal(await stored(), "soft");
-  assert.equal(await theme(), "soft");
-  assert.equal(await bodyBg(), PAGE.soft);
+  assert.equal(await stored(), "beige");
+  assert.equal(await theme(), "beige");
+  assert.equal(await bodyBg(), PAGE.beige);
 });
 await test("Dark and Light can be chosen and are remembered the same way", async () => {
   await pickTheme("Dark");
@@ -259,6 +259,14 @@ await test("Dark and Light can be chosen and are remembered the same way", async
   assert.equal(await theme(), "light");
   assert.equal(await bodyBg(), PAGE.light);
 });
+await test("a theme saved by the old Soft Gray option (\"soft\") now shows Warm Beige", async () => {
+  await evaluate(`localStorage.setItem('pdfscanner.theme', 'soft')`);
+  await scheme("dark");
+  await open("/");
+  assert.equal(await theme(), "beige");
+  assert.equal(await bodyBg(), PAGE.beige);
+  assert.equal(await triggerLabel(), "Theme: Warm Beige");
+});
 await test("an unknown saved value is ignored and the system setting is used", async () => {
   await evaluate(`localStorage.setItem('pdfscanner.theme', 'purple')`);
   await scheme("dark");
@@ -267,7 +275,7 @@ await test("an unknown saved value is ignored and the system setting is used", a
 });
 
 console.log("Documents stay paper, print stays light");
-for (const [label, id] of [["Light", "light"], ["Soft Gray", "soft"], ["Dark", "dark"]]) {
+for (const [label, id] of [["Light", "light"], ["Warm Beige", "beige"], ["Dark", "dark"]]) {
   await test(`${label}: a scanned page keeps its white paper and the app around it changes`, async () => {
     await evaluate(`localStorage.setItem('pdfscanner.theme', ${JSON.stringify(id)})`);
     await scheme("light");
@@ -282,7 +290,7 @@ for (const [label, id] of [["Light", "light"], ["Soft Gray", "soft"], ["Dark", "
   });
 }
 await test("the print sheet is always light, whatever theme is on screen", async () => {
-  for (const id of ["soft", "dark"]) {
+  for (const id of ["beige", "dark"]) {
     await evaluate(`localStorage.setItem('pdfscanner.theme', ${JSON.stringify(id)})`);
     await open("/");
     assert.equal(await theme(), id);
@@ -310,7 +318,7 @@ await test("add pages, switch theme mid-way, edit, create the PDF and download a
   await evaluate(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.innerText.trim() === 'Done').click()`);
   await waitFor(`!document.querySelector('[role=dialog]')`, "editor closed");
   await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(2 page/.test(b.innerText) && !b.disabled)`, "ready after edit", 30000);
-  await pickTheme("Soft Gray");
+  await pickTheme("Warm Beige");
   await evaluate(`[...document.querySelectorAll('button')].find(b => /Create PDF/.test(b.innerText)).click()`);
   await waitFor(`[...document.querySelectorAll('button')].some(b => b.innerText.trim() === 'Download PDF')`, "PDF created", 60000);
   const labels = await evaluate(`[...document.querySelectorAll('button')].map(b => b.innerText.trim()).filter(t => ['Print', 'Download PDF', 'Save to account', 'Start new scan'].includes(t))`);
@@ -321,7 +329,7 @@ await test("add pages, switch theme mid-way, edit, create the PDF and download a
   assert.equal(file.name, "document.pdf");
   assert.equal(file.head, "%PDF-");
   assert.ok(file.size > 1000, "a real PDF was downloaded");
-  assert.equal(await theme(), "soft");
+  assert.equal(await theme(), "beige");
 });
 await test("no script errors during the whole run", async () => {
   assert.deepEqual(exceptions, []);

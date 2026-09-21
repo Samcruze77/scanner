@@ -1,22 +1,23 @@
-// The person's appearance choice: Light, Soft Gray or Dark.
+// The person's appearance choice: Light, Warm Beige or Dark.
 //
 //  - The choice lives in the `data-theme` attribute on <html>; app/globals.css turns it
 //    into colours. Nothing else in the page needs to know which theme is active.
 //  - It is remembered in this browser's localStorage. No account is needed and it is
 //    never sent anywhere (no analytics event, no device information).
 //  - With no saved choice the theme follows the system's light/dark setting (Light or
-//    Dark; Soft Gray is only ever an explicit choice), and keeps following it if the
+//    Dark; Warm Beige is only ever an explicit choice), and keeps following it if the
 //    system setting changes.
 //  - THEME_INIT_SCRIPT runs in <head> before the first paint, so a saved theme is on
 //    screen from the very first frame instead of flashing the default first.
 
 import type { IconName } from "@/components/ui/icons";
 
-export type ThemeId = "light" | "soft" | "dark";
+export type ThemeId = "light" | "beige" | "dark";
 
 export const THEMES: { id: ThemeId; label: string; icon: IconName }[] = [
   { id: "light", label: "Light", icon: "sun" },
-  { id: "soft", label: "Soft Gray", icon: "contrast" },
+  // The document icon: warm paper.
+  { id: "beige", label: "Warm Beige", icon: "document" },
   { id: "dark", label: "Dark", icon: "moon" },
 ];
 
@@ -24,16 +25,22 @@ export const THEME_STORAGE_KEY = "pdfscanner.theme";
 export const THEME_CHANGE_EVENT = "pdfscanner:theme-change";
 
 export function isThemeId(value: unknown): value is ThemeId {
-  return value === "light" || value === "soft" || value === "dark";
+  return value === "light" || value === "beige" || value === "dark";
+}
+
+// The middle theme used to be called "Soft Gray" and was saved as "soft". Anyone who had
+// chosen it now gets the middle theme, Warm Beige.
+function migrate(value: string | null): string | null {
+  return value === "soft" ? "beige" : value;
 }
 
 // Kept in step with applyTheme() below; it has to be self-contained because it runs
 // before any of the app's code has loaded.
-export const THEME_INIT_SCRIPT = `(function(){var t=null;try{t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})}catch(e){}if(t!=="light"&&t!=="soft"&&t!=="dark"){try{t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t="light"}}document.documentElement.setAttribute("data-theme",t)})()`;
+export const THEME_INIT_SCRIPT = `(function(){var t=null;try{t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})}catch(e){}if(t==="soft")t="beige";if(t!=="light"&&t!=="beige"&&t!=="dark"){try{t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t="light"}}document.documentElement.setAttribute("data-theme",t)})()`;
 
 export function readStoredTheme(): ThemeId | null {
   try {
-    const value = window.localStorage.getItem(THEME_STORAGE_KEY);
+    const value = migrate(window.localStorage.getItem(THEME_STORAGE_KEY));
     return isThemeId(value) ? value : null;
   } catch {
     // Storage blocked (private mode): the choice just lasts until the tab closes.
