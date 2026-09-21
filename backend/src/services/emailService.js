@@ -23,7 +23,7 @@ async function sendEmail({ to, subject, html, text }) {
 async function sendVerificationEmail(email, code) {
   return sendEmail({
     to: email,
-    subject: "Verify your email - Document Scanner",
+    subject: "Verify your email - PDFScanner",
     text: `Your verification code is: ${code}. It expires in 10 minutes.`,
     html: `<p>Your verification code is <strong>${code}</strong>.</p>`,
   });
@@ -32,7 +32,7 @@ async function sendVerificationEmail(email, code) {
 async function sendPasswordResetEmail(email, code) {
   return sendEmail({
     to: email,
-    subject: "Reset your password - Document Scanner",
+    subject: "Reset your password - PDFScanner",
     text: `Your password reset code is: ${code}. It expires in 15 minutes.`,
     html: `<p>Your password reset code is <strong>${code}</strong>.</p>`,
   });

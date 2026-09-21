@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Document Scanner",
+    "name": "PDFScanner",
     "slug": "document-scanner",
     "scheme": "documentscanner",
     "version": "1.0.0",

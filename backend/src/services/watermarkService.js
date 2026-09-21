@@ -14,7 +14,7 @@ async function applyPdfWatermark(inputPath, plan = "free") {
 
   pages.forEach((page) => {
     const { width, height } = page.getSize();
-    page.drawText("Scanned with Document Scanner - Free Plan", {
+    page.drawText("Scanned with PDFScanner - Free Plan", {
       x: width * 0.1,
       y: height * 0.05,
       size: 10,

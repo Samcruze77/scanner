@@ -1,6 +1,6 @@
 # Document Converter Feature
 
-Full-stack document conversion for the Document Scanner app: **Expo React Native frontend** + **Node.js/Express backend**.
+Full-stack document conversion for the PDFScanner app: **Expo React Native frontend** + **Node.js/Express backend**.
 
 ## 1. Backend folder structure
 

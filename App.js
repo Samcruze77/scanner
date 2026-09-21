@@ -93,7 +93,7 @@ function DashboardScreen({ navigation }) {
           }}
         >
           <View style={styles.heroIntro}>
-            <Text style={styles.kicker}>Document scanner</Text>
+            <Text style={styles.kicker}>PDFScanner</Text>
             <Text style={styles.heading}>Scan, organize, and export in seconds.</Text>
             <Text style={styles.subheading}>A clean workspace for receipts, IDs, notes, contracts, and every paper trail in between.</Text>
           </View>

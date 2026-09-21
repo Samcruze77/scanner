@@ -24,7 +24,7 @@ export async function setBiometricUnlockEnabled(enabled) {
   await setItem(BIOMETRIC_ENABLED_KEY, enabled ? "true" : null);
 }
 
-export async function authenticateWithBiometrics(promptMessage = "Unlock Document Scanner") {
+export async function authenticateWithBiometrics(promptMessage = "Unlock PDFScanner") {
   const available = await isBiometricHardwareAvailable();
   if (!available) {
     const error = new Error("Biometrics not available on this device.");
