@@ -26,6 +26,7 @@ import type { ScannerPage } from "@/utils/scanner/page";
 import type { SignatureImage } from "@/utils/scanner/signature";
 import { AnnotationCanvas, type AnnotationDefaults } from "./AnnotationCanvas";
 import { SignatureDialog, type Tab as SignatureTab } from "./SignatureDialog";
+import { useZoom, ZoomControls, ZoomFrame, ZoomViewport } from "./zoom";
 
 const TOOLS: { value: AnnotationTool; label: string; icon: string }[] = [
   { value: "select", label: "Select", icon: "↖" },
@@ -94,6 +95,7 @@ export function AnnotationEditor({
   const [italic, setItalic] = useState(false);
 
   const firstToolRef = useRef<HTMLButtonElement>(null);
+  const zoom = useZoom();
   const annotations = live ?? history.present;
   const selected = annotations.find((a) => a.id === selectedId) ?? null;
 
@@ -476,11 +478,11 @@ export function AnnotationEditor({
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-3">
-        <div
-          className="mx-auto"
-          style={{ width: `min(100%, calc((100dvh - 260px) * ${pageAspect}))`, minWidth: "min(100%, 220px)" }}
-        >
+      {/* The page scrolls inside this window when zoomed in. The controls float over
+          it, so they are always in reach and never cost the page any room. */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <ZoomViewport api={zoom} className="min-h-0 flex-1 overflow-auto p-3">
+          <ZoomFrame zoom={zoom.zoom} fit={`min(100%, calc((100dvh - 260px) * ${pageAspect}))`} minWidth="min(100%, 220px)">
           <AnnotationCanvas
             page={page}
             annotations={annotations}
@@ -500,14 +502,21 @@ export function AnnotationEditor({
             onDiscardPreview={() => setLive(null)}
             onPlaced={() => setTool("select")}
           />
-        </div>
-        {(tool !== "select" || annotations.length > 0) && (
-          <p className="mt-2 text-center text-xs text-zinc-500">
-            {tool === "select" && selected?.type === "signature"
-              ? "Drag to move your signature. Drag the corner dot to resize it."
-              : HINTS[tool]}
-          </p>
-        )}
+          </ZoomFrame>
+          {(tool !== "select" || annotations.length > 0) && (
+            <p className="mt-2 text-center text-xs text-zinc-500">
+              {tool === "select" && selected?.type === "signature"
+                ? "Drag to move your signature. Drag the corner dot to resize it."
+                : HINTS[tool]}
+            </p>
+          )}
+          {zoom.zoom > 1 && (
+            <p className="mt-1 text-center text-xs text-zinc-500">Zoomed in: use two fingers, the scroll bars or the mouse wheel to move around.</p>
+          )}
+          {/* Room so the floating zoom controls never cover the bottom of the page. */}
+          <div aria-hidden className="h-14" />
+        </ZoomViewport>
+        <ZoomControls api={zoom} className="absolute bottom-3 right-3 z-10 rounded-lg bg-white/90 p-1 shadow-md dark:bg-zinc-900/90" />
       </div>
 
       {signatureOpen && (

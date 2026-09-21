@@ -13,7 +13,8 @@
     "test:docx:robust": "node tests/docx/robustness.mjs",
     "test:compress": "node tests/compress/run.mjs",
     "test:compress:readability": "node tests/compress/readability.mjs",
-    "test:print": "node tests/print/verify.mjs"
+    "test:print": "node tests/print/verify.mjs",
+    "test:zoom": "node tests/zoom/verify.mjs"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

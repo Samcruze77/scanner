@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { fullImageQuad, orderQuadCorners, polygonArea, type Point, type Quad } from "@/utils/scanner/geometry";
 import type { ScannerPage } from "@/utils/scanner/page";
+import { useZoom, ZoomControls, ZoomFrame, ZoomViewport } from "./zoom";
 
 const CORNER_LABELS = ["Top-left corner", "Top-right corner", "Bottom-right corner", "Bottom-left corner"] as const;
 
@@ -49,6 +50,7 @@ export function CropEditor({
   const [tooSmall, setTooSmall] = useState(false);
 
   const frameRef = useRef<HTMLDivElement>(null);
+  const zoom = useZoom();
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -114,16 +116,16 @@ export function CropEditor({
           Drag the corners to the edges of your document. Rotation is applied after cropping.
         </p>
 
-        <div className="mb-3 flex justify-center rounded-lg bg-zinc-100 p-3 dark:bg-zinc-950">
+        {/* Zoomed in, the photo scrolls inside this window: handy for placing the
+            corners exactly. At normal size it is the same fitted view as always. */}
+        <ZoomViewport api={zoom} className="mb-2 max-h-[56vh] overflow-auto rounded-lg bg-zinc-100 p-3 dark:bg-zinc-950">
+          <ZoomFrame zoom={zoom.zoom} fit={`min(100%, calc(52vh * ${width / height}))`}>
           {/* The frame is sized to the photo's exact aspect ratio, so a
               percentage position inside it is the same point on the photo. */}
           <div
             ref={frameRef}
-            className="relative select-none"
-            style={{
-              aspectRatio: `${width} / ${height}`,
-              width: `min(100%, calc(52vh * ${width / height}))`,
-            }}
+            className="relative w-full select-none"
+            style={{ aspectRatio: `${width} / ${height}` }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL */}
             <img
@@ -174,6 +176,11 @@ export function CropEditor({
               </button>
             ))}
           </div>
+          </ZoomFrame>
+        </ZoomViewport>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-zinc-500">Zoom in to place the corners exactly: pinch, or use + and −.</p>
+          <ZoomControls api={zoom} />
         </div>
 
         {tooSmall && (

@@ -6,6 +6,7 @@ import { scannerPagesToPrintPages } from "@/utils/print/sources";
 import type { ScannerPage } from "@/utils/scanner/page";
 import { ENHANCEMENT_MODES, type EnhancementMode } from "@/utils/scanner/enhance";
 import { AnnotationOverlay } from "./AnnotationOverlay";
+import { useZoom, ZoomControls, ZoomFrame, ZoomViewport } from "./zoom";
 
 // A range slider that only asks for a re-render when the user lets go. The
 // page is re-rendered from the original on every commit, so doing that on each
@@ -81,6 +82,7 @@ export function PageEditor({
   extractTextDisabled?: boolean;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const zoom = useZoom();
   const processing = page.status === "detecting" || page.status === "processing";
 
   useEffect(() => {
@@ -128,23 +130,29 @@ export function PageEditor({
         {/* shrink-0: this is a flex item with overflow-hidden, which lets it
             collapse to 0px (hiding the preview entirely) whenever the editor
             is taller than the screen. It should scroll instead. */}
-        <div className="relative mb-4 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
-          {/* The wrapper is exactly as big as the image, so marks drawn over it
-              (see AnnotationOverlay) line up with the page. */}
-          <div className="relative mx-auto w-fit max-w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL */}
-            <img
-              src={page.processedDataUrl}
-              alt={`Page ${index + 1} preview`}
-              className="block max-h-[45vh] w-auto max-w-full"
-            />
-            <AnnotationOverlay page={page} />
-          </div>
+        <div className="relative mb-2 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
+          {/* Zoomed in, the page scrolls inside this window instead of growing the
+              editor. At normal size it is the same fitted preview as always. */}
+          <ZoomViewport api={zoom} className="max-h-[45vh] overflow-auto">
+            <ZoomFrame zoom={zoom.zoom} fit={`min(100%, calc(45vh * ${page.processedWidth / page.processedHeight}))`}>
+              {/* The wrapper is exactly as big as the image, so marks drawn over it
+                  (see AnnotationOverlay) line up with the page at any zoom. */}
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element -- client-generated data URL */}
+                <img src={page.processedDataUrl} alt={`Page ${index + 1} preview`} className="block h-auto w-full" />
+                <AnnotationOverlay page={page} />
+              </div>
+            </ZoomFrame>
+          </ZoomViewport>
           {processing && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-medium text-white">
               {page.statusLabel ?? "Processing…"}
             </div>
           )}
+        </div>
+        <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-zinc-500">Zoom in to check details: pinch, or use + and −.</p>
+          <ZoomControls api={zoom} />
         </div>
 
         <div className="space-y-4">

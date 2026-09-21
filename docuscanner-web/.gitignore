@@ -53,6 +53,7 @@ next-env.d.ts
 /tests/docx/out/
 /tests/compress/out/
 /tests/print/out/
+/tests/zoom/out/
 
 # Word templates converted from a local Office install (Microsoft-owned; regenerate, do not commit)
 /tests/docx/fixtures/real/
