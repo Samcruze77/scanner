@@ -1,5 +1,6 @@
 import { getAdminAnalytics } from "@/utils/admin/client.server";
 import { defaultDateRange } from "@/utils/admin/dateRange";
+import { getAdminLive } from "@/utils/admin/live.server";
 import { DashboardClient } from "./DashboardClient";
 import type { AdminAnalyticsResponse } from "@/utils/admin/types";
 
@@ -15,5 +16,12 @@ export default async function AdminDashboardPage() {
     initialData = null;
   }
 
-  return <DashboardClient initialRange={range} initialData={initialData} />;
+  let onlineCount: number | null = null;
+  try {
+    onlineCount = (await getAdminLive()).online_count;
+  } catch {
+    onlineCount = null;
+  }
+
+  return <DashboardClient initialRange={range} initialData={initialData} onlineCount={onlineCount} />;
 }

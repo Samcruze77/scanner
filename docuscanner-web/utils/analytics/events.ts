@@ -134,12 +134,7 @@ export function trackSignPdf(signatureCount: number) {
   return trackFeatureUsed("sign_pdf", { signatureCount });
 }
 
-// Advertising. Only called for a live ad provider (see utils/ads/config.ts);
-// placeholders are never counted. Placement is a fixed enum, nothing else.
-export function trackAdImpression(placement: string, provider: string) {
-  return trackFeatureUsed("ad_impression", { placement, provider });
-}
-
-export function trackAdClick(placement: string, provider: string) {
-  return trackFeatureUsed("ad_click", { placement, provider });
-}
+// Advertising impressions/clicks for real, dynamically-served campaigns are
+// tracked through the dedicated ad_events pipeline instead of this generic
+// analytics one -- see utils/ads/eligible.ts (trackAdImpressionEvent /
+// trackAdClickEvent), which carries the actual campaign/creative id.

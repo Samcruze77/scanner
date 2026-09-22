@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AnalyticsListener } from "@/components/analytics/AnalyticsListener";
+import { PresenceHeartbeat } from "@/components/presence/PresenceHeartbeat";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Footer } from "@/components/layout/Footer";
@@ -71,6 +72,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <AnalyticsListener />
+        <PresenceHeartbeat />
         <AuthProvider>
           <Header />
           {children}

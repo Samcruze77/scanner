@@ -4,9 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { AdminRole } from "@/utils/admin/types";
 
+// "Dashboard" doubles as the Analytics section (it already is the
+// analytics view) -- no separate route for it to avoid a duplicate page.
 const LINKS = [
   { href: "/admin", label: "Dashboard" },
+  { href: "/admin/live", label: "Live" },
+  { href: "/admin/users", label: "Users" },
+  { href: "/admin/ads", label: "Ads / Campaigns" },
+  { href: "/admin/documents", label: "Documents" },
   { href: "/admin/exports", label: "Exports" },
+  { href: "/admin/audit", label: "Audit Log" },
 ];
 
 export function AdminNav({ role }: { role: AdminRole }) {

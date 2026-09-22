@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { getAdminAnalyticsBrowser } from "@/utils/admin/client.browser";
 import { defaultDateRange } from "@/utils/admin/dateRange";
 import type { AdminAnalyticsResponse, DateRange } from "@/utils/admin/types";
@@ -19,9 +20,11 @@ const PRESETS: { label: string; days: number }[] = [
 export function DashboardClient({
   initialRange,
   initialData,
+  onlineCount,
 }: {
   initialRange: DateRange;
   initialData: AdminAnalyticsResponse | null;
+  onlineCount: number | null;
 }) {
   const [range, setRange] = useState(initialRange);
   const [data, setData] = useState<AdminAnalyticsResponse | null>(initialData);
@@ -83,6 +86,19 @@ export function DashboardClient({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {isPending && <p className="text-sm text-zinc-400">Loading…</p>}
+
+      {onlineCount !== null && (
+        <Link
+          href="/admin/live"
+          className="flex items-center justify-between rounded-lg border border-zinc-200 bg-surface px-4 py-3 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-950"
+        >
+          <span className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-green-500" />
+            <span className="font-medium">{onlineCount}</span> user{onlineCount === 1 ? "" : "s"} online right now
+          </span>
+          <span className="text-zinc-500 dark:text-zinc-400">View live →</span>
+        </Link>
+      )}
 
       {overview.length === 0 ? (
         <p className="text-sm text-zinc-400">No data yet</p>
