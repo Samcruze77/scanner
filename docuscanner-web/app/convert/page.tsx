@@ -4,11 +4,14 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
 import { CONVERT_TOOLS, SCAN_TOOL } from "@/components/convert/tools";
 import { Icon, type IconName } from "@/components/ui/icons";
+import { pageMetadata } from "@/utils/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Convert files - PDFScanner",
+export const metadata: Metadata = pageMetadata({
+  title: "Convert files",
+  absoluteTitle: "Convert files - PDFScanner",
   description: "Scan, edit and sign documents, and convert between Word, PDF and Excel. Free, in your browser.",
-};
+  path: "/convert",
+});
 
 const ICONS: Record<string, IconName> = {
   "/scan": "camera",

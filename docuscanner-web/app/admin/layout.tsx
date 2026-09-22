@@ -1,12 +1,20 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getVerifiedClaims } from "@/utils/supabase/claims";
 import { getAdminAnalytics } from "@/utils/admin/client.server";
 import { defaultDateRange } from "@/utils/admin/dateRange";
 import type { AdminRole } from "@/utils/admin/types";
+import { privateMetadata } from "@/utils/seo/metadata";
 import { AdminRoleProvider } from "./AdminRoleContext";
 import { AdminNav } from "./AdminNav";
 
 const KNOWN_ROLES: AdminRole[] = ["super_admin", "admin", "analyst"];
+
+// The whole admin area: never indexed, links never followed (also disallowed in
+// app/robots.ts). Access itself is enforced below and in the server-side auth check
+// this layout runs on every request -- this metadata only keeps it out of search
+// results; it grants nothing.
+export const metadata: Metadata = privateMetadata("Admin - PDFScanner");
 
 export default async function AdminLayout({
   children,

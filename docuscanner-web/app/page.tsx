@@ -1,9 +1,21 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { AdBottom, AdTop } from "@/components/ads/AdSlot";
 import { CONVERT_TOOLS } from "@/components/convert/tools";
 import { HomeAuthCta } from "@/components/home/HomeAuthCta";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { Icon, type IconName } from "@/components/ui/icons";
 import { SUPPORTED_FORMATS } from "@/utils/scanner/documentTypes";
+import { pageMetadata } from "@/utils/seo/metadata";
+import { graph, organizationSchema, websiteSchema } from "@/utils/seo/schema";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/utils/seo/site";
+
+export const metadata: Metadata = pageMetadata({
+  title: SITE_NAME,
+  absoluteTitle: `${SITE_NAME} - Free document scanning`,
+  description: SITE_DESCRIPTION,
+  path: "/",
+});
 
 // What people come here to do, in their words. Each goes straight to the place that
 // does it. (Everything runs in the browser: files are never uploaded.)
@@ -43,6 +55,7 @@ const STEPS = [
 export default function Home() {
   return (
     <main id="main" className="flex-1">
+      <JsonLd data={graph(organizationSchema(), websiteSchema())} />
       <section className="mx-auto w-full max-w-4xl px-4 pb-10 pt-12 text-center sm:px-6 sm:pt-20">
         <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-surface px-3 py-1 text-xs font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
           <Icon name="shield" size={14} className="text-emerald-600 dark:text-emerald-400" />

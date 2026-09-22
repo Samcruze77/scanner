@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { getVerifiedClaims } from "@/utils/supabase/claims";
@@ -7,6 +8,14 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
 import { Icon } from "@/components/ui/icons";
 import { HistoryPrintButton } from "./HistoryPrintButton";
+
+// Account-only content, different for every signed-in visitor: never indexed. `follow:
+// true` (not the harsher `nofollow`) because the page itself links to real public pages
+// (Scan a document) that are fine for a crawler to reach.
+export const metadata: Metadata = {
+  title: "Document history - PDFScanner",
+  robots: { index: false, follow: true },
+};
 
 interface DocumentRow {
   id: string;

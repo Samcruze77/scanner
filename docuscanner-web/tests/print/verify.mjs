@@ -557,7 +557,7 @@ await test("no document open: the browser prints the page normally (never a blan
   const text = await textOf(pages);
   log(`${pages.length} page(s), text: ${text.slice(0, 60)}`);
   assert.ok(pages.length >= 1 && !pages[0].blank);
-  assert.match(text, /Scan, edit & sign a document/);
+  assert.match(text, /Scan documents to PDF online/);
   await open("/");
   const home = await inspect(await printToPdf(), "no-document-home");
   assert.ok(!home[0].blank && (await textOf(home)).length > 20, "the home page prints its content");
@@ -708,7 +708,7 @@ await test("start over (no pages left) disarms it too", async () => {
   await evaluate(`document.querySelector('[aria-label="Remove page 1"]').click()`);
   await waitFor(`document.querySelectorAll('.print-root').length === 0`, "print container removed after the last page is removed", 15000);
   const pages = await inspect(await printToPdf(), "after-remove");
-  assert.match(await textOf(pages), /Scan, edit & sign a document/);
+  assert.match(await textOf(pages), /Scan documents to PDF online/);
 });
 
 console.log("Analytics and clean-up");

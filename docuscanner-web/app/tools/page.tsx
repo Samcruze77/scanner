@@ -3,12 +3,15 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
 import { ToolCard } from "@/components/tools/ToolCard";
+import { pageMetadata } from "@/utils/seo/metadata";
 import { TOOL_GROUPS, toolsInGroup } from "@/utils/tools/registry";
 
-export const metadata: Metadata = {
-  title: "Tools - PDFScanner",
+export const metadata: Metadata = pageMetadata({
+  title: "Tools",
+  absoluteTitle: "Tools - PDFScanner",
   description: "Edit, sign and compress documents for free, right in your browser. Nothing is uploaded.",
-};
+  path: "/tools",
+});
 
 export default function ToolsHubPage() {
   return (

@@ -114,13 +114,26 @@ export function splitIntoCells(items: PositionedText[]): Line {
 
 // Column bands: horizontal ranges that cells from different lines overlap.
 // Projecting every cell onto the x axis and merging overlaps handles left-,
-// right- and centre-aligned columns alike (numbers right-aligned to the same
-// edge start at different x but still overlap).
+// right- and centre-aligned columns alike WHEN a column's cells share an edge
+// across rows. Many real tables don't: a left-aligned header ("Q1") sitting
+// near a column's left edge, over a right-aligned number ("120") sitting near
+// that same column's right edge, can end up with no horizontal overlap at
+// all if the column is wide. Left uncorrected, that reads as two columns
+// instead of one -- every such column doubles, and the row that caused it
+// comes out shifted with blank cells where its neighbours don't.
+//
+// The fix: no row can have more cells than columns, so the true column count
+// is never more than the largest number of cells any single line actually
+// has. If merging overlaps alone leaves more bands than that, the header
+// (or whichever row split a column in two) is the odd one out, not the
+// table's shape -- so the extra bands are folded into their nearest
+// neighbour, closest gap first, until the count fits.
 export function findColumnBands(lines: Line[], pageWidth: number): { left: number; right: number }[] {
   // Only lines that look like table rows vote; single-cell lines are titles or
   // paragraph text and would otherwise glue every column together.
-  const intervals = lines
-    .filter((line) => line.cells.length >= 2)
+  const tableLines = lines.filter((line) => line.cells.length >= 2);
+  const maxCellsPerLine = tableLines.reduce((max, line) => Math.max(max, line.cells.length), 0);
+  const intervals = tableLines
     .flatMap((line) => line.cells.map((cell) => ({ left: cell.left, right: cell.right })))
     // A cell that spans much of the page is a heading, not a column.
     .filter((interval) => interval.right - interval.left < pageWidth * 0.6)
@@ -135,6 +148,21 @@ export function findColumnBands(lines: Line[], pageWidth: number): { left: numbe
       bands.push({ ...interval });
     }
   }
+
+  while (maxCellsPerLine > 0 && bands.length > maxCellsPerLine) {
+    let closest = 0;
+    let smallestGap = Infinity;
+    for (let i = 0; i < bands.length - 1; i++) {
+      const gap = bands[i + 1].left - bands[i].right;
+      if (gap < smallestGap) {
+        smallestGap = gap;
+        closest = i;
+      }
+    }
+    bands[closest] = { left: bands[closest].left, right: Math.max(bands[closest].right, bands[closest + 1].right) };
+    bands.splice(closest + 1, 1);
+  }
+
   return bands;
 }
 

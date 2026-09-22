@@ -3,19 +3,32 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
 import { PdfToExcelTool } from "@/components/convert/PdfToExcelTool";
 
-export const metadata: Metadata = {
-  title: "PDF to Excel converter - PDFScanner",
-  description:
-    "Convert PDF tables to an Excel spreadsheet for free, right in your browser. Your file never leaves your device.",
-};
+import { JsonLd } from "@/components/seo/JsonLd";
+import { SeoContent } from "@/components/seo/SeoContent";
+import { getLanding } from "@/utils/seo/landing";
+import { pageMetadata } from "@/utils/seo/metadata";
+import { graph, webApplicationSchema, webPageSchema } from "@/utils/seo/schema";
+
+// getLanding("/convert/pdf-to-excel") always resolves (see utils/seo/landing.ts); the `!`
+// documents that rather than adding a runtime check for a case that can't happen.
+const landing = getLanding("/convert/pdf-to-excel")!;
+
+export const metadata: Metadata = pageMetadata({
+  title: landing.title,
+  absoluteTitle: `${landing.h1} - PDFScanner`,
+  description: landing.description,
+  path: "/convert/pdf-to-excel",
+});
 
 export default function PdfToExcelPage() {
   return (
     <PageShell width="narrow" ads="workflow">
-      <PageHeader title="PDF to Excel">
+      <JsonLd data={graph(webApplicationSchema("/convert/pdf-to-excel", landing.appName, landing.description, landing.features), webPageSchema("/convert/pdf-to-excel", landing.h1, landing.description))} />
+      <PageHeader title={landing.h1}>
         Free, no account needed. The conversion happens in your browser, so your file is never uploaded.
       </PageHeader>
       <PdfToExcelTool />
+      <SeoContent page={landing} />
     </PageShell>
   );
 }

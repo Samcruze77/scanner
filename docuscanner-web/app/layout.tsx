@@ -3,9 +3,11 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AnalyticsListener } from "@/components/analytics/AnalyticsListener";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { MobileActionBar } from "@/components/layout/MobileActionBar";
 import { THEME_INIT_SCRIPT } from "@/components/theme/theme";
+import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/utils/seo/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,9 +20,31 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// metadataBase makes every relative URL used below (canonical, Open Graph, the icon/
+// opengraph-image routes) resolve against the real site address -- see utils/seo/site.ts
+// for where that address comes from. Without it Next falls back to localhost, which is
+// wrong in production.
+//
+// No title.template here on purpose: every page already writes its own full title
+// ("Tools - PDFScanner", "Compress PDF - PDFScanner" ...), so a template would double
+// up the site name instead of just filling in a gap. This plain title/description is
+// what a page falls back to only if it defines none of its own (none currently do).
 export const metadata: Metadata = {
-  title: "PDFScanner - Free document scanning",
-  description: "Scan, organize, and download documents as PDF, free and ad-supported.",
+  metadataBase: new URL(getSiteUrl()),
+  title: `${SITE_NAME} - Free document scanning`,
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "en_US",
+    title: `${SITE_NAME} - Free document scanning`,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} - Free document scanning`,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({
@@ -50,6 +74,7 @@ export default function RootLayout({
         <AuthProvider>
           <Header />
           {children}
+          <Footer />
           <MobileActionBar />
           <AuthModal />
         </AuthProvider>

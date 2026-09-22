@@ -24,7 +24,11 @@ const CompressTool = dynamic(() => import("@/components/tools/CompressTool").the
   loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
 });
 
-export function ToolWorkspace({ tool }: { tool: ToolDef }) {
+// `heading` lets the page override the H1 with the fuller, search-intent-matching
+// wording from utils/seo/landing.ts (e.g. "Compress PDF online" rather than the Tools
+// menu's short "Compress PDF") without ToolWorkspace itself needing to know about SEO
+// copy. The Tools-menu breadcrumb keeps `tool.title`, which is the right length for it.
+export function ToolWorkspace({ tool, heading }: { tool: ToolDef; heading?: string }) {
   const { user } = useAuth();
   const available = isFeatureAvailable(tool.feature, getUserPlan(user));
 
@@ -42,7 +46,7 @@ export function ToolWorkspace({ tool }: { tool: ToolDef }) {
         <span>{tool.title}</span>
       </nav>
       <div>
-        <h1 className="page-title">{tool.title}</h1>
+        <h1 className="page-title">{heading ?? tool.title}</h1>
         <p className="muted mt-1 text-sm">{tool.body}</p>
       </div>
 

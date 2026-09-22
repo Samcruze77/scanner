@@ -18,7 +18,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200 bg-chrome/90 backdrop-blur dark:border-zinc-800">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
-        <Link href="/" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg" aria-label="PDFScanner home">
+        <Link href="/" className="flex min-h-11 min-w-0 items-center justify-center rounded-lg" aria-label="PDFScanner home">
           <Logo />
         </Link>
 
