@@ -50,15 +50,15 @@ export function useOcr(plan: PlanId) {
   }, []);
 
   const start = useCallback(
-    async (pages: ScannerPage[], scope: OcrScope) => {
+    async (pages: ScannerPage[], scope: OcrScope): Promise<OcrDocumentResult | null> => {
       // One run at a time; a second click while running is a no-op, which is
       // also what keeps the usage event to exactly one per run.
-      if (abortRef.current) return;
+      if (abortRef.current) return null;
 
       const targets = pages
         .map((page, index) => ({ page, pageNumber: index + 1 }))
         .filter(({ page }) => scope.kind === "document" || page.id === scope.pageId);
-      if (targets.length === 0) return;
+      if (targets.length === 0) return null;
 
       lastRunRef.current = { pages, scope };
       setPanelOpen(true);
@@ -66,7 +66,7 @@ export function useOcr(plan: PlanId) {
       if (targets.length > limits.maxPagesPerRun) {
         setState({ status: "error", code: "too_many_pages" });
         void trackError("ocr", "too_many_pages");
-        return;
+        return null;
       }
 
       const controller = new AbortController();
@@ -85,15 +85,17 @@ export function useOcr(plan: PlanId) {
             setState((prev) => (prev.status === "running" ? { status: "running", progress } : prev));
           },
         });
-        if (abortRef.current !== controller) return;
+        if (abortRef.current !== controller) return null;
         setText(outcome.result.documentText);
         setState({ status: "done", result: outcome.result, errorCodes: outcome.errorCodes });
         for (const code of outcome.errorCodes) void trackError("ocr", code);
+        return outcome.result;
       } catch (error) {
-        if (error instanceof OcrCancelledError || abortRef.current !== controller) return;
+        if (error instanceof OcrCancelledError || abortRef.current !== controller) return null;
         const code: OcrErrorCode = error instanceof OcrError ? error.code : "ocr_failed";
         setState({ status: "error", code });
         void trackError("ocr", code);
+        return null;
       } finally {
         if (abortRef.current === controller) abortRef.current = null;
       }

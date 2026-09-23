@@ -40,7 +40,10 @@ export interface Line {
 
 // A gap wider than this (in font heights) between two strings on a line
 // starts a new cell; narrower gaps are just spaces inside one cell.
-const CELL_GAP_EM = 0.9;
+// Compactly-typeset tables (bank statements, invoices) commonly pad columns
+// by well under one font-height -- 0.9 was tuned for generously-spaced
+// tables and fused adjacent numeric columns in tighter real-world exports.
+const CELL_GAP_EM = 0.4;
 // A gap wider than this is a word space rather than letters touching.
 const WORD_GAP_EM = 0.12;
 // Strings whose baselines differ by less than this (in font heights) sit on
@@ -119,36 +122,72 @@ export function splitIntoCells(items: PositionedText[]): Line {
 // near a column's left edge, over a right-aligned number ("120") sitting near
 // that same column's right edge, can end up with no horizontal overlap at
 // all if the column is wide. Left uncorrected, that reads as two columns
-// instead of one -- every such column doubles, and the row that caused it
-// comes out shifted with blank cells where its neighbours don't.
+// instead of one.
 //
-// The fix: no row can have more cells than columns, so the true column count
-// is never more than the largest number of cells any single line actually
-// has. If merging overlaps alone leaves more bands than that, the header
-// (or whichever row split a column in two) is the odd one out, not the
-// table's shape -- so the extra bands are folded into their nearest
-// neighbour, closest gap first, until the count fits.
+// The opposite failure is just as common: a header cell that spans what are
+// really two (or more) data columns -- e.g. "Category" merged across "Type"
+// and "Subtype" -- horizontally overlaps both of the narrower data columns
+// beneath it, so a naive merge glues genuinely distinct columns into one.
+//
+// Both failures share a cause: an atypically-shaped row (a spanning header,
+// a row with a blank/missing cell) gets to define or distort the columns.
+// The fix is to let the table's *typical* row shape define the columns: find
+// the most common cell-count among table-like lines (the "canonical" shape),
+// build bands from only those rows, and let every other row's cells slot
+// into the resulting bands afterward (via bandIndexFor) without being able
+// to merge or widen them. As a second pass, the same over-splitting this
+// file has always guarded against (no row can have more cells than columns)
+// still folds down any remaining excess bands.
 export function findColumnBands(lines: Line[], pageWidth: number): { left: number; right: number }[] {
   // Only lines that look like table rows vote; single-cell lines are titles or
   // paragraph text and would otherwise glue every column together.
   const tableLines = lines.filter((line) => line.cells.length >= 2);
-  const maxCellsPerLine = tableLines.reduce((max, line) => Math.max(max, line.cells.length), 0);
-  const intervals = tableLines
-    .flatMap((line) => line.cells.map((cell) => ({ left: cell.left, right: cell.right })))
-    // A cell that spans much of the page is a heading, not a column.
-    .filter((interval) => interval.right - interval.left < pageWidth * 0.6)
-    .sort((a, b) => a.left - b.left);
+  if (tableLines.length === 0) return [];
 
-  const bands: { left: number; right: number }[] = [];
-  for (const interval of intervals) {
-    const last = bands[bands.length - 1];
-    if (last && interval.left <= last.right) {
-      last.right = Math.max(last.right, interval.right);
-    } else {
-      bands.push({ ...interval });
+  const countFrequency = new Map<number, number>();
+  for (const line of tableLines) {
+    countFrequency.set(line.cells.length, (countFrequency.get(line.cells.length) ?? 0) + 1);
+  }
+  let modeCount = 0;
+  let modeFrequency = 0;
+  for (const [count, frequency] of countFrequency) {
+    // Ties prefer the larger count -- a table is more often under-counted
+    // (blank cells, a spanning header) than over-counted.
+    if (frequency > modeFrequency || (frequency === modeFrequency && count > modeCount)) {
+      modeCount = count;
+      modeFrequency = frequency;
     }
   }
+  const canonicalLines = tableLines.filter((line) => line.cells.length === modeCount);
 
+  function buildBands(sourceLines: Line[]): { left: number; right: number }[] {
+    const intervals = sourceLines
+      .flatMap((line) => line.cells.map((cell) => ({ left: cell.left, right: cell.right })))
+      // A cell that spans much of the page is a heading, not a column.
+      .filter((interval) => interval.right - interval.left < pageWidth * 0.6)
+      .sort((a, b) => a.left - b.left);
+
+    const built: { left: number; right: number }[] = [];
+    for (const interval of intervals) {
+      const last = built[built.length - 1];
+      if (last && interval.left <= last.right) {
+        last.right = Math.max(last.right, interval.right);
+      } else {
+        built.push({ ...interval });
+      }
+    }
+    return built;
+  }
+
+  let bands = buildBands(canonicalLines);
+  // If the canonical rows alone don't establish a real multi-column shape
+  // (e.g. every row happens to differ in cell count), fall back to voting
+  // with every table-like line, as before.
+  if (bands.length < 2 && tableLines.length > canonicalLines.length) {
+    bands = buildBands(tableLines);
+  }
+
+  const maxCellsPerLine = tableLines.reduce((max, line) => Math.max(max, line.cells.length), 0);
   while (maxCellsPerLine > 0 && bands.length > maxCellsPerLine) {
     let closest = 0;
     let smallestGap = Infinity;

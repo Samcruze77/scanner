@@ -22,6 +22,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
   });
 
   const entries: MetadataRoute.Sitemap = [url("/", 1), url("/scan", 0.9), url("/tools", 0.8), url("/convert", 0.8)];
+  // Keyword-specific landing pages that point into the tools above (see
+  // utils/seo/landing.ts) -- not redirects, so they're indexed in their own
+  // right; the 6 pure-alias routes (e.g. /pdf-to-word) are real 301s in
+  // next.config.ts's redirects() and are deliberately not listed here, since
+  // the target they redirect to is already in this sitemap.
+  for (const path of ["/jpg-to-pdf", "/png-to-pdf", "/scan-to-pdf", "/edit-pdf", "/pdf-converter", "/document-converter", "/pdf-to-text", "/pdf-to-csv"]) {
+    entries.push(url(path, 0.6));
+  }
   for (const tool of CONVERT_TOOLS) entries.push(url(tool.href, 0.7));
   for (const tool of TOOLS) {
     if (TOOL_CANONICAL_OVERRIDE[tool.slug]) continue;

@@ -27,6 +27,13 @@ export const MAX_PDF_TO_EXCEL_PAGES = 100;
 // page of content has far more; a few stray characters are usually a page
 // number sitting over an image).
 const MIN_TEXT_CHARS = 8;
+// A page whose extracted content is a single line is *also* treated as a
+// scan candidate even if MIN_TEXT_CHARS is met -- a stamped page number,
+// footer, or watermark on an otherwise-scanned page is almost always exactly
+// one short line, while genuine content (even a short table) is virtually
+// always more than one line. Character count alone isn't enough to trust a
+// page as "real" digital text.
+const MIN_DIGITAL_ROWS = 2;
 // Scans are read at this size; matches what the OCR engine is tuned for.
 const OCR_RENDER_LONG_SIDE_PX = 2000;
 const PREVIEW_ROWS = 12;
@@ -72,6 +79,10 @@ interface PageExtract {
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
+function textRichness(rows: string[][]): number {
+  return rows.reduce((sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell.length, 0), 0);
+}
+
 async function readPages(file: File, options: PdfToExcelOptions): Promise<PageExtract[]> {
   const { doc, destroy } = await openPdf(file, { maxPages: MAX_PDF_TO_EXCEL_PAGES });
   const limits = getOcrLimits(options.plan);
@@ -85,28 +96,49 @@ async function readPages(file: File, options: PdfToExcelOptions): Promise<PageEx
 
       const page = await doc.getPage(pageNumber);
       try {
+        // getViewport() defaults `rotation` to the page's own /Rotate, so
+        // viewport.width/height already reflect it -- but item.transform's
+        // x/y are always in unrotated PDF user space. Project every item
+        // through the same viewport transform so coordinates and pageWidth
+        // agree for rotated (e.g. landscape-exported) pages, and swap
+        // width/height for 90/270deg pages since what was horizontal extent
+        // in unrotated glyph space becomes vertical extent once displayed.
         const viewport = page.getViewport({ scale: 1 });
+        const rotated90 = Math.abs(viewport.rotation % 180) === 90;
         const content = await page.getTextContent();
         const items: PositionedText[] = [];
         let characters = 0;
         for (const item of content.items) {
           if (!("str" in item)) continue;
           characters += item.str.trim().length;
+          const [vx, vy] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+          // Viewport space grows downward; flip back to the "grows upward"
+          // convention tableExtract.ts's row/column geometry already assumes.
           items.push({
             str: item.str,
-            x: item.transform[4],
-            y: item.transform[5],
-            width: item.width,
-            height: item.height || Math.abs(item.transform[3]) || 10,
+            x: vx,
+            y: -vy,
+            width: rotated90 ? item.height || 10 : item.width,
+            height: (rotated90 ? item.width : item.height) || Math.abs(item.transform[3]) || 10,
           });
         }
 
-        if (characters >= MIN_TEXT_CHARS) {
-          extracts.push({ pageNumber, rows: extractTable(items, viewport.width), source: "digital" });
+        const digitalRows = items.length > 0 ? extractTable(items, viewport.width) : [];
+        const nonEmptyRows = digitalRows.filter((row) => row.length > 0).length;
+        const looksDigital = characters >= MIN_TEXT_CHARS && nonEmptyRows >= MIN_DIGITAL_ROWS;
+
+        if (looksDigital) {
+          extracts.push({ pageNumber, rows: digitalRows, source: "digital" });
           continue;
         }
 
-        const extract: PageExtract = { pageNumber, rows: [], source: "unread" };
+        // Weak or absent digital text (or a sparse stamp/watermark over what
+        // is really a scanned page) -- try OCR too, and keep whichever
+        // result actually has more content once both are known (see
+        // readScannedPages). Keep the digital rows as the fallback in case
+        // OCR is disabled, over the per-run page limit, or genuinely adds
+        // nothing (e.g. a short but real one-line digital page).
+        const extract: PageExtract = { pageNumber, rows: digitalRows, source: digitalRows.length > 0 ? "digital" : "unread" };
         // Only render (and later OCR) as many scans as one OCR run allows.
         if (options.ocrEnabled && ocrCandidates < limits.maxPagesPerRun) {
           ocrCandidates++;
@@ -152,18 +184,27 @@ async function readScannedPages(extracts: PageExtract[], options: PdfToExcelOpti
     const extract = targets.find((e) => e.pageNumber === read.pageNumber);
     if (!extract) continue;
     // One line of text per row: plain and reliable, no guessed columns.
-    extract.rows = read.text
+    const ocrRows = read.text
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean)
       .map((line) => [line]);
-    if (extract.rows.length > 0) extract.source = "ocr";
+    // The page may already carry a (possibly sparse/stray) digital
+    // extraction -- keep whichever actually has more content rather than
+    // always preferring OCR, so a short-but-real digital page isn't
+    // discarded just because it also happened to queue for OCR.
+    if (textRichness(ocrRows) > textRichness(extract.rows)) {
+      extract.rows = ocrRows;
+      extract.source = "ocr";
+    }
   }
   // Release the rendered images.
   for (const extract of targets) extract.scanned = undefined;
 }
 
-function writeRows(worksheet: Worksheet, rows: string[][]): void {
+// Exported so utils/convert/ocrToXlsx.ts (the scanner's standalone OCR-only
+// XLSX export) can reuse the exact same row-writing/cell-typing logic.
+export function writeRows(worksheet: Worksheet, rows: string[][]): void {
   const widths: number[] = [];
   // When the page has a table, single-cell rows are titles and notes that
   // overflow into the empty cells beside them, so they shouldn't make the

@@ -555,6 +555,252 @@ export const LANDING_PAGES: LandingPage[] = [
     ],
     related: [LINKS.ocr, LINKS.excelToPdf, LINKS.pdfToWord, LINKS.scan],
   },
+  {
+    path: "/jpg-to-pdf",
+    title: "JPG to PDF Converter: Turn JPG Photos into PDF Free",
+    description:
+      "Convert JPG photos to PDF online for free. Combine several JPGs into one PDF, crop and reorder pages first. Runs in your browser -- nothing is uploaded.",
+    h1: "Convert JPG to PDF",
+    intro:
+      "Turn one or more JPG photos into a single PDF. Add your files, put them in order, then download -- it is free, needs no account, and your photos never leave your browser.",
+    crumbs: [{ name: "JPG to PDF", path: "/jpg-to-pdf" }],
+    appName: "PDFScanner JPG to PDF converter",
+    features: ["Convert JPG photos to PDF", "Combine several JPGs into one PDF", "Crop, rotate and enhance each page", "Reorder pages before you export"],
+    how: [
+      "Open the JPG to PDF converter and add your photos (choose several at once if you like).",
+      "Crop, rotate or enhance any page, and put them in the order you want.",
+      "Create the PDF and download it.",
+    ],
+    goodFor: "Turning JPG photos of receipts, ID cards, whiteboards or paperwork into a single PDF for a form, an email or printing.",
+    formats: "JPG photos up to 25 MB each. Each photo becomes one A4 page, fitted without cropping.",
+    limits: [
+      "The PDF is made from the photos, so its text is not selectable. Use OCR afterwards if you need the words as text.",
+      "A large batch of JPGs depends on your device's memory; convert fewer at a time if your browser struggles.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "Can I combine several JPGs into one PDF?", a: "Yes. Add them all, arrange the order, and export one PDF." },
+      { q: "Will converting reduce my photo quality?", a: "Pages are kept at about 170 DPI for A4. Compress the PDF afterwards if you need it smaller." },
+    ],
+    related: [LINKS.imageToPdf, LINKS.scan, LINKS.compressPdf, LINKS.ocr],
+  },
+  {
+    path: "/png-to-pdf",
+    title: "PNG to PDF Converter: Turn PNG Images into PDF Free",
+    description:
+      "Convert PNG images to PDF online for free. Combine several PNGs into one PDF, crop and reorder pages first. Runs in your browser -- nothing is uploaded.",
+    h1: "Convert PNG to PDF",
+    intro:
+      "Turn one or more PNG images into a single PDF. Add your files, put them in order, then download -- it is free, needs no account, and your images never leave your browser.",
+    crumbs: [{ name: "PNG to PDF", path: "/png-to-pdf" }],
+    appName: "PDFScanner PNG to PDF converter",
+    features: ["Convert PNG images to PDF", "Combine several PNGs into one PDF", "Crop, rotate and enhance each page", "Reorder pages before you export"],
+    how: [
+      "Open the PNG to PDF converter and add your images (choose several at once if you like).",
+      "Crop, rotate or enhance any page, and put them in the order you want.",
+      "Create the PDF and download it.",
+    ],
+    goodFor: "Turning PNG screenshots, scanned pages or graphics with transparency into a single PDF for a form, an email or printing.",
+    formats: "PNG images up to 25 MB each. Each image becomes one A4 page, fitted without cropping. Transparent areas are filled white.",
+    limits: [
+      "The PDF is made from the images, so its text is not selectable. Use OCR afterwards if you need the words as text.",
+      "A large batch of PNGs depends on your device's memory; convert fewer at a time if your browser struggles.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "Can I combine several PNGs into one PDF?", a: "Yes. Add them all, arrange the order, and export one PDF." },
+      { q: "What happens to transparent areas?", a: "A PDF page has no transparency, so transparent areas in a PNG are filled white." },
+    ],
+    related: [LINKS.imageToPdf, LINKS.scan, LINKS.compressPdf, LINKS.ocr],
+  },
+  {
+    path: "/scan-to-pdf",
+    title: "Scan to PDF with Your Phone: Free Online Document Scanner",
+    description:
+      "Turn your phone or computer camera into a document scanner. Photograph pages, straighten and crop them automatically, then export one PDF. Free and private.",
+    h1: "Scan to PDF with your phone or camera",
+    intro:
+      "Use your phone or computer's camera as a document scanner: photograph each page, let PDFScanner straighten and crop it, then export one tidy PDF -- all in your browser.",
+    crumbs: [{ name: "Scan to PDF", path: "/scan-to-pdf" }],
+    appName: "PDFScanner document scanner",
+    features: [
+      "Photograph pages with your phone or webcam",
+      "Automatic edge detection, crop and straighten",
+      "Enhance, grayscale and black and white modes",
+      "Combine several pages into one PDF",
+    ],
+    how: [
+      "Open the scanner and choose Use camera (or upload photos you already took).",
+      "Each page's edges are found and straightened automatically; adjust the crop by hand if needed.",
+      "Add more pages, put them in order, then create and download the PDF.",
+    ],
+    goodFor: "Turning paper receipts, contracts, forms and notes into a PDF using just your phone -- no scanner hardware or app install needed.",
+    formats: "Live camera capture, or uploaded photos (JPG, PNG and more) up to 25 MB each.",
+    limits: [
+      "The camera needs your browser's permission and a secure (https) connection.",
+      "Automatic edge detection works best on a page lying on a plain, contrasting surface in good light.",
+      "The PDF is made from page images, so its text is not selectable -- use OCR if you need to copy the words.",
+    ],
+    privacy: `${PRIVATE} Only if you choose Save to account is the finished PDF stored for you.`,
+    faq: [
+      { q: "Do I need to install an app to scan with my phone?", a: "No. Open PDFScanner in your phone's browser and allow camera access -- there is nothing to install." },
+      { q: "Does it straighten crooked photos automatically?", a: "Yes. Page edges are detected and the page is straightened for you, and you can always adjust the crop by hand." },
+    ],
+    related: [LINKS.ocr, LINKS.compressPdf, LINKS.sign, LINKS.editor],
+  },
+  {
+    path: "/edit-pdf",
+    title: "Edit PDF Online Free: Add Text, Crop & Sign",
+    description:
+      "Edit a PDF online for free: crop and reorder pages, add text, highlights and your signature, then save one PDF. Runs in your browser -- nothing is uploaded.",
+    h1: "Edit a PDF online for free",
+    intro:
+      "Crop, rotate and reorder pages, then add text, marks and your signature on top -- all for free, in your browser, with no account needed.",
+    crumbs: [{ name: "Edit PDF", path: "/edit-pdf" }],
+    appName: "PDFScanner PDF editor",
+    features: [
+      "Crop, rotate and straighten pages",
+      "Reorder and remove pages",
+      "Add text, highlights, drawings, check marks, dates and signatures",
+      "Save the result as one PDF",
+    ],
+    how: [
+      "Open the PDF editor and upload your PDF or images.",
+      "Choose a page to crop, rotate, or add text, marks and a signature.",
+      "Reorder or remove pages, then create and download the edited PDF.",
+    ],
+    goodFor: "Filling in and marking up forms, signing a contract, tidying a scan, or reordering pages, without installing anything.",
+    formats: "PDF files (the first 50 pages) and images (JPG, PNG and more, up to 25 MB each).",
+    limits: [
+      "This is a page-level editor: it adds text and marks on top of pages, and does not rewrite text already in a PDF.",
+      "The saved PDF is created from page images, so its text is not selectable.",
+      "Password-protected PDFs cannot be opened.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "Can I edit the existing text in a PDF?", a: "No. You can cover, mark up and add to a page, but text already in the PDF is part of the page image and cannot be rewritten." },
+      { q: "Do I need an account to edit a PDF?", a: "No. Editing, signing and downloading all work as a guest." },
+    ],
+    related: [LINKS.sign, LINKS.annotate, LINKS.compressPdf, LINKS.ocr],
+  },
+  {
+    path: "/pdf-converter",
+    title: "Free PDF Converter: Word, Excel, Images & More",
+    description:
+      "Convert PDF to Word or Excel, and Word, Excel or images to PDF -- all free, in your browser. Pick a format below; nothing is uploaded to a server.",
+    h1: "Free online PDF converter",
+    intro:
+      "One place for every PDF conversion PDFScanner offers: turn a PDF into Word or Excel, or turn Word, Excel and images into a PDF. Pick the conversion you need below.",
+    crumbs: [{ name: "PDF converter", path: "/pdf-converter" }],
+    appName: "PDFScanner PDF converter",
+    features: ["Convert PDF to Word (.docx)", "Convert PDF to Excel (.xlsx)", "Convert Word, Excel, CSV and images to PDF", "Everything runs in your browser"],
+    how: [
+      "Choose the conversion you need: PDF to Word, PDF to Excel, Word to PDF, Excel to PDF, or images to PDF.",
+      "Upload your file. Scanned PDFs are read with text recognition automatically.",
+      "Download the converted file.",
+    ],
+    goodFor: "Reusing the content of a PDF in Word or Excel, or turning a document or photos into a shareable PDF.",
+    formats: "PDF, Word (.docx), Excel (.xlsx), CSV and common image types, depending on the conversion you pick.",
+    limits: [
+      "Each conversion direction has its own honest limits (page counts, file sizes, scanned-page handling) -- see that converter's own page for the details.",
+      "Complex layouts, columns and tables may need tidying after a PDF-to-Word or PDF-to-Excel conversion.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "Which PDF conversions are available?", a: "PDF to Word, PDF to Excel, Word to PDF, Excel to PDF, and images to PDF -- each is its own free tool." },
+      { q: "Do scanned PDFs work?", a: "Yes. Scanned pages are read with English text recognition where a conversion needs their text." },
+    ],
+    related: [LINKS.pdfToWord, LINKS.pdfToExcel, LINKS.wordToPdf, LINKS.excelToPdf, LINKS.imageToPdf],
+  },
+  {
+    path: "/document-converter",
+    title: "Free Online Document Converter: PDF, Word & Excel",
+    description:
+      "Convert documents between PDF, Word and Excel for free, in your browser. Scan paper documents to PDF too. Nothing is uploaded to a server.",
+    h1: "Free online document converter",
+    intro:
+      "Convert between PDF, Word and Excel, or scan a paper document straight to PDF -- all free, all in your browser, with nothing uploaded to a server.",
+    crumbs: [{ name: "Document converter", path: "/document-converter" }],
+    appName: "PDFScanner document converter",
+    features: ["Convert PDF, Word and Excel between each other", "Scan paper documents to PDF", "Combine images into a PDF", "Everything runs in your browser"],
+    how: [
+      "Pick what you have and what you need: a paper document to scan, or a file to convert between PDF, Word and Excel.",
+      "Upload your file, or use your camera for a paper document.",
+      "Download the result.",
+    ],
+    goodFor: "Getting any everyday document -- a scan, a Word file, a spreadsheet or a PDF -- into the format you actually need.",
+    formats: "PDF, Word (.docx), Excel (.xlsx), CSV, and photos or camera captures for scanning.",
+    limits: [
+      "Each conversion has its own file-size and page limits -- see that specific tool's page for the details.",
+      "Scanned and photographed pages depend on the source: a sharp, well-lit, straight page gives the best result.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "Can I scan a paper document and convert it too?", a: "Yes. Scan it to PDF first, then use OCR or PDF to Word if you need the text out of it." },
+      { q: "Is there a limit on how many files I can convert?", a: "No daily limit and no account needed -- just the per-file size and page limits shown on each tool's page." },
+    ],
+    related: [LINKS.scan, LINKS.pdfToWord, LINKS.pdfToExcel, LINKS.wordToPdf, LINKS.convert],
+  },
+  {
+    path: "/pdf-to-text",
+    title: "PDF to Text: Extract TXT from a PDF or Scan Free",
+    description:
+      "Turn a PDF or scanned document into a plain .txt file for free. Scanned pages are read with English text recognition. Runs in your browser -- nothing is uploaded.",
+    h1: "Convert PDF to text (.txt)",
+    intro:
+      "Get the words out of a PDF or a scanned document as a plain .txt file. Upload or scan the pages, and download the text -- free, in your browser, no account needed.",
+    crumbs: [{ name: "PDF to text", path: "/pdf-to-text" }],
+    appName: "PDFScanner document scanner",
+    features: ["Upload a PDF or scan pages with your camera", "Read scanned pages with English text recognition", "Export a plain .txt file"],
+    how: [
+      "Open the scanner and upload your PDF, photos, or use your camera.",
+      "Under Export, choose TXT. Pages are read with text recognition automatically.",
+      "Download the .txt file.",
+    ],
+    goodFor: "Pulling the words out of a scanned letter, receipt or photographed page as plain text you can paste anywhere.",
+    formats: "PDF files, photos and camera captures. Scanned pages are read in English.",
+    limits: [
+      "Text recognition accuracy depends on scan quality: a sharp, well-lit, straight page reads best.",
+      "The .txt file has no formatting, images or layout -- just the recognised words, one line per line of text.",
+      "English only for now.",
+    ],
+    privacy: `${PRIVATE} The text engine is served from PDFScanner itself, not a third-party service.`,
+    faq: [
+      { q: "Does this work on scanned PDFs?", a: "Yes. Scanned and photographed pages are read with English text recognition before being exported as text." },
+      { q: "Will the text keep the PDF's layout?", a: "No. A .txt file is plain text with no formatting, columns or images -- just the words." },
+    ],
+    related: [LINKS.ocr, LINKS.pdfToWord, LINKS.scan, LINKS.compressPdf],
+  },
+  {
+    path: "/pdf-to-csv",
+    title: "PDF to CSV: Extract Table Data from a PDF Free",
+    description:
+      "Turn a PDF or scanned document into a .csv file for free. Scanned pages are read with English text recognition, one line per row. Runs in your browser.",
+    h1: "Convert PDF to CSV",
+    intro:
+      "Get the content of a PDF or a scanned document as a .csv file you can open in a spreadsheet. Upload or scan the pages, then download the CSV -- free, in your browser.",
+    crumbs: [{ name: "PDF to CSV", path: "/pdf-to-csv" }],
+    appName: "PDFScanner document scanner",
+    features: ["Upload a PDF or scan pages with your camera", "Read scanned pages with English text recognition", "Export a genuine .csv file"],
+    how: [
+      "Open the scanner and upload your PDF, photos, or use your camera.",
+      "Under Export, choose CSV. Pages are read with text recognition automatically.",
+      "Download the .csv file and open it in a spreadsheet app.",
+    ],
+    goodFor: "Getting a quick, line-by-line CSV out of a scanned receipt, list or simple table when you don't need full spreadsheet formatting.",
+    formats: "PDF files, photos and camera captures. Scanned pages are read in English.",
+    limits: [
+      "This reads plain text, one line per CSV row -- it does not detect table columns. For real column detection from a digital PDF's tables, use PDF to Excel instead.",
+      "Text recognition accuracy depends on scan quality: a sharp, well-lit, straight page reads best.",
+      "English only for now.",
+    ],
+    privacy: `${PRIVATE} The text engine is served from PDFScanner itself, not a third-party service.`,
+    faq: [
+      { q: "Does this detect table columns?", a: "No. Each line of recognised text becomes one CSV row. For real column detection from a digital PDF's tables, use PDF to Excel instead." },
+      { q: "Can I open the CSV in Excel or Google Sheets?", a: "Yes. It's a genuine, correctly-escaped CSV file that opens in any spreadsheet app." },
+    ],
+    related: [LINKS.pdfToExcel, LINKS.ocr, LINKS.scan, LINKS.compressPdf],
+  },
 ];
 
 export function getLanding(path: string): LandingPage | undefined {

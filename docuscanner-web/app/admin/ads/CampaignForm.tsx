@@ -7,6 +7,8 @@ import type { AdCampaign, AdCreative, CampaignFormFields } from "@/utils/admin/a
 import { AD_SLOTS, TARGETABLE_PATHS } from "@/utils/admin/targetablePaths";
 import { getCountryOptions, getRegionsForCountries } from "@/utils/admin/geoData";
 import { countryFlag, countryName } from "@/utils/admin/location";
+import { AdAssetUploader } from "./AdAssetUploader";
+import { deleteAdAsset } from "@/utils/admin/uploadAdAsset";
 
 const DAYS = [
   { value: 0, label: "Sun" },
@@ -47,6 +49,10 @@ function emptyCreative(): AdCreative {
     is_active: true,
     destination_type: "link",
     embed_url: null,
+    media_type: "image",
+    storage_path: null,
+    mime_type: null,
+    file_size_bytes: null,
   };
 }
 
@@ -71,6 +77,9 @@ export function CampaignForm({ existing, creatives: existingCreatives }: { exist
   const [creatives, setCreatives] = useState<AdCreative[]>(existingCreatives && existingCreatives.length > 0 ? existingCreatives : [emptyCreative()]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Namespaces uploaded-asset Storage paths for a campaign that doesn't have
+  // a real id yet (not saved once); stable for the life of this form.
+  const [draftId] = useState(() => existing?.id ?? crypto.randomUUID());
 
   const countryOptions = useMemo(() => getCountryOptions(), []);
   const filteredCountries = useMemo(() => {
@@ -380,10 +389,7 @@ export function CampaignForm({ existing, creatives: existingCreatives }: { exist
                 <input type="number" value={c.height ?? ""} onChange={(e) => updateCreative(i, { height: e.target.value ? Number(e.target.value) : null })} className="w-full rounded-md border border-zinc-200 px-2 py-1 text-sm dark:border-zinc-800 dark:bg-black" />
               </label>
             </div>
-            <label className="block text-xs">
-              <span className="mb-1 block text-zinc-500">Image URL (https, required)</span>
-              <input value={c.asset_url} onChange={(e) => updateCreative(i, { asset_url: e.target.value })} placeholder="https://…" className="w-full rounded-md border border-zinc-200 px-2 py-1 text-sm dark:border-zinc-800 dark:bg-black" />
-            </label>
+            <AdAssetUploader creative={c} pathPrefix={`${draftId}/${i}`} onChange={(patch) => updateCreative(i, patch)} />
 
             <div>
               <span className="mb-1 block text-xs text-zinc-500">Destination</span>
@@ -443,7 +449,14 @@ export function CampaignForm({ existing, creatives: existingCreatives }: { exist
                 Active
               </label>
               {creatives.length > 1 && (
-                <button type="button" onClick={() => setCreatives((list) => list.filter((_, idx) => idx !== i))} className="text-xs text-red-600 hover:underline dark:text-red-400">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatives((list) => list.filter((_, idx) => idx !== i));
+                    if (c.storage_path) void deleteAdAsset(c.storage_path).catch(() => {});
+                  }}
+                  className="text-xs text-red-600 hover:underline dark:text-red-400"
+                >
                   Remove
                 </button>
               )}

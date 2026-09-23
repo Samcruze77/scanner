@@ -10,6 +10,7 @@
     "postbuild": "node scripts/verify-theme-css.mjs",
     "start": "next start",
     "lint": "eslint",
+    "test:pdf2excel": "node tests/pdf2excel/geometry.mjs && node tests/pdf2excel/csv.mjs",
     "test:docx": "node tests/docx/compare.mjs",
     "test:docx:robust": "node tests/docx/robustness.mjs",
     "test:compress": "node tests/compress/run.mjs",

@@ -21,12 +21,18 @@ import { openPdf, PdfError } from "@/utils/pdf/pdfjs";
 import { renderPdfPage } from "@/utils/pdf/render";
 import { createInitialPage, type ScannerPage } from "@/utils/scanner/page";
 import { estimateBodySize, layoutPage, type Block, type Family, type PageLayout } from "./pdfLayout";
-import type { PositionedText } from "./tableExtract";
+import { groupIntoLines, type PositionedText } from "./tableExtract";
 
 export const MAX_PDF_TO_WORD_PAGES = 100;
 
 // Same rules as PDF -> Excel: a page with almost no text is treated as a scan.
 const MIN_TEXT_CHARS = 8;
+// Also same as PDF -> Excel: a stray stamp/footer/watermark on an otherwise
+// scanned page is almost always exactly one short line and clears
+// MIN_TEXT_CHARS trivially, while genuine content -- even a short page --
+// is virtually always more than one line. Character count alone isn't
+// enough to trust a page as genuinely digital.
+const MIN_DIGITAL_LINES = 2;
 const OCR_RENDER_LONG_SIDE_PX = 2000;
 const PREVIEW_BLOCKS = 12;
 
@@ -74,6 +80,9 @@ interface PageData {
   source: "digital" | "ocr" | "unread";
   ocrText?: string;
   scanned?: ScannerPage;
+  // Character count backing `items`, kept to decide (after OCR completes)
+  // whether the digital text or the OCR text has more actual content.
+  digitalCharacters: number;
 }
 
 const BOLD_NAME = /bold|black|heavy|semibold|demi/i;
@@ -146,14 +155,19 @@ async function readPages(file: File, options: PdfToWordOptions): Promise<PageDat
           });
         }
 
-        const data: PageData = { pageNumber, width: viewport.width, height: viewport.height, items, source: "digital" };
-        if (characters >= MIN_TEXT_CHARS) {
+        const lineCount = items.length > 0 ? groupIntoLines(items).length : 0;
+        const looksDigital = characters >= MIN_TEXT_CHARS && lineCount >= MIN_DIGITAL_LINES;
+        const data: PageData = { pageNumber, width: viewport.width, height: viewport.height, items, source: "digital", digitalCharacters: characters };
+        if (looksDigital) {
           pages.push(data);
           continue;
         }
 
-        data.source = "unread";
-        data.items = [];
+        // Weak/absent digital text -- try OCR too, and keep whichever
+        // actually has more content (see readScannedPages). Don't clear
+        // `items` yet: a short-but-real digital page should still win if
+        // OCR doesn't add anything.
+        data.source = characters > 0 ? "digital" : "unread";
         if (options.ocrEnabled && ocrCandidates < limits.maxPagesPerRun) {
           ocrCandidates++;
           const rendered = await renderPdfPage(page, OCR_RENDER_LONG_SIDE_PX);
@@ -193,9 +207,16 @@ async function readScannedPages(pages: PageData[], options: PdfToWordOptions): P
   for (const read of result.pages) {
     const page = targets.find((p) => p.pageNumber === read.pageNumber);
     if (!page) continue;
-    if (read.text.trim()) {
+    const ocrCharacters = read.text.trim().length;
+    // Keep whichever has more actual content -- a page that already carried
+    // some (possibly sparse/stray) digital text isn't overridden by OCR
+    // unless OCR genuinely found more.
+    if (ocrCharacters > page.digitalCharacters) {
       page.ocrText = read.text;
       page.source = "ocr";
+      page.items = [];
+    } else if (page.digitalCharacters > 0) {
+      page.source = "digital";
     }
   }
   for (const page of targets) page.scanned = undefined;
@@ -213,8 +234,10 @@ function blockText(block: Block): string {
 
 // Plain paragraphs from OCR text: blank lines separate paragraphs; line breaks
 // inside a paragraph are kept, since OCR can't tell a wrapped line from a
-// deliberate one.
-function blocksFromOcr(text: string): Block[] {
+// deliberate one. Exported so utils/convert/ocrToDocx.ts (the scanner's
+// standalone OCR-only DOCX export) can reuse the exact same splitting rule
+// instead of re-implementing it.
+export function blocksFromOcr(text: string): Block[] {
   return text
     .split(/\n\s*\n/)
     .map((chunk) => chunk.split("\n").map((l) => l.trim()).filter(Boolean))

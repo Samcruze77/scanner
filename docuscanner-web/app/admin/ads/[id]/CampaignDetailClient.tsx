@@ -154,6 +154,8 @@ export function CampaignDetailClient({ initial }: { initial: AdCampaignDetailRes
         </div>
         {previewCreative && (
           <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+            Media: {previewCreative.media_type === "video" && previewCreative.destination_type !== "embed" ? "Self-hosted video" : "Image"}
+            {" · "}
             Destination: {previewCreative.destination_type === "embed" ? (previewEmbedUrl ? "Supported embed" : "Embed (invalid host, falling back to link)") : "Website / social link"}
             {" → "}
             <span className="font-mono">{previewCreative.destination_type === "embed" ? previewCreative.embed_url : previewCreative.click_url}</span>
@@ -169,6 +171,16 @@ export function CampaignDetailClient({ initial }: { initial: AdCampaignDetailRes
               referrerPolicy="strict-origin-when-cross-origin"
               allow="encrypted-media; picture-in-picture"
             />
+          </div>
+        ) : previewCreative && previewCreative.media_type === "video" ? (
+          <div className={`overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 ${previewWidth === "mobile" ? "max-w-[375px]" : "max-w-[728px]"}`}>
+            <video src={previewCreative.asset_url} controls className="w-full" />
+            {(previewCreative.title || previewCreative.cta_text) && (
+              <div className="flex items-center justify-between p-2 text-sm">
+                <span>{previewCreative.title}</span>
+                {previewCreative.cta_text && <span className="font-medium">{previewCreative.cta_text}</span>}
+              </div>
+            )}
           </div>
         ) : previewCreative ? (
           <a href={previewCreative.click_url} target="_blank" rel="noreferrer" className={`block overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 ${previewWidth === "mobile" ? "max-w-[375px]" : "max-w-[728px]"}`}>

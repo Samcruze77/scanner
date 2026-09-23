@@ -11,7 +11,11 @@ import type { Quad } from "@/utils/scanner/geometry";
 import { createInitialPage, type PageRotation, type ScannerPage } from "@/utils/scanner/page";
 import { detectPageQuad, renderPage } from "@/utils/scanner/pageProcessing";
 import { createPdfFromPages } from "@/utils/scanner/pdf";
-import { downloadBlob } from "@/utils/convert/download";
+import { downloadBlob, outputFilename } from "@/utils/convert/download";
+import { buildDocxFromOcrPages } from "@/utils/convert/ocrToDocx";
+import { buildXlsxFromOcrPages } from "@/utils/convert/ocrToXlsx";
+import { ocrTextToCsv } from "@/utils/convert/toCsv";
+import { downloadTextFile } from "@/utils/ocr/export";
 import { scannerPagesToPrintPages } from "@/utils/print/sources";
 import { importPdfPages } from "@/utils/scanner/pdfImport";
 import type { Annotation, AnnotationTool } from "@/utils/scanner/annotations";
@@ -58,6 +62,7 @@ const AnnotationEditor = dynamic(() => import("./AnnotationEditor").then((m) => 
 });
 
 type Mode = "idle" | "camera";
+type ExportFormat = "docx" | "xlsx" | "txt" | "csv";
 
 // Set when the workspace is opened from a Tools entry (Sign PDF, Highlight ...):
 // which annotation tool to start with, and which signature method to show first.
@@ -119,6 +124,10 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
   const [creatingPdf, setCreatingPdf] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  // Which non-PDF export format is currently being built, if any -- pages
+  // are always raster images, so DOCX/XLSX/TXT/CSV all route through OCR
+  // first (reusing the same result "Extract text" would produce).
+  const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null);
 
   const plan = getUserPlan(user);
   const ocrEnabled = isFeatureAvailable("ocr.basic", plan);
@@ -590,6 +599,45 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     void ocr.start(pages, { kind: "document" });
   }
 
+  async function handleExportFormat(format: ExportFormat) {
+    if (pages.length === 0 || anyPageProcessing || exportingFormat) return;
+    setError(null);
+    setExportingFormat(format);
+    try {
+      // Reuse the current OCR result if one already exists and still
+      // matches these pages (e.g. the user already ran "Extract text"),
+      // instead of reading the same pages twice.
+      const fresh = ocr.state.status === "done" && !ocr.isStale(pages) ? ocr.state.result : null;
+      if (!fresh) void trackConversionStarted(`scan_to_${format}`);
+      const result = fresh ?? (await ocr.start(pages, { kind: "document" }));
+      if (!result) {
+        setError("Couldn't read text from these pages. Please try again.");
+        return;
+      }
+      if (!fresh) void trackConversionCompleted(`scan_to_${format}`);
+
+      const ocrPages = result.pages.map((p) => ({ pageNumber: p.pageNumber, text: p.text }));
+      if (format === "docx") {
+        const blob = await buildDocxFromOcrPages(ocrPages, "document");
+        downloadBlob(blob, outputFilename("document.pdf", "docx"));
+      } else if (format === "xlsx") {
+        const blob = await buildXlsxFromOcrPages(ocrPages, "sheet-per-page");
+        downloadBlob(blob, outputFilename("document.pdf", "xlsx"));
+      } else if (format === "txt") {
+        downloadTextFile(result.documentText, outputFilename("document.pdf", "txt"));
+      } else {
+        const csv = ocrTextToCsv(result.documentText);
+        downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), outputFilename("document.pdf", "csv"));
+      }
+      void trackDocumentDownloaded(format);
+    } catch {
+      setError("Couldn't export that format. Please try again.");
+      void trackError("export", `scan_to_${format}_failed`);
+    } finally {
+      setExportingFormat(null);
+    }
+  }
+
   function handleExtractPageText() {
     if (!editingPage) return;
     const pageId = editingPage.id;
@@ -792,6 +840,27 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
                 <p role="status" className="muted text-sm">
                   Finishing page processing…
                 </p>
+              )}
+
+              {pages.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+                    Also export as (read with text recognition):
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {(["docx", "xlsx", "txt", "csv"] as const).map((format) => (
+                      <button
+                        key={format}
+                        type="button"
+                        onClick={() => void handleExportFormat(format)}
+                        disabled={anyPageProcessing || exportingFormat !== null}
+                        className="btn btn-secondary"
+                      >
+                        {exportingFormat === format ? "Working…" : format.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
 
               <div className="flex flex-wrap gap-2">

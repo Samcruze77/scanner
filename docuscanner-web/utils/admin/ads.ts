@@ -9,6 +9,11 @@ export type DeviceVariant = "all" | "desktop" | "mobile";
 export type CampaignStatus = "draft" | "active" | "paused" | "completed" | "archived";
 export type EffectiveState = CampaignStatus | "scheduled";
 export type DestinationType = "link" | "embed";
+// What's rendered AS the banner itself -- independent of destination_type,
+// which is only about the click-through (a normal link vs. a trusted iframe
+// embed). "video" means asset_url is a self-hosted MP4/WebM to play inline;
+// a destination_type="embed" YouTube/Vimeo iframe is unrelated to this.
+export type AdMediaType = "image" | "video";
 
 export interface AdCreative {
   id?: string;
@@ -26,6 +31,12 @@ export interface AdCreative {
   is_active: boolean;
   destination_type: DestinationType;
   embed_url: string | null;
+  media_type: AdMediaType;
+  // Set only when asset_url points at our own ad-assets bucket (so it can be
+  // cleaned up on replace/delete); null for an advertiser-hosted external URL.
+  storage_path: string | null;
+  mime_type: string | null;
+  file_size_bytes: number | null;
 }
 
 export interface AdCampaign {

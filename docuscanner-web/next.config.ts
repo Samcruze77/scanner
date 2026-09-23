@@ -18,6 +18,19 @@ const nextConfig: NextConfig = {
     // risk. (scripts/verify-theme-css.mjs also checks the result after every build.)
     turbopackFileSystemCacheForBuild: false,
   },
+  async redirects() {
+    return [
+      // Short, direct-match SEO aliases into the real (already fully-built)
+      // tool pages -- permanent, since the target never changes and this
+      // avoids duplicate-content pages for the exact same functionality.
+      { source: "/pdf-to-word", destination: "/convert/pdf-to-word", permanent: true },
+      { source: "/pdf-to-excel", destination: "/convert/pdf-to-excel", permanent: true },
+      { source: "/word-to-pdf", destination: "/convert/word-to-pdf", permanent: true },
+      { source: "/image-to-pdf", destination: "/convert/image-to-pdf", permanent: true },
+      { source: "/compress-pdf", destination: "/tools/compress-pdf", permanent: true },
+      { source: "/ocr", destination: "/tools/ocr", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {
