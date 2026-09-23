@@ -40,8 +40,11 @@ const EXT_BY_TYPE: Record<string, string> = {
   "video/mp4": "mp4",
   "video/webm": "webm",
 };
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
+// Image covers animated GIF too, which can be much larger than a static
+// JPG/PNG/WebP once it has real motion in it -- 20MB gives that room without
+// opening the door to arbitrarily large unoptimized files.
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
 
 export class AdAssetError extends Error {}
 

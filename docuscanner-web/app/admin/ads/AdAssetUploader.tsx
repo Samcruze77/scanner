@@ -106,7 +106,7 @@ export function AdAssetUploader({
             <FileDropzone
               accept={AD_ASSET_ACCEPT}
               title={creative.asset_url ? "Replace file" : "Choose a file"}
-              hint="JPG, PNG, WebP or GIF up to 8MB; MP4 or WebM up to 40MB"
+              hint="JPG, PNG, WebP or GIF up to 20MB; MP4 or WebM up to 60MB"
               onFile={(file) => void handleFile(file)}
             />
           )}
