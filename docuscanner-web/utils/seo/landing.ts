@@ -453,7 +453,7 @@ export const LANDING_PAGES: LandingPage[] = [
     goodFor: "CVs, letters, reports and forms that must look the same on every device.",
     formats: ".docx files up to 15 MB. The older .doc format is not supported.",
     limits: [
-      "Common fonts (Calibri, Arial, Times New Roman, Courier New, Cambria) are matched with look-alike fonts of the same widths so lines break where they do in Word. Rare fonts may be substituted.",
+      "Common fonts (Calibri, Arial, Times New Roman, Courier New, Cambria) are matched with look-alike fonts of the same widths, so lines usually break where they do in Word. Other fonts, such as Aptos, need their font file to match Word's layout: upload it or enable installed fonts. Without it a look-alike is used and the result says so.",
       "Very complex layouts may not match Word exactly. Check the preview before you share the PDF.",
       "The PDF is made from the document's layout, not by Microsoft Word.",
     ],

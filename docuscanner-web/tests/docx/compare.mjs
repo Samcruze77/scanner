@@ -5,24 +5,35 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { convertFile, fixtures, outDir } from "./harness.mjs";
+import { convertFile, fixtures, outDir, sidecarFonts } from "./harness.mjs";
 import { extractLines, sideBySide } from "./pdftool.mjs";
 
 const dirArg = process.argv.indexOf("--dir");
-const fixtureDir = dirArg >= 0 ? path.join(fixtures, process.argv[dirArg + 1]) : fixtures;
+// Without --dir: the main fixtures and the page-boundary fixtures.
+const fixtureDirs = dirArg >= 0 ? [path.join(fixtures, process.argv[dirArg + 1])] : [fixtures, path.join(fixtures, "boundaries")];
 const filter = process.argv.slice(2).find((a, i, all) => !a.startsWith("--") && all[i - 1] !== "--dir") ?? "";
 const png = process.argv.includes("--png");
 const verbose = process.argv.includes("--verbose");
 
-const names = fs
-  .readdirSync(fixtureDir)
-  .filter((f) => f.endsWith(".docx") && !f.endsWith(".word.docx"))
-  .map((f) => f.replace(/\.docx$/, ""))
-  .filter((n) => n.includes(filter));
+const jobs = fixtureDirs.flatMap((fixtureDir) =>
+  fs
+    .readdirSync(fixtureDir)
+    .filter((f) => f.endsWith(".docx") && !f.endsWith(".word.docx"))
+    .map((f) => f.replace(/\.docx$/, ""))
+    .filter((n) => n.includes(filter))
+    .map((name) => ({ fixtureDir, name })),
+);
 
 let failures = 0;
+let skipped = 0;
 
-for (const name of names) {
+for (const { fixtureDir, name } of jobs) {
+  const fonts = sidecarFonts(path.join(fixtureDir, name + ".docx"));
+  if (fonts.missing.length) {
+    skipped++;
+    console.log(`- ${name.padEnd(20)} SKIPPED: needs font files not installed here (${fonts.missing.map((p) => path.basename(p)).join(", ")})`);
+    continue;
+  }
   for (const variant of ["", ".word"]) {
     const docx = path.join(fixtureDir, `${name}${variant}.docx`);
     if (!fs.existsSync(docx)) continue;
@@ -118,5 +129,6 @@ function normalize(s) {
   return s.replace(/\s+/g, "").replace(/\.{4,}/g, "...").toLowerCase();
 }
 
+if (skipped) console.log(`\n${skipped} fixture(s) skipped because their real font files are not installed on this machine.`);
 console.log(failures === 0 ? "\nAll fixtures match Word within tolerance." : `\n${failures} variant(s) differ from Word.`);
 process.exitCode = failures === 0 ? 0 : 1;

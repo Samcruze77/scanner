@@ -11,9 +11,13 @@
 // Fonts: the browser has no Calibri/Arial/Times New Roman to embed, so open
 // metric-compatible twins are used (Carlito, Arimo, Tinos, Cousine, Caladea):
 // same character widths and line heights, so lines and pages break as in Word.
-// Other fonts use the closest twin and the result says so.
+// Fonts with no twin (Aptos, Verdana, Segoe UI ...) can't be bundled. They are
+// used from a real font file when there is one -- embedded in the document,
+// added by the person, installed on their device or hosted by the site -- and
+// otherwise the closest twin is used and the result says so.
 
 import { checkDocxFile, WordConvertError } from "./wordErrors";
+import { findHostedFonts, findInstalledFonts, getUserFonts } from "./userFonts";
 
 export type WordStage = "reading" | "converting" | "building";
 
@@ -25,6 +29,8 @@ export interface WordToPdfResult {
   blob: Blob;
   pageCount: number;
   warnings: string[];
+  // Fonts the document uses that had no real font file (a look-alike was used).
+  missingFonts: string[];
 }
 
 const FONT_BASE = "/fonts/docx";
@@ -69,6 +75,8 @@ export async function convertDocxToPdf(file: File, options: WordToPdfOptions = {
   try {
     const result = await engine.docxToPdf(buffer, {
       loadFont: loadFont as import("./docx/index").FontLoader,
+      fontFiles: await getUserFonts(),
+      findFonts: async (names) => [...(await findHostedFonts(names)), ...(await findInstalledFonts(names))],
       convertImage,
       title: file.name.replace(/\.docx$/i, ""),
       onStage: (stage) => options.onStage?.(stage === "reading" ? "reading" : stage === "layout" ? "converting" : "building"),
@@ -77,6 +85,7 @@ export async function convertDocxToPdf(file: File, options: WordToPdfOptions = {
       blob: new Blob([result.bytes as BlobPart], { type: "application/pdf" }),
       pageCount: result.pageCount,
       warnings: result.warnings,
+      missingFonts: result.missingFonts,
     };
   } catch (error) {
     if (error instanceof engine.EmptyDocumentError) throw new WordConvertError("word_empty");

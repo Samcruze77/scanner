@@ -16,7 +16,8 @@ import {
   parseTblPr,
   parseTcPr,
 } from "./styles.ts";
-import { pickFamily, isMetricCompatible, faceKey, type FamilyKey } from "./fonts.ts";
+import { pickFamily, isMetricCompatible, faceKey, type BundledFamily, type FamilyKey } from "./fonts.ts";
+import { customFamily, type FontRegistry } from "./fontFiles.ts";
 import type { Borders, CellProps, PPr, RPr, TableProps } from "./types.ts";
 
 // ---- model types -------------------------------------------------------------------
@@ -161,6 +162,8 @@ export interface DocModel {
   compatMode: number;
   warnings: string[];
   faces: Set<string>;
+  // Fonts the document uses that had no real font file, so a look-alike stood in.
+  missingFonts: string[];
   styles: StyleSheet;
 }
 
@@ -175,6 +178,9 @@ interface Ctx {
   fontFamilies: Map<string, string>;
   warnings: Set<string>;
   faces: Set<string>;
+  // Real font files found for the document (embedded, supplied, installed).
+  fonts?: FontRegistry;
+  missingFonts: Set<string>;
   media: { count: number; bytes: number };
   // Table-style formatting the current cell content inherits.
   cellFormat?: { ppr: PPr; rpr: RPr };
@@ -196,7 +202,7 @@ function warn(ctx: Ctx, message: string): void {
 
 // ---- entry ---------------------------------------------------------------------------
 
-export async function parseDocx(pkg: DocxPackage): Promise<DocModel> {
+export async function parseDocx(pkg: DocxPackage, fonts?: FontRegistry): Promise<DocModel> {
   const docPath = "word/document.xml";
   const doc = await pkg.xml(docPath);
   if (!doc?.documentElement) throw new Error("no document part");
@@ -234,6 +240,8 @@ export async function parseDocx(pkg: DocxPackage): Promise<DocModel> {
     fontFamilies,
     warnings: new Set(),
     faces: new Set(),
+    fonts,
+    missingFonts: new Set(),
     media: { count: 0, bytes: 0 },
   };
   // Styles that carry a list (List Bullet, ...) tell us their numId.
@@ -273,7 +281,7 @@ export async function parseDocx(pkg: DocxPackage): Promise<DocModel> {
     previous = section;
   }
 
-  return { sections, evenAndOdd, defaultTab, compatMode, warnings: [...ctx.warnings], faces: ctx.faces, styles };
+  return { sections, evenAndOdd, defaultTab, compatMode, warnings: [...ctx.warnings], faces: ctx.faces, missingFonts: [...ctx.missingFonts], styles };
 }
 
 async function loadHeaderFooter(rId: string, ctx: Ctx): Promise<Block[] | undefined> {
@@ -368,7 +376,10 @@ async function parseBlocks(container: Element, ctx: Ctx): Promise<Block[]> {
 
 function resolveRunStyle(ctx: Ctx, rpr: RPr): RunStyle {
   const fontName = ctx.styles.fontName(rpr.fonts) ?? ctx.styles.theme.minor ?? "Times New Roman";
-  const family = pickFamily(fontName, ctx.fontFamilies.get(fontName.toLowerCase()));
+  // A real font file wins over a look-alike, except for the fonts we bundle exact
+  // metric twins of (Calibri, Arial ...), which lay out identically either way.
+  const real = !isMetricCompatible(fontName) && ctx.fonts?.has(fontName) === true;
+  const family: FamilyKey = real ? customFamily(fontName) : pickFamily(fontName, ctx.fontFamilies.get(fontName.toLowerCase()));
   const sizeHalf = rpr.sz ?? 20;
   const style: RunStyle = {
     family,
@@ -390,12 +401,12 @@ function resolveRunStyle(ctx: Ctx, rpr: RPr): RunStyle {
     hidden: rpr.vanish ?? false,
     scale: (rpr.scale ?? 100) / 100,
   };
-  if (!isMetricCompatible(fontName)) noteSubstitution(ctx, fontName, family);
+  if (!real && !isMetricCompatible(fontName)) noteSubstitution(ctx, fontName, family as BundledFamily);
   ctx.faces.add(faceKey(family, style.bold, style.italic));
   return style;
 }
 
-const FAMILY_LABEL: Record<FamilyKey, string> = {
+const FAMILY_LABEL: Record<BundledFamily, string> = {
   carlito: "Carlito",
   caladea: "Caladea",
   arimo: "Arimo",
@@ -405,7 +416,7 @@ const FAMILY_LABEL: Record<FamilyKey, string> = {
 
 const substituted = new WeakMap<Ctx["warnings"], Set<string>>();
 
-function noteSubstitution(ctx: Ctx, fontName: string, family: FamilyKey): void {
+function noteSubstitution(ctx: Ctx, fontName: string, family: BundledFamily): void {
   let seen = substituted.get(ctx.warnings);
   if (!seen) {
     seen = new Set();
@@ -413,7 +424,8 @@ function noteSubstitution(ctx: Ctx, fontName: string, family: FamilyKey): void {
   }
   if (seen.has(fontName)) return;
   seen.add(fontName);
-  warn(ctx, `Font "${fontName}" isn't available in the browser, so ${FAMILY_LABEL[family]} was used. Line and page breaks may differ slightly.`);
+  ctx.missingFonts.add(fontName);
+  warn(ctx, `${fontName} font required — upload the font file or enable installed fonts. Until then ${FAMILY_LABEL[family]} is used instead, so line and page breaks may differ from Word.`);
 }
 
 // ---- paragraphs ----------------------------------------------------------------------

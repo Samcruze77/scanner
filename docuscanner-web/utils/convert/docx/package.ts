@@ -30,6 +30,11 @@ export class DocxPackage {
     return new DocxPackage(zip);
   }
 
+  // Part names starting with `prefix` (e.g. "word/").
+  list(prefix = ""): string[] {
+    return Object.keys(this.zip.files).filter((name) => !this.zip.files[name].dir && name.startsWith(prefix));
+  }
+
   has(path: string): boolean {
     return this.zip.file(normalize(path)) !== null;
   }

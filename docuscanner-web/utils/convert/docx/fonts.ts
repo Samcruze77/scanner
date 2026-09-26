@@ -5,16 +5,22 @@
 // line heights, so lines wrap and pages break where Word's do:
 //   Calibri -> Carlito, Cambria -> Caladea, Arial -> Arimo (Liberation Sans),
 //   Times New Roman -> Tinos (Liberation Serif), Courier New -> Cousine.
-// Fonts with no metric twin (Verdana, Georgia, Aptos ...) map to the closest
-// family, so their line breaks can differ slightly from Word's.
+// Fonts with no metric twin (Aptos, Verdana, Georgia ...) can't be bundled: they
+// are used from a real font file when one is available (embedded in the
+// document, supplied by the person, or installed on their device -- see
+// fontFiles.ts) and otherwise map to the closest family, so their line breaks
+// can differ from Word's.
 
 import fontkit from "@pdf-lib/fontkit";
+import { CUSTOM_PREFIX, type FontRegistry } from "./fontFiles.ts";
 
-export type FamilyKey = "carlito" | "caladea" | "arimo" | "tinos" | "cousine";
+export type BundledFamily = "carlito" | "caladea" | "arimo" | "tinos" | "cousine";
+// A bundled family, or "@<font name>" for a font from the registry.
+export type FamilyKey = BundledFamily | (string & {});
 
 // Which scripts each family ships (see scripts/copy-font-assets.mjs). Tried in
 // this order when looking for a glyph.
-export const FAMILY_SUBSETS: Record<FamilyKey, string[]> = {
+export const FAMILY_SUBSETS: Record<BundledFamily, string[]> = {
   carlito: ["latin", "latin-ext", "cyrillic", "greek"],
   caladea: ["latin", "latin-ext"],
   arimo: ["latin", "latin-ext", "cyrillic", "greek"],
@@ -22,9 +28,9 @@ export const FAMILY_SUBSETS: Record<FamilyKey, string[]> = {
   cousine: ["latin", "latin-ext", "cyrillic", "greek"],
 };
 
-export type FontLoader = (family: FamilyKey, subset: string, bold: boolean, italic: boolean) => Promise<Uint8Array | null>;
+export type FontLoader = (family: BundledFamily, subset: string, bold: boolean, italic: boolean) => Promise<Uint8Array | null>;
 
-const FAMILY_PATTERNS: [RegExp, FamilyKey][] = [
+const FAMILY_PATTERNS: [RegExp, BundledFamily][] = [
   [/^(times new roman|times|liberation serif|tinos|garamond|palatino.*|book antiqua|bookman.*|century schoolbook|century|baskerville.*|didot|minion.*|serif)$/i, "tinos"],
   [/^(cambria|cambria math|caladea|constantia|georgia|gelasio|rockwell|sitka.*)$/i, "caladea"],
   [/^(arial|arial narrow|arial black|arial unicode ms|helvetica.*|verdana|tahoma|liberation sans|arimo|microsoft sans serif|franklin gothic.*|century gothic|lucida sans.*|lucida grande|impact|sans-serif|nimbus sans.*)$/i, "arimo"],
@@ -34,7 +40,7 @@ const FAMILY_PATTERNS: [RegExp, FamilyKey][] = [
 
 // `familyHint` is the `w:family` value from fontTable.xml, used for fonts we
 // don't recognise by name.
-export function pickFamily(fontName: string | undefined, familyHint?: string): FamilyKey {
+export function pickFamily(fontName: string | undefined, familyHint?: string): BundledFamily {
   const name = (fontName ?? "").trim();
   for (const [pattern, family] of FAMILY_PATTERNS) if (pattern.test(name)) return family;
   if (familyHint === "roman") return "tinos";
@@ -45,6 +51,14 @@ export function pickFamily(fontName: string | undefined, familyHint?: string): F
 export function isMetricCompatible(fontName: string | undefined): boolean {
   return /^(calibri|calibri light|cambria|arial|times new roman|courier new|liberation .*|carlito|caladea|arimo|tinos|cousine)$/i.test((fontName ?? "").trim());
 }
+
+// Twins whose widths match the Microsoft font but whose vertical metrics don't.
+// Caladea is drawn with Cambria's own line metrics (hhea 1946/-455/0 of 2048):
+// against Word its ascent of 0.90 put every Cambria line ~1pt too high and
+// shortened each line by 0.02 of the font size, which adds up over a page.
+const VERTICAL_METRICS: Record<string, { ascent: number; descent: number; lineGap: number }> = {
+  caladea: { ascent: 1946 / 2048, descent: 455 / 2048, lineGap: 0 },
+};
 
 interface Subset {
   bytes: Uint8Array;
@@ -81,15 +95,15 @@ export class Face {
   // Line metrics as fractions of the font size.
   get ascent(): number {
     const fk = this.subsets[0].fk;
-    return fk.ascent / fk.unitsPerEm;
+    return VERTICAL_METRICS[this.family]?.ascent ?? fk.ascent / fk.unitsPerEm;
   }
   get descent(): number {
     const fk = this.subsets[0].fk;
-    return Math.abs(fk.descent) / fk.unitsPerEm;
+    return VERTICAL_METRICS[this.family]?.descent ?? Math.abs(fk.descent) / fk.unitsPerEm;
   }
   get lineGap(): number {
     const fk = this.subsets[0].fk;
-    return fk.lineGap / fk.unitsPerEm;
+    return VERTICAL_METRICS[this.family]?.lineGap ?? fk.lineGap / fk.unitsPerEm;
   }
 
   // Index of the subset holding this character, or -1.
@@ -130,9 +144,11 @@ export class FontStore {
   private faces = new Map<string, Face>();
   private pending = new Map<string, Promise<Face | null>>();
   private loader: FontLoader;
+  private registry: FontRegistry | undefined;
 
-  constructor(loader: FontLoader) {
+  constructor(loader: FontLoader, registry?: FontRegistry) {
     this.loader = loader;
+    this.registry = registry;
   }
 
   // Loads a face (all its script subsets) once. Missing subsets are skipped; a
@@ -145,8 +161,25 @@ export class FontStore {
     if (!inFlight) {
       inFlight = (async () => {
         const subsets: Subset[] = [];
-        for (const name of FAMILY_SUBSETS[family]) {
-          const bytes = await this.loader(family, name, bold, italic).catch(() => null);
+        // A registry font is one file; the Carlito face of the same style is
+        // appended so characters the font lacks (symbols, other scripts) are
+        // still drawn instead of turning into question marks.
+        if (family.startsWith(CUSTOM_PREFIX)) {
+          const bytes = this.registry?.nearest(family.slice(CUSTOM_PREFIX.length), bold, italic);
+          if (!bytes) return null;
+          try {
+            subsets.push({ bytes, fk: fontkit.create(bytes as never) as unknown as Subset["fk"] });
+          } catch {
+            return null;
+          }
+          const fallback = await this.load("carlito", bold, italic);
+          if (fallback) subsets.push(...fallback.subsets);
+          const face = new Face(family, bold, italic, subsets);
+          this.faces.set(key, face);
+          return face;
+        }
+        for (const name of FAMILY_SUBSETS[family as BundledFamily]) {
+          const bytes = await this.loader(family as BundledFamily, name, bold, italic).catch(() => null);
           if (!bytes) continue;
           try {
             const fk = fontkit.create(bytes as never) as unknown as Subset["fk"];

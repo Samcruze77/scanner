@@ -319,10 +319,10 @@ export function paginate(model: DocModel, env: LayoutEnv): PageOut[] {
   // ---- paragraphs
 
   function placeParagraph(p: LaidParagraph, all: FlowItem[], index: number): void {
-    if (p.pageBreakBefore) {
-      if (!atTop) nextColumnOrPage(true);
-      else if (topKind === "natural") topKind = "hard";
-    }
+    // "Page break before" drops the paragraph's space before at the top of the new
+    // page, like an automatic break (measured against Word: a heading with 16pt
+    // before sits at the margin). Only an explicit break character keeps it.
+    if (p.pageBreakBefore && !atTop) nextColumnOrPage(false);
     let from = 0;
     let first = true;
     for (;;) {

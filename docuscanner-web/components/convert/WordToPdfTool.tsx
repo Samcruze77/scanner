@@ -14,6 +14,7 @@ import {
   trackError,
 } from "@/utils/analytics/events";
 import { downloadBlob, outputFilename } from "@/utils/convert/download";
+import { addUserFonts, allowInstalledFonts, installedFontsSupported } from "@/utils/convert/userFonts";
 import { wordErrorMessage } from "@/utils/convert/errorMessages";
 import { WordConvertError } from "@/utils/convert/wordErrors";
 import { getUserPlan, isFeatureAvailable } from "@/utils/features/plans";
@@ -40,6 +41,10 @@ type Stage =
       pageCount: number;
       preview: string | null;
       warnings: string[];
+      // The source file and the fonts that had no real font file, so the person can
+      // add them and convert again.
+      file: File;
+      missingFonts: string[];
     };
 
 export function WordToPdfTool() {
@@ -64,6 +69,11 @@ export function WordToPdfTool() {
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">This tool isn&apos;t available on your plan.</p>;
   }
 
+  const fontsMissing = (converted?.missingFonts.length ?? 0) > 0;
+  const canUseInstalled = fontsMissing && installedFontsSupported();
+  // Font problems get their own list below, so they aren't repeated here.
+  const otherWarnings = converted ? converted.warnings.filter((w) => !converted.missingFonts.some((f) => w.startsWith(`${f} font required`))) : [];
+
   async function handleFile(file: File) {
     setError(null);
     setStage({ name: "working", fileName: file.name, label: STAGE_LABELS.reading });
@@ -86,6 +96,8 @@ export function WordToPdfTool() {
         pageCount: summary.pageCount || result.pageCount,
         preview: summary.previewDataUrl,
         warnings: result.warnings,
+        file,
+        missingFonts: result.missingFonts,
       });
     } catch (err) {
       const code = err instanceof WordConvertError ? err.code : "word_failed";
@@ -93,6 +105,19 @@ export function WordToPdfTool() {
       void trackError("word_to_pdf", code);
       setStage({ name: "idle" });
     }
+  }
+
+  // Fonts the person added (or allowed us to read from their device) are used
+  // the next time the document is converted.
+  async function handleAddFonts(fileList: FileList | null) {
+    if (stage.name !== "done" || !fileList || fileList.length === 0) return;
+    await addUserFonts([...fileList]);
+    await handleFile(stage.file);
+  }
+
+  async function handleUseInstalledFonts() {
+    if (stage.name !== "done") return;
+    if (await allowInstalledFonts()) await handleFile(stage.file);
   }
 
   function handleDownload() {
@@ -145,24 +170,61 @@ export function WordToPdfTool() {
             </button>
           </div>
 
-          <div
-            role="status"
-            className="notice notice-success !block space-y-2"
-          >
+          <div role="status" className={`notice ${fontsMissing ? "notice-warning" : "notice-success"} !block space-y-2`}>
             <p className="font-medium">
               Done{stage.pageCount > 0 ? `: ${stage.pageCount} page${stage.pageCount === 1 ? "" : "s"}` : ""}.
+              {fontsMissing ? " The layout may differ from your Word document." : ""}
             </p>
-            {stage.warnings.length > 0 && (
+            {fontsMissing && (
+              <div className="space-y-2" data-testid="missing-fonts">
+                <ul className="list-disc space-y-1 pl-5">
+                  {stage.missingFonts.map((font) => (
+                    <li key={font}>
+                      <strong>{`${font} font required`}</strong>
+                      {` — upload the font file${canUseInstalled ? " or enable installed fonts" : ""}.`}
+                    </li>
+                  ))}
+                </ul>
+                <p>
+                  Until then a look-alike font is used, so line and page breaks may differ from Word. Font files stay on your
+                  device.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <label className="btn btn-secondary cursor-pointer">
+                    Upload font file
+                    <input
+                      type="file"
+                      multiple
+                      accept=".ttf,.otf,.woff,font/ttf,font/otf,font/woff"
+                      className="sr-only"
+                      data-testid="add-font-files"
+                      onChange={(e) => {
+                        const input = e.currentTarget;
+                        void handleAddFonts(input.files).finally(() => {
+                          input.value = "";
+                        });
+                      }}
+                    />
+                  </label>
+                  {canUseInstalled && (
+                    <button type="button" onClick={() => void handleUseInstalledFonts()} className="btn btn-secondary">
+                      Enable installed fonts
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            {otherWarnings.length > 0 && (
               <ul className="list-disc space-y-1 pl-5">
-                {stage.warnings.map((warning) => (
+                {otherWarnings.map((warning) => (
                   <li key={warning}>{warning}</li>
                 ))}
               </ul>
             )}
             <p>
-              Fonts, sizes, spacing, margins, lists, tables, pictures, headers and footers are taken from your document.
-              Look-alike fonts with identical character widths stand in for Calibri, Arial, Times New Roman, Courier New
-              and Cambria, so lines and pages break where they do in Word.
+              {fontsMissing
+                ? "Check the PDF against your original before you share it."
+                : "Formatting is read from your document and laid out to follow Word's rules as closely as a browser-based converter can. Check the PDF against your original, especially if it has text boxes, shapes or complex layouts."}
             </p>
           </div>
 

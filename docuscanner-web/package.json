@@ -13,6 +13,8 @@
     "test:pdf2excel": "node tests/pdf2excel/geometry.mjs && node tests/pdf2excel/csv.mjs",
     "test:docx": "node tests/docx/compare.mjs",
     "test:docx:robust": "node tests/docx/robustness.mjs",
+    "test:docx:fonts": "node tests/docx/fonts.mjs",
+    "test:docx:boundaries": "node tests/docx/boundaries.mjs",
     "test:compress": "node tests/compress/run.mjs",
     "test:compress:readability": "node tests/compress/readability.mjs",
     "test:print": "node tests/print/verify.mjs",
