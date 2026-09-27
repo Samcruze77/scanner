@@ -31,6 +31,11 @@ export async function fetchAdminAnalytics(
   if (range.from) params.set("from", range.from);
   if (range.to) params.set("to", range.to);
   if (range.days) params.set("days", String(range.days));
+  if (range.country) params.set("country", range.country);
+  if (range.region) params.set("region", range.region);
+  if (range.city) params.set("city", range.city);
+  if (range.device) params.set("device", range.device);
+  if (range.visitorType) params.set("visitor_type", range.visitorType);
 
   const query = params.toString();
   const { data, error } = await supabase.functions.invoke(

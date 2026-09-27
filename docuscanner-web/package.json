@@ -21,6 +21,7 @@
     "test:zoom": "node tests/zoom/verify.mjs",
     "test:auth": "node tests/auth/verify.mjs",
     "test:theme": "node tests/ui/theme.mjs",
+    "test:analytics": "node tests/analytics/geo.mjs && node tests/analytics/edge-function-geo.mjs && node tests/analytics/authorization.mjs",
     "test:theme:visual": "node tests/ui/theme-visual.mjs",
     "audit:ui": "node tests/ui/audit.mjs"
   },
@@ -29,6 +30,7 @@
     "@supabase/server": "^1.3.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
+    "@vercel/functions": "^3.9.9",
     "docx": "^9.7.1",
     "exceljs": "^4.4.0",
     "jspdf": "^4.2.1",

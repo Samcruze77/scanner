@@ -1,11 +1,12 @@
 "use client";
 
-// Thin wrapper around the deployed `track-analytics` Supabase Edge Function.
-// This is the ONLY place in the app that should call it -- keep every event
-// funneled through here so the payload shape stays consistent.
+// Thin wrapper around this app's own `/api/analytics/track` Route Handler,
+// which in turn proxies to the deployed `track-analytics` Supabase Edge
+// Function. This is the ONLY place in the app that should call it -- keep
+// every event funneled through here so the payload shape stays consistent.
 //
-// VERIFIED LIVE CONTRACT (confirmed against the deployed function):
-//   POST {SUPABASE_URL}/functions/v1/track-analytics
+// CONTRACT:
+//   POST /api/analytics/track (same-origin)
 //   body: {
 //     event_name: string,        // one of the supported analytics events
 //     visitor_id: string,        // anonymous id, see identity.ts
@@ -16,19 +17,18 @@
 //   }
 //   success: HTTP 202 { ok: true }
 //
-// The edge function itself derives the authenticated user id from the
-// Supabase JWT on the Authorization header (attached automatically by
-// supabase-js) and writes it to analytics_events.user_id server-side --
-// the client must NOT also pass it in properties, that would duplicate an
-// identity the backend already has from a source it trusts more.
+// The Route Handler resolves the signed-in user id server-side from the SSR
+// session cookie (not from anything this client sends) and attaches Vercel's
+// real geolocation (country/region/city) before forwarding to Supabase --
+// see utils/analytics/proxy.server.ts for why a same-origin proxy is needed
+// for that. The client must NOT pass user_id or geo data itself.
 //
 // IP and User-Agent are NOT sent in the body -- they're already present on
-// the raw HTTP request the browser makes to the edge function.
+// the raw HTTP request this browser makes to /api/analytics/track.
 //
 // Failure policy: every call here MUST fail silently. Analytics must never
 // throw, block, or slow down the scanner/document workflows it's attached to.
 
-import { createClient } from "@/utils/supabase/client";
 import { getSessionId, getVisitorId } from "./identity";
 
 export type AnalyticsEventType =
@@ -73,8 +73,6 @@ export async function trackEvent(
   try {
     if (typeof window === "undefined") return;
 
-    const supabase = createClient();
-
     const properties: Record<string, unknown> = { ...options.properties };
     if (options.conversionType) properties.conversion_type = options.conversionType;
 
@@ -87,7 +85,12 @@ export async function trackEvent(
       properties: Object.keys(properties).length > 0 ? properties : undefined,
     };
 
-    await supabase.functions.invoke("track-analytics", { body });
+    await fetch("/api/analytics/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      keepalive: true,
+    });
   } catch {
     // Silently ignored by design -- see failure policy above.
   }

@@ -41,3 +41,20 @@ export function formatLocation(countryCode: string | null | undefined, region: s
   const country = flag ? `${flag} ${name}` : name;
   return region ? `${country} · ${region}` : country;
 }
+
+// Full City -> Region -> Country -> Unknown fallback chain, for the
+// Geography admin page (which additionally has city). Never fabricates a
+// level that isn't present -- a row with only a country still renders
+// cleanly as just the country.
+export function formatFullLocation(
+  countryCode: string | null | undefined,
+  region: string | null | undefined,
+  city: string | null | undefined,
+): string {
+  if (!countryCode) return "Unknown";
+  const flag = countryFlag(countryCode);
+  const name = countryName(countryCode) ?? countryCode;
+  const country = flag ? `${flag} ${name}` : name;
+  const parts = [city, region].filter(Boolean);
+  return parts.length > 0 ? `${country} · ${parts.join(", ")}` : country;
+}

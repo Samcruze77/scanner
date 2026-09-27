@@ -20,6 +20,14 @@ export interface AdminAnalyticsRange {
   from?: string;
   to?: string;
   days?: number;
+  // Geographic + audience filters -- verified live against admin-analytics
+  // (see supabase/functions/admin-analytics/index.ts). All optional; each
+  // narrows overview/breakdowns/daily/geo consistently.
+  country?: string;
+  region?: string;
+  city?: string;
+  device?: string;
+  visitorType?: "new" | "returning";
 }
 
 // Flat map of metric name -> number, shape not yet confirmed beyond that.
@@ -29,11 +37,38 @@ export type AdminAnalyticsOverview = Record<string, unknown>;
 // yet confirmed beyond "some kind of list per breakdown".
 export type AdminAnalyticsBreakdowns = Record<string, unknown>;
 
+// `geo` IS a verified, concrete part of the admin-analytics contract (unlike
+// overview/breakdowns above, kept loose for historical reasons) -- it's the
+// per-country/region/city aggregation the Geography admin page renders.
+export interface AdminGeoRow {
+  key: string; // ISO country code, region/state name, or city name
+  users: number;
+  sessions: number;
+  opens: number;
+  pdf_jobs: number;
+  ad_impressions: number;
+  ad_clicks: number;
+  ctr: number | null;
+  pct_users: number | null;
+  pct_sessions: number | null;
+}
+
+export interface AdminGeoCityRow extends AdminGeoRow {
+  region: string | null;
+}
+
+export interface AdminAnalyticsGeo {
+  countries: AdminGeoRow[];
+  regions_by_country: Record<string, AdminGeoRow[]>;
+  cities_by_country: Record<string, AdminGeoCityRow[]>;
+}
+
 export interface AdminAnalyticsResponse {
   role: AdminRole | null;
   range?: AdminAnalyticsRange;
   overview?: AdminAnalyticsOverview;
   breakdowns?: AdminAnalyticsBreakdowns;
+  geo?: AdminAnalyticsGeo;
   daily?: unknown[];
 }
 

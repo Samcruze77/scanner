@@ -83,7 +83,11 @@ export function trackAdClickEvent(ad: EligibleAd, path: string): void {
 
 async function sendAdEvent(ad: EligibleAd, eventType: "impression" | "click", path: string): Promise<void> {
   try {
-    await fetch(`${FUNCTIONS_URL}/track-ad-event`, {
+    // Recording (impression/click) goes through this app's own proxy route
+    // so the write carries Vercel's real geolocation -- see
+    // app/api/analytics/ad-event/route.ts. `ads-eligible` above (the
+    // targeting decision) is unchanged and still calls Supabase directly.
+    await fetch("/api/analytics/ad-event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

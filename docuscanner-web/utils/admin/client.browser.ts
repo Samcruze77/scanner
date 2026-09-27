@@ -6,13 +6,14 @@
 
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
 import { fetchAdminAnalytics } from "./invoke";
-import type { AdminAnalyticsResponse } from "./types";
+import type { AdminAnalyticsRange, AdminAnalyticsResponse } from "./types";
 
 export async function getAdminAnalyticsBrowser(
   from?: string,
   to?: string,
   days?: number,
+  filters: Omit<AdminAnalyticsRange, "from" | "to" | "days"> = {},
 ): Promise<AdminAnalyticsResponse> {
   const supabase = createBrowserClient();
-  return fetchAdminAnalytics(supabase, { from, to, days });
+  return fetchAdminAnalytics(supabase, { from, to, days, ...filters });
 }

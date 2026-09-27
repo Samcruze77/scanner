@@ -11,11 +11,9 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { createClient } from "@/utils/supabase/client";
 import { getSessionId, getVisitorId } from "@/utils/analytics/identity";
 
 const HEARTBEAT_MS = 30_000;
-const FUNCTIONS_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1`;
 
 // Best-effort, coarse label from the URL alone -- not a claim about what's
 // actually happening inside the tool (e.g. "scanning" vs "idle"). Deeper,
@@ -35,18 +33,9 @@ async function sendHeartbeat(path: string) {
     const sessionId = getSessionId();
     if (!visitorId || !sessionId) return;
 
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    try {
-      const { data } = await createClient().auth.getSession();
-      const token = data.session?.access_token;
-      if (token) headers.Authorization = `Bearer ${token}`;
-    } catch {
-      // Guests have no session -- heartbeat still works, just without user_id.
-    }
-
-    await fetch(`${FUNCTIONS_URL}/heartbeat`, {
+    await fetch("/api/analytics/heartbeat", {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session_id: sessionId,
         visitor_id: visitorId,

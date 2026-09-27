@@ -1,0 +1,34 @@
+# Tracks the ACTUAL deployed configuration of this project's Edge Functions
+# (verified live via the Supabase MCP `list_edge_functions` call before this
+# file was created -- every function already has verify_jwt=false in
+# production). Function source lives under supabase/functions/<slug>/ for
+# the ones brought into version control so far; others remain deployed
+# directly (dashboard/API) without a tracked source file.
+#
+# verify_jwt=false is required here because these functions use
+# @supabase/server's own `auth` modes ('secret' / 'user') instead of the
+# platform-level JWT gate -- see the supabase-server skill.
+
+[functions.track-analytics]
+verify_jwt = false
+
+[functions.heartbeat]
+verify_jwt = false
+
+[functions.track-ad-event]
+verify_jwt = false
+
+[functions.admin-analytics]
+verify_jwt = false
+
+[functions.admin-users]
+verify_jwt = false
+
+[functions.admin-live]
+verify_jwt = false
+
+[functions.admin-ads]
+verify_jwt = false
+
+[functions.ads-eligible]
+verify_jwt = false

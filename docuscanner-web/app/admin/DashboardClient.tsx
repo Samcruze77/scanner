@@ -46,8 +46,12 @@ export function DashboardClient({
   }
 
   const overview = normalizeOverview(data?.overview);
+  // Countries/regions/cities now have their own dedicated Geography page
+  // (full dataset, sortable, region/city drill-down, advertiser view) --
+  // skip them here rather than showing a second, less capable copy.
+  const GEO_KEYS = new Set(["countries", "regions", "cities"]);
   const breakdownEntries = data?.breakdowns && typeof data.breakdowns === "object"
-    ? Object.entries(data.breakdowns as Record<string, unknown>)
+    ? Object.entries(data.breakdowns as Record<string, unknown>).filter(([key]) => !GEO_KEYS.has(key))
     : [];
   const dailySeries = tryDailySeries(data?.daily);
 
@@ -86,6 +90,14 @@ export function DashboardClient({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {isPending && <p className="text-sm text-zinc-400">Loading…</p>}
+
+      <Link
+        href="/admin/geography"
+        className="flex items-center justify-between rounded-lg border border-zinc-200 bg-surface px-4 py-3 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-950"
+      >
+        <span className="font-medium">Geography</span>
+        <span className="text-zinc-500 dark:text-zinc-400">Countries, regions &amp; cities, ad audience by market →</span>
+      </Link>
 
       {onlineCount !== null && (
         <Link

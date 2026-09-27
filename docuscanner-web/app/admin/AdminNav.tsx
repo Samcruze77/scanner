@@ -8,6 +8,7 @@ import type { AdminRole } from "@/utils/admin/types";
 // analytics view) -- no separate route for it to avoid a duplicate page.
 const LINKS = [
   { href: "/admin", label: "Dashboard" },
+  { href: "/admin/geography", label: "Geography" },
   { href: "/admin/live", label: "Live" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/ads", label: "Ads / Campaigns" },
