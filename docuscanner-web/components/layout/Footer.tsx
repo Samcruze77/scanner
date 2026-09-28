@@ -60,9 +60,25 @@ export function Footer() {
             links={[{ href: "/guides", label: "All guides" }, ...GUIDES.slice(0, 4).map((g) => ({ href: `/guides/${g.slug}`, label: g.h1.replace(/^How to /, "How to ") }))]}
           />
         </div>
-        <p className="muted mt-8 text-xs">
-          &copy; {new Date().getFullYear()} {SITE_NAME}. Free to use and supported by ads.
-        </p>
+        <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="muted text-xs">
+            &copy; {new Date().getFullYear()} {SITE_NAME}. Free to use and supported by ads.
+          </p>
+          <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            <span className="muted">
+              General inquiries:{" "}
+              <a href="mailto:info@freepdfscanner.com" className="hover:underline">
+                info@freepdfscanner.com
+              </a>
+            </span>
+            <span className="muted">
+              Support &amp; report issues:{" "}
+              <a href="mailto:support@freepdfscanner.com" className="hover:underline">
+                support@freepdfscanner.com
+              </a>
+            </span>
+          </p>
+        </div>
       </div>
     </footer>
   );

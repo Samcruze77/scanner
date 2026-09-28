@@ -79,9 +79,20 @@ export interface EdgeFunctionCallResult {
 
 // Server-to-server call, authenticated with the secret key per the
 // "auth: 'secret'" mode on the receiving Edge Function. Never throws --
-// analytics/presence/ad tracking must always fail silently to the visitor.
+// analytics/presence/ad tracking must always fail silently to the visitor --
+// but every failure IS logged server-side (visible in Vercel's function
+// logs), because "fail silently to the visitor" previously meant "fail
+// silently, period": a missing SUPABASE_SECRET_KEY in this app's Vercel
+// environment made every call here a no-op from the very first line below,
+// for every event, indefinitely, with nothing anywhere to indicate it.
 export async function callEdgeFunction(slug: string, payload: Record<string, unknown>): Promise<EdgeFunctionCallResult> {
-  if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) return { ok: false, status: 500 };
+  if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
+    console.error(
+      `analytics proxy misconfigured: missing ${!SUPABASE_URL ? "SUPABASE_URL" : "SUPABASE_SECRET_KEY"} -- ` +
+        `"${slug}" was never called, no event was recorded`,
+    );
+    return { ok: false, status: 500 };
+  }
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/${slug}`, {
       method: "POST",
@@ -91,8 +102,10 @@ export async function callEdgeFunction(slug: string, payload: Record<string, unk
       },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) console.error(`analytics proxy: "${slug}" rejected the event (status ${res.status})`);
     return { ok: res.ok, status: res.status };
-  } catch {
+  } catch (err) {
+    console.error(`analytics proxy: "${slug}" call failed`, err);
     return { ok: false, status: 502 };
   }
 }
