@@ -10,3 +10,8 @@ export function defaultDateRange(days = 7): DateRange {
   from.setDate(from.getDate() - (days - 1));
   return { from: toIsoDate(from), to: toIsoDate(to) };
 }
+
+export function todayRange(): DateRange {
+  const today = toIsoDate(new Date());
+  return { from: today, to: today };
+}

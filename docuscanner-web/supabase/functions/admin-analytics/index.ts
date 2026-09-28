@@ -1,5 +1,12 @@
 
 import { withSupabase } from "npm:@supabase/server"
+import {
+  UNKNOWN,
+  buildGeoHierarchy,
+  buildLocationRows,
+  type AnalyticsEventRow as GeoAnalyticsEventRow,
+  type AdEventRow as GeoAdEventRow,
+} from "../_shared/geoHierarchy.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,86 +21,34 @@ function response(body: unknown, status = 200) {
   })
 }
 
-const UNKNOWN = "Unknown"
 const PDF_JOB_EVENTS = new Set(["scan_completed", "conversion_completed"])
 const OPEN_EVENTS = new Set(["page_view", "app_open"])
 
-interface EventRow {
-  event_name: string
-  visitor_id: string | null
-  session_id: string | null
-  user_id: string | null
-  country_code: string | null
-  region: string | null
-  city: string | null
-  device_type: string | null
+// Superset of geoHierarchy's AnalyticsEventRow -- this route also needs
+// user_id/browser/os/referrer/properties for the non-geo overview and
+// breakdowns sections, which geoHierarchy has no reason to know about.
+interface EventRow extends GeoAnalyticsEventRow {
   browser: string | null
   operating_system: string | null
   referrer: string | null
-  created_at: string
   properties: Record<string, unknown> | null
 }
 
-interface AdEventRow {
-  event_type: "impression" | "click"
-  country_code: string | null
-  region: string | null
-  city: string | null
-  created_at: string
-}
+type AdEventRow = GeoAdEventRow
 
-interface GeoAgg {
-  users: Set<string>
-  sessions: Set<string>
-  opens: number
-  pdf_jobs: number
-  ad_impressions: number
-  ad_clicks: number
-}
+// Max rows returned in the "all users by location" detail table -- this is
+// a per-(date, country, region, city, device, visitor_type) breakdown, which
+// can run into the thousands over a 90-day window on real traffic. Sorted by
+// sessions/ad_impressions descending first, so truncation drops the least
+// active combinations, and `locations_truncated`/`locations_total_rows` in
+// the response say so rather than silently hiding data.
+const MAX_LOCATION_ROWS = 500
 
-function newAgg(): GeoAgg {
-  return { users: new Set(), sessions: new Set(), opens: 0, pdf_jobs: 0, ad_impressions: 0, ad_clicks: 0 }
-}
-
-function applyEventToAgg(agg: GeoAgg, row: EventRow) {
-  if (row.visitor_id) agg.users.add(row.visitor_id)
-  if (row.session_id) agg.sessions.add(row.session_id)
-  if (OPEN_EVENTS.has(row.event_name)) agg.opens += 1
-  if (PDF_JOB_EVENTS.has(row.event_name)) agg.pdf_jobs += 1
-}
-
-function applyAdEventToAgg(agg: GeoAgg, row: AdEventRow) {
-  if (row.event_type === "impression") agg.ad_impressions += 1
-  if (row.event_type === "click") agg.ad_clicks += 1
-}
-
-interface GeoRow {
-  key: string
-  users: number
-  sessions: number
-  opens: number
-  pdf_jobs: number
-  ad_impressions: number
-  ad_clicks: number
-  ctr: number | null
-  pct_users: number | null
-  pct_sessions: number | null
-}
-
-function toGeoRow(key: string, agg: GeoAgg, totalUsers: number, totalSessions: number): GeoRow {
-  return {
-    key,
-    users: agg.users.size,
-    sessions: agg.sessions.size,
-    opens: agg.opens,
-    pdf_jobs: agg.pdf_jobs,
-    ad_impressions: agg.ad_impressions,
-    ad_clicks: agg.ad_clicks,
-    ctr: agg.ad_impressions > 0 ? Number(((agg.ad_clicks / agg.ad_impressions) * 100).toFixed(2)) : null,
-    pct_users: totalUsers > 0 ? Number(((agg.users.size / totalUsers) * 100).toFixed(2)) : null,
-    pct_sessions: totalSessions > 0 ? Number(((agg.sessions.size / totalSessions) * 100).toFixed(2)) : null,
-  }
-}
+// Cap the visitor-history lookback that would happen only when the
+// visitor_type filter is requested (a network call, not a hard requirement
+// like locations' rows above), and now the same set doubles as the source of
+// truth for grouping the location-detail table by new/returning.
+const MAX_RETURNING_LOOKUP = 5000
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
@@ -137,23 +92,32 @@ export default {
       ? new Date(fromParam)
       : new Date(to.getTime() - days * 24 * 60 * 60 * 1000)
 
-    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from >= to) {
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) {
       return response({ error: "Invalid date range" }, 400)
     }
+
+    // `to` is always a bare calendar date (yyyy-mm-dd) from the client,
+    // which parses to that day's UTC midnight -- querying with a plain
+    // `lt(to)` would exclude the entire `to` day, including "today" itself
+    // whenever from === to (exactly the Today preset). Query up to the
+    // START of the day AFTER `to` instead, so the whole `to` day is
+    // included; `range` in the response still echoes exactly what was
+    // requested, unshifted.
+    const toExclusive = new Date(to.getTime() + 24 * 60 * 60 * 1000)
 
     const [{ data: events, error }, { data: adEvents, error: adError }] = await Promise.all([
       ctx.supabaseAdmin
         .from("analytics_events")
         .select("event_name,visitor_id,session_id,user_id,country_code,region,city,device_type,browser,operating_system,referrer,created_at,properties")
         .gte("created_at", from.toISOString())
-        .lt("created_at", to.toISOString())
+        .lt("created_at", toExclusive.toISOString())
         .order("created_at", { ascending: false })
         .limit(100000),
       ctx.supabaseAdmin
         .from("ad_events")
-        .select("event_type,country_code,region,city,created_at")
+        .select("event_type,country_code,region,city,device_type,created_at")
         .gte("created_at", from.toISOString())
-        .lt("created_at", to.toISOString())
+        .lt("created_at", toExclusive.toISOString())
         .limit(100000),
     ])
 
@@ -167,19 +131,22 @@ export default {
     // strictly before `from`. Scoped to the visitor ids actually present in
     // this window (not a full-history scan) to stay fast; capped defensively
     // since an extreme number of unique visitors in one window is not a
-    // realistic admin query.
+    // realistic admin query. Computed unconditionally now (not only when
+    // ?visitor_type= is passed) because the location-detail table below
+    // always breaks sessions down by new/returning.
+    const visitorIds = [...new Set(rows.map((r) => r.visitor_id).filter((v): v is string => !!v))].slice(0, MAX_RETURNING_LOOKUP)
+    let returningIds = new Set<string>()
+    if (visitorIds.length > 0) {
+      const { data: priorRows } = await ctx.supabaseAdmin
+        .from("analytics_events")
+        .select("visitor_id")
+        .lt("created_at", from.toISOString())
+        .in("visitor_id", visitorIds)
+        .limit(100000)
+      returningIds = new Set((priorRows ?? []).map((r: { visitor_id: string | null }) => r.visitor_id).filter((v): v is string => !!v))
+    }
+
     if (filterVisitorType === "new" || filterVisitorType === "returning") {
-      const visitorIds = [...new Set(rows.map((r) => r.visitor_id).filter((v): v is string => !!v))].slice(0, 5000)
-      let returningIds = new Set<string>()
-      if (visitorIds.length > 0) {
-        const { data: priorRows } = await ctx.supabaseAdmin
-          .from("analytics_events")
-          .select("visitor_id")
-          .lt("created_at", from.toISOString())
-          .in("visitor_id", visitorIds)
-          .limit(100000)
-        returningIds = new Set((priorRows ?? []).map((r: { visitor_id: string | null }) => r.visitor_id).filter((v): v is string => !!v))
-      }
       rows = rows.filter((r) => {
         const isReturning = !!r.visitor_id && returningIds.has(r.visitor_id)
         return filterVisitorType === "returning" ? isReturning : !isReturning
@@ -196,6 +163,7 @@ export default {
     if (filterCountry) adRows = adRows.filter((r) => (r.country_code ?? UNKNOWN) === filterCountry)
     if (filterRegion) adRows = adRows.filter((r) => r.region === filterRegion)
     if (filterCity) adRows = adRows.filter((r) => r.city === filterCity)
+    if (filterDevice) adRows = adRows.filter((r) => r.device_type === filterDevice)
 
     const unique = (values: unknown[]) => new Set(values.filter(Boolean)).size
     const eventCount = (name: string) => rows.filter((r) => r.event_name === name).length
@@ -244,75 +212,28 @@ export default {
     const totalPdfJobs = rows.filter((r) => PDF_JOB_EVENTS.has(r.event_name)).length
     const totalOpens = rows.filter((r) => OPEN_EVENTS.has(r.event_name)).length
 
-    // --- Geography: countries (full dataset, sorted by users desc),
-    // regions/cities grouped per country so the admin UI can drill down
-    // without another round trip. Works for any country worldwide -- keys
-    // come entirely from whatever country_code/region/city values exist in
-    // the data, nothing is hard-coded.
-    const countryAgg = new Map<string, GeoAgg>()
-    const regionAgg = new Map<string, Map<string, GeoAgg>>() // country_code -> region -> agg
-    const cityAgg = new Map<string, Map<string, { region: string | null; agg: GeoAgg }>>() // country_code -> city -> agg
-
-    for (const row of rows) {
-      const country = row.country_code ?? UNKNOWN
-      if (!countryAgg.has(country)) countryAgg.set(country, newAgg())
-      applyEventToAgg(countryAgg.get(country)!, row)
-
-      if (row.region) {
-        if (!regionAgg.has(country)) regionAgg.set(country, new Map())
-        const byRegion = regionAgg.get(country)!
-        if (!byRegion.has(row.region)) byRegion.set(row.region, newAgg())
-        applyEventToAgg(byRegion.get(row.region)!, row)
-      }
-
-      if (row.city) {
-        if (!cityAgg.has(country)) cityAgg.set(country, new Map())
-        const byCity = cityAgg.get(country)!
-        if (!byCity.has(row.city)) byCity.set(row.city, { region: row.region, agg: newAgg() })
-        applyEventToAgg(byCity.get(row.city)!.agg, row)
-      }
-    }
-
-    for (const row of adRows) {
-      const country = row.country_code ?? UNKNOWN
-      if (!countryAgg.has(country)) countryAgg.set(country, newAgg())
-      applyAdEventToAgg(countryAgg.get(country)!, row)
-
-      if (row.region) {
-        if (!regionAgg.has(country)) regionAgg.set(country, new Map())
-        const byRegion = regionAgg.get(country)!
-        if (!byRegion.has(row.region)) byRegion.set(row.region, newAgg())
-        applyAdEventToAgg(byRegion.get(row.region)!, row)
-      }
-
-      if (row.city) {
-        if (!cityAgg.has(country)) cityAgg.set(country, new Map())
-        const byCity = cityAgg.get(country)!
-        if (!byCity.has(row.city)) byCity.set(row.city, { region: row.region, agg: newAgg() })
-        applyAdEventToAgg(byCity.get(row.city)!.agg, row)
-      }
-    }
-
+    // --- Geography: Country -> Region -> City, full dataset (sorted by
+    // users desc), never a hard-coded/truncated list -- see
+    // ../_shared/geoHierarchy.ts. Works for any country worldwide: keys come
+    // entirely from whatever country_code/region/city values exist in the
+    // data.
     const totalUsers = visitors
     const totalSessions = sessions
+    const { countries, regionsByCountry, citiesByCountry } = buildGeoHierarchy(rows, adRows, totalUsers, totalSessions)
 
-    const countries = [...countryAgg.entries()]
-      .map(([key, agg]) => toGeoRow(key, agg, totalUsers, totalSessions))
-      .sort((a, b) => b.users - a.users)
+    const countriesRepresented = countries.filter((c) => c.key !== UNKNOWN).length
+    const citiesRepresented = new Set(
+      Object.values(citiesByCountry).flatMap((list) => list.map((c) => c.key)),
+    ).size
 
-    const regionsByCountry: Record<string, GeoRow[]> = {}
-    for (const [country, byRegion] of regionAgg) {
-      regionsByCountry[country] = [...byRegion.entries()]
-        .map(([key, agg]) => toGeoRow(key, agg, totalUsers, totalSessions))
-        .sort((a, b) => b.users - a.users)
-    }
-
-    const citiesByCountry: Record<string, (GeoRow & { region: string | null })[]> = {}
-    for (const [country, byCity] of cityAgg) {
-      citiesByCountry[country] = [...byCity.entries()]
-        .map(([key, { region, agg }]) => ({ ...toGeoRow(key, agg, totalUsers, totalSessions), region }))
-        .sort((a, b) => b.users - a.users)
-    }
+    // --- "All users by location": one row per (date, country, region,
+    // city, device, new/returning), capped and sorted by activity so the
+    // admin can inspect exactly where traffic is coming from without a
+    // second, unrelated analytics table -- see buildLocationRows for why ad
+    // metrics land on a separate synthetic row instead of being duplicated
+    // across visitor-type rows.
+    const allLocationRows = buildLocationRows(rows, adRows, returningIds)
+    const locations = allLocationRows.slice(0, MAX_LOCATION_ROWS)
 
     return response({
       role,
@@ -339,6 +260,8 @@ export default {
         ad_impressions: totalAdImpressions,
         ad_clicks: totalAdClicks,
         ad_ctr: totalAdImpressions > 0 ? Number(((totalAdClicks / totalAdImpressions) * 100).toFixed(2)) : null,
+        countries: countriesRepresented,
+        cities: citiesRepresented,
       },
       breakdowns: {
         countries: topCounts(rows.map((r) => r.country_code)),
@@ -354,6 +277,9 @@ export default {
         regions_by_country: regionsByCountry,
         cities_by_country: citiesByCountry,
       },
+      locations,
+      locations_total_rows: allLocationRows.length,
+      locations_truncated: allLocationRows.length > MAX_LOCATION_ROWS,
       daily,
     })
   }),

@@ -41,9 +41,14 @@ export type AdminAnalyticsBreakdowns = Record<string, unknown>;
 // overview/breakdowns above, kept loose for historical reasons) -- it's the
 // per-country/region/city aggregation the Geography admin page renders.
 export interface AdminGeoRow {
-  key: string; // ISO country code, region/state name, or city name
+  key: string; // ISO country code, region/state code, or city name ("Unknown" at country level)
   users: number;
   sessions: number;
+  // Distinct child locations rolled up under this row -- at a country row,
+  // how many states/regions and cities it contains; at a region row, how
+  // many cities. Always 0 on a city row (nothing below it).
+  regions: number;
+  cities: number;
   opens: number;
   pdf_jobs: number;
   ad_impressions: number;
@@ -63,12 +68,33 @@ export interface AdminAnalyticsGeo {
   cities_by_country: Record<string, AdminGeoCityRow[]>;
 }
 
+// One row of the "All users by location" detail table -- see
+// supabase/functions/_shared/geoHierarchy.ts's buildLocationRows for why
+// ad_impressions/ad_clicks live on a separate "ads" visitor_type row instead
+// of being duplicated across the new/returning rows at the same location.
+export type AdminVisitorType = "new" | "returning" | "unknown" | "ads";
+
+export interface AdminLocationRow {
+  date: string;
+  country: string; // ISO code, or "Unknown"
+  region: string | null;
+  city: string | null;
+  device: string | null;
+  visitor_type: AdminVisitorType;
+  sessions: number;
+  ad_impressions: number;
+  ad_clicks: number;
+}
+
 export interface AdminAnalyticsResponse {
   role: AdminRole | null;
   range?: AdminAnalyticsRange;
   overview?: AdminAnalyticsOverview;
   breakdowns?: AdminAnalyticsBreakdowns;
   geo?: AdminAnalyticsGeo;
+  locations?: AdminLocationRow[];
+  locations_total_rows?: number;
+  locations_truncated?: boolean;
   daily?: unknown[];
 }
 
