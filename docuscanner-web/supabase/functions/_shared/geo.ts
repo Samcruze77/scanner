@@ -81,7 +81,14 @@ export function osFromUserAgent(ua: string): string {
   return "other";
 }
 
-export async function hmacIp(ip: string, secret: string): Promise<string> {
+// Returns null (never throws) when `secret` is empty -- crypto.subtle.importKey
+// rejects a zero-length HMAC key with an uncaught DataError, which previously
+// took down the entire request (and the event it was trying to record) over
+// a missing SUPABASE_SECRET_KEY Edge Function secret. IP-hash-based rate
+// limiting degrades to "off" in that case; it was never load-bearing for
+// whether the event itself gets recorded.
+export async function hmacIp(ip: string, secret: string): Promise<string | null> {
+  if (!secret) return null;
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
