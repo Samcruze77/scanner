@@ -5,7 +5,7 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { createClient as createServerSupabaseClient } from "@/utils/supabase/server";
-import { fetchAdminAnalytics } from "./invoke";
+import { fetchAdminAnalytics, fetchAdminRole } from "./invoke";
 import type { AdminAnalyticsResponse } from "./types";
 
 // Wrapped in React's cache() so the layout's role check and the page's data
@@ -26,3 +26,10 @@ export const getAdminAnalytics = cache(
     });
   },
 );
+
+// The admin layout's access check. It only needs the caller's role, so it must
+// not pay for a full analytics aggregation on every admin request.
+export const getAdminRole = cache(async () => {
+  const cookieStore = await cookies();
+  return fetchAdminRole(createServerSupabaseClient(cookieStore));
+});

@@ -103,6 +103,14 @@ export type DateRangeResult =
 // the query runs to the start of the day AFTER it -- otherwise the whole
 // `to` day (including "today" on the Today preset) would be excluded.
 export function resolveRange(params: URLSearchParams, now: Date = new Date()): DateRangeResult {
+  // A date that is present but empty or malformed is an error, never a silent
+  // fallback to the default window (which would export a different period
+  // than the one selected). Dates are UTC calendar days, both inclusive.
+  for (const key of ["from", "to"] as const) {
+    const raw = params.get(key);
+    if (raw === null) continue;
+    if (!isValidDateParam(raw)) return { ok: false, error: `Invalid "${key}" date: expected YYYY-MM-DD` };
+  }
   const days = Math.min(Math.max(Number(params.get("days") ?? "30"), 1), 365);
   const toParam = params.get("to");
   const fromParam = params.get("from");
@@ -112,6 +120,17 @@ export function resolveRange(params: URLSearchParams, now: Date = new Date()): D
     return { ok: false, error: "Invalid date range" };
   }
   return { ok: true, from, to, toExclusive: new Date(to.getTime() + 24 * 60 * 60 * 1000) };
+}
+
+// YYYY-MM-DD that is a real calendar day (2026-02-30 is rejected), or a full
+// ISO timestamp (older callers); anything else, including "", is invalid.
+export function isValidDateParam(raw: string): boolean {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (day) {
+    const d = new Date(`${raw}T00:00:00Z`);
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === raw;
+  }
+  return /^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|[+-]\d{2}:\d{2})$/.test(raw) && !Number.isNaN(new Date(raw).getTime());
 }
 
 // Canonical query-string form of a parsed selection: what pages put in

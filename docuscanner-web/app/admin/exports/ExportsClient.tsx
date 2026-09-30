@@ -16,6 +16,7 @@ import type { AnalyticsFilters } from "../../../supabase/functions/_shared/analy
 import type { DateRange, DownloadExportFormat, ExportOptions, ExportRequest, ReportPreview, ReportSource } from "@/utils/admin/types";
 import { CLARITY_DIMENSIONS, MAX_CLARITY_DIMENSIONS } from "@/utils/clarity/api";
 import { GeoSelectors, selectClass } from "@/components/admin/GeoSelectors";
+import { DateRangeControl } from "@/components/admin/DateRangeControl";
 import { canManageExports, useAdminRole } from "../AdminRoleContext";
 
 const REPORT_TYPES = [
@@ -158,6 +159,13 @@ export function ExportsClient({
     }
   }, []);
 
+  // Apply commits the range and previews it straight away; the download links
+  // then carry exactly this range and the current filters.
+  const applyRange = (next: DateRange) => {
+    setRange(next);
+    void generate({ ...request, dateRange: next });
+  };
+
   // Arriving from "Export this view"/"Export" with a selection: preview it right away.
   const autoran = useRef(false);
   useEffect(() => {
@@ -223,16 +231,7 @@ export function ExportsClient({
           )}
 
           {source !== "clarity" && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="text-sm">
-              <span className="mb-1 block text-zinc-500 dark:text-zinc-400">From</span>
-              <input type="date" value={range.from} max={range.to} onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))} className={inputClass} />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block text-zinc-500 dark:text-zinc-400">To</span>
-              <input type="date" value={range.to} min={range.from} onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))} className={inputClass} />
-            </label>
-          </div>
+          <DateRangeControl value={range} onApply={applyRange} busy={preview.status === "loading"} />
           )}
 
           {source !== "clarity" && (

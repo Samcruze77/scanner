@@ -91,5 +91,9 @@ export function xlsxRow(row: FlatRow, columns: readonly string[]): Cell[] {
 }
 
 export function exportFilename(format: string, reportType: string, from: string, to: string): string {
-  return `analytics-${reportType}-${from}_to_${to}.${format}`;
+  // freepdfscanner-analytics-2026-09-01-to-2026-09-30.csv; the report type is
+  // added only when it is not the default full report, so two different reports
+  // for one period do not overwrite each other.
+  const type = reportType === "full" ? "" : `${reportType.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-`;
+  return `freepdfscanner-analytics-${type}${from}-to-${to}.${format}`;
 }

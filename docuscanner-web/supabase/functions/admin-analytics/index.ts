@@ -2,6 +2,7 @@
 import { withSupabase } from "npm:@supabase/server"
 import {
   UNKNOWN,
+  buildGeoCoverage,
   buildGeoHierarchy,
   buildLocationRows,
   type AnalyticsEventRow as GeoAnalyticsEventRow,
@@ -31,6 +32,7 @@ const OPEN_EVENTS = new Set(["page_view", "app_open"])
 // breakdowns sections, which geoHierarchy has no reason to know about.
 interface EventRow extends GeoAnalyticsEventRow {
   id: number
+  location_source?: string | null
   browser: string | null
   operating_system: string | null
   referrer: string | null
@@ -74,6 +76,9 @@ export default {
 
     const role = adminRow.role
     const url = new URL(req.url)
+    // Cheap authorization probe for the admin layout: the role only, without
+    // reading a single analytics row.
+    if (url.searchParams.get("mode") === "role") return response({ role })
     // Geographic + audience filters. All optional; each narrows the SAME
     // dataset used for overview/breakdowns/daily/geo (and, via the shared
     // ../_shared/analyticsFilters.ts, the export), so filtering is consistent
@@ -91,7 +96,7 @@ export default {
       fetchAllByKeyset<EventRow>((afterId, pageSize) =>
         ctx.supabaseAdmin
           .from("analytics_events")
-          .select("id,event_name,visitor_id,session_id,user_id,country_code,region,city,county_district_lga,neighborhood_suburb,device_type,browser,operating_system,referrer,created_at,properties")
+          .select("id,event_name,visitor_id,session_id,user_id,country_code,region,city,county_district_lga,neighborhood_suburb,location_source,device_type,browser,operating_system,referrer,created_at,properties")
           .gte("created_at", from.toISOString())
           .lt("created_at", toExclusive.toISOString())
           .gt("id", afterId)
@@ -273,6 +278,7 @@ export default {
         regions_by_country: regionsByCountry,
         cities_by_country: citiesByCountry,
       },
+      geo_coverage: buildGeoCoverage(rows),
       locations,
       locations_total_rows: allLocationRows.length,
       locations_truncated: allLocationRows.length > MAX_LOCATION_ROWS,

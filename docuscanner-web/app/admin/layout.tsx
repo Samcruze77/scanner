@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getVerifiedClaims } from "@/utils/supabase/claims";
-import { getAdminAnalytics } from "@/utils/admin/client.server";
-import { defaultDateRange } from "@/utils/admin/dateRange";
+import { getAdminRole } from "@/utils/admin/client.server";
 import type { AdminRole } from "@/utils/admin/types";
 import { privateMetadata } from "@/utils/seo/metadata";
 import { AdminRoleProvider } from "./AdminRoleContext";
@@ -30,15 +29,13 @@ export default async function AdminLayout({
 
   // There is no separate whoami endpoint. admin-analytics is itself
   // authenticated and checks public.admin_users server-side, and its
-  // response carries the caller's role -- that response is the ONLY source
+  // role-only mode (?mode=role) returns the caller's role without reading any analytics -- that response is the ONLY source
   // of truth for access here. A failed call (network/HTTP error, e.g. the
   // backend rejecting a non-admin caller) or a missing/unrecognized role is
   // treated as "not an admin," never inferred from anything client-side.
-  const range = defaultDateRange();
   let role: AdminRole | null = null;
   try {
-    const res = await getAdminAnalytics(range.from, range.to);
-    role = res?.role ?? null;
+    role = (await getAdminRole()) ?? null;
   } catch {
     role = null;
   }

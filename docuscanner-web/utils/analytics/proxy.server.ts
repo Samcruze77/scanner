@@ -65,8 +65,12 @@ export async function resolveUserId(): Promise<string | null> {
   try {
     const cookieStore = await cookies();
     const supabase = createServerSupabaseClient(cookieStore);
-    const { data } = await supabase.auth.getUser();
-    return data.user?.id ?? null;
+    // getClaims() verifies the token locally when the project uses asymmetric
+    // signing keys; getUser() was a network round trip to Supabase Auth on
+    // every analytics request from a signed-in visitor. Guests have no
+    // session cookie, so neither call does any work for them.
+    const { data } = await supabase.auth.getClaims();
+    return typeof data?.claims?.sub === "string" ? data.claims.sub : null;
   } catch {
     return null;
   }

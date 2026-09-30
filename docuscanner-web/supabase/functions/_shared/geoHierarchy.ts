@@ -361,3 +361,38 @@ export function buildLocationRows(
 
   return out.sort((a, b) => b.sessions - a.sessions || b.ad_impressions - a.ad_impressions);
 }
+
+// --- Precision coverage ----------------------------------------------------
+//
+// What the stored data actually contains, per level: how many events carry a
+// country, a state/region, a city, a district, a neighbourhood. This is what
+// the Geography page shows so "Lagos appears" is never mistaken for "locality
+// level data exists". Counts only what is stored; nothing is inferred.
+
+export interface GeoCoverage {
+  events: number;
+  country: number;
+  state_province: number;
+  city_town: number;
+  county_district_lga: number;
+  neighborhood_suburb: number;
+  // Stored provider name (e.g. "vercel", "ip2location") -> events. Events
+  // recorded before location_source existed are counted under "unrecorded".
+  sources: { source: string; events: number }[];
+}
+
+export function buildGeoCoverage(rows: (GeoLocationInput & { location_source?: string | null })[]): GeoCoverage {
+  const out: GeoCoverage = { events: rows.length, country: 0, state_province: 0, city_town: 0, county_district_lga: 0, neighborhood_suburb: 0, sources: [] };
+  const sources = new Map<string, number>();
+  for (const row of rows) {
+    if (row.country_code && row.country_code !== UNKNOWN) out.country += 1;
+    if (row.region) out.state_province += 1;
+    if (row.city) out.city_town += 1;
+    if (row.county_district_lga) out.county_district_lga += 1;
+    if (row.neighborhood_suburb) out.neighborhood_suburb += 1;
+    const source = row.location_source || "unrecorded";
+    sources.set(source, (sources.get(source) ?? 0) + 1);
+  }
+  out.sources = [...sources.entries()].sort((a, b) => b[1] - a[1]).map(([source, events]) => ({ source, events }));
+  return out;
+}

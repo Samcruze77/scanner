@@ -32,6 +32,8 @@ export function AdminNav({ role }: { role: AdminRole }) {
           <Link
             key={link.href}
             href={link.href}
+            // Admin pages are dynamic and each runs a session check + analytics query; prefetching all eight on every admin page load multiplied that work.
+            prefetch={false}
             className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
               active
                 ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-black"

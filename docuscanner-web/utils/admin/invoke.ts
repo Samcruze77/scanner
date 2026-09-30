@@ -47,3 +47,12 @@ export async function fetchAdminAnalytics(
   if (error) throw error;
   return data as AdminAnalyticsResponse;
 }
+
+// Role only (no analytics rows read). An older deployed function without
+// `mode=role` ignores it and returns the full response, which also carries
+// `role`, so this is safe to call before the function is redeployed.
+export async function fetchAdminRole(supabase: SupabaseClient): Promise<AdminAnalyticsResponse["role"]> {
+  const { data, error } = await supabase.functions.invoke("admin-analytics?mode=role", { method: "GET" });
+  if (error) throw error;
+  return (data as AdminAnalyticsResponse).role ?? null;
+}

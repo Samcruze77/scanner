@@ -108,12 +108,24 @@ export interface AdminLocationRow {
   ad_clicks: number;
 }
 
+export interface AdminGeoCoverage {
+  events: number;
+  country: number;
+  state_province: number;
+  city_town: number;
+  county_district_lga: number;
+  neighborhood_suburb: number;
+  sources: { source: string; events: number }[];
+}
+
 export interface AdminAnalyticsResponse {
   role: AdminRole | null;
   range?: AdminAnalyticsRange;
   overview?: AdminAnalyticsOverview;
   breakdowns?: AdminAnalyticsBreakdowns;
   geo?: AdminAnalyticsGeo;
+  // What the stored data actually carries per geography level + provider names.
+  geo_coverage?: AdminGeoCoverage;
   locations?: AdminLocationRow[];
   locations_total_rows?: number;
   locations_truncated?: boolean;

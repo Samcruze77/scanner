@@ -55,6 +55,16 @@ function clean(value: string | null | undefined, max: number): string | null {
   return trimmed ? trimmed.slice(0, max) : null;
 }
 
+// Vercel percent-encodes the city header. A malformed sequence must cost only the
+// city, never the whole event (decodeURIComponent throws on it).
+function safeDecode(value: string): string | null {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+}
+
 function cleanCountryCode(value: string | null | undefined): string | null {
   const v = clean(value, 8);
   return v ? v.toUpperCase() : null;
@@ -69,7 +79,7 @@ export function normalizeVercelGeo(geo: Geo | null | undefined): NormalizedGeo {
   return {
     countryCode,
     region: clean(geo?.countryRegion, 120),
-    city: clean(geo?.city ? decodeURIComponent(geo.city) : null, 160),
+    city: clean(geo?.city ? safeDecode(geo.city) : null, 160),
     countyDistrictLga: null,
     neighborhoodSuburb: null,
     postalCode: clean(geo?.postalCode, 20),
