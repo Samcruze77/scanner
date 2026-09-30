@@ -12,13 +12,15 @@
 
 import { protectPdf, ProtectError, validatePassword, MAX_PROTECT_BYTES, type ProtectOptions, type QpdfFactory } from "./protect.ts";
 import { encryptDocx, verifyEncryptedDocx } from "./ooxml.ts";
-import { validateDocxPackage } from "./docx.ts";
+import { validateDocxPackage, WORD_MIME, type WordExtension } from "./docx.ts";
 
 export type ProtectKind = "pdf" | "docx";
 export type ProtectPhase = "validating" | "encrypting" | "verifying" | "completed";
 
 export interface ProtectRequest {
   kind: ProtectKind;
+  // For Word files: the kind of package the file name says it is (default .docx).
+  wordExtension?: WordExtension;
   // Read only. Never written to.
   bytes: Uint8Array;
   password: string;
@@ -44,7 +46,7 @@ export interface ProtectHooks {
 export interface ProtectedOutput {
   data: Uint8Array;
   mime: string;
-  extension: "pdf" | "docx";
+  extension: "pdf" | WordExtension;
 }
 
 export const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
@@ -96,7 +98,7 @@ export async function runProtection(request: ProtectRequest, engines: ProtectEng
       const passwordError = validatePassword(request.password);
       if (passwordError) throw new ProtectError(passwordError);
       if (request.bytes.length === 0) throw new ProtectError("protect_invalid");
-      if (request.kind === "docx") await validateDocxPackage(request.bytes);
+      if (request.kind === "docx") await validateDocxPackage(request.bytes, request.wordExtension ?? "docx");
       else if (request.bytes.length > MAX_PROTECT_BYTES) throw new ProtectError("protect_too_large");
 
       if (request.kind === "docx") {
@@ -107,7 +109,8 @@ export async function runProtection(request: ProtectRequest, engines: ProtectEng
         const verify = engines.verifyEncryptedDocx ?? verifyEncryptedDocx;
         await verify(data, request.bytes, request.password, { signal, onProgress: hooks.onProgress });
         phase("completed");
-        return { data, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", extension: "docx" };
+        const extension = request.wordExtension ?? "docx";
+        return { data, mime: WORD_MIME[extension], extension };
       }
 
       phase("encrypting");

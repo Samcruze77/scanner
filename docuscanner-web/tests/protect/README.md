@@ -13,6 +13,20 @@ Independent checks used (the code is never only checked against itself):
 `msoffcrypto-tool` and LibreOffice are optional: without them those checks are skipped with a message.
 `tests/protect/lo_open.py` is the LibreOffice helper.
 
+## Word formats
+
+Protect Word accepts `.docx`, `.docm` (macro-enabled), `.dotx` (template) and `.dotm` (macro-enabled template). All four are
+the same kind of package, so the same Office encryption (AES-256 Agile) applies, and the package is encrypted exactly as it is:
+macros are never run, changed or removed, and the protected copy keeps the original extension.
+
+A file's real contents must match its extension (the main part's content type is checked), so a macro-enabled document saved
+under a `.docx` name, or macro code inside a plain `.docx`/`.dotx`, is refused with `protect_type_mismatch`. Not supported and
+refused with a specific message: old `.doc` (needs weak RC4 encryption and rewriting the file), Word `.xml` files, `.rtf`,
+`.odt`, and files that already have a password.
+
+Only `.docx` has been opened in real Microsoft Word (see below). `.docm`, `.dotx` and `.dotm` are covered by the automated tests
+(byte-identical decryption with msoffcrypto-tool, extension kept, macro project untouched) but **not yet opened in Word**.
+
 ## Microsoft Word result
 
 Reported by the project owner (not run by the automated tests): `tests/protect/out/sample-protected.docx`
