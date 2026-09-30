@@ -198,10 +198,14 @@ export async function protectPdf(input: Uint8Array, options: ProtectOptions, cre
     // The engine's copy of the input is no longer needed: free it before the checks.
     cleanup(qpdf, ["/in.pdf"]);
 
-    // Never hand back a file we have not proven is locked: it must open with the
-    // password, and must NOT open without one.
-    const opensWithPassword = [0, 3].includes(run(qpdf, ["--check", `--password=${options.password}`, "/out.pdf"]));
-    const opensWithoutPassword = run(qpdf, ["--show-encryption", "/out.pdf"]) === 0;
+    // Never hand back a file we have not proven is locked: it must open with the password,
+    // and must NOT open without one. These commands are chosen because they print nothing
+    // secret (QPDF's --check and --show-encryption print "User password = ..." to the console).
+    //   --requires-password exits 3 only for an encrypted file that the supplied password opens
+    //   (2 for a wrong or missing password, and also for an unencrypted file).
+    const pw = `--password=${options.password}`;
+    const opensWithPassword = run(qpdf, ["--requires-password", pw, "/out.pdf"]) === 3 && run(qpdf, ["--show-npages", pw, "/out.pdf"]) === 0;
+    const opensWithoutPassword = run(qpdf, ["--requires-password", "/out.pdf"]) === 3 || run(qpdf, ["--show-npages", "/out.pdf"]) === 0;
     // readFile returns a copy that stays valid after the engine's file is deleted.
     const data = qpdf.FS.readFile("/out.pdf");
     if (!opensWithPassword || opensWithoutPassword || data.byteLength === 0 || !mentionsEncrypt(data)) throw new ProtectError("protect_failed");

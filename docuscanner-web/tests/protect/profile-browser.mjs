@@ -36,18 +36,18 @@ for (const mb of sizes.length ? sizes : [1, 10, 25, 48]) {
   const browser = await chromium.launch({ executablePath: CHROME, args: ["--no-sandbox"] });
   try {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
-    await context.addInitScript(() => {
+    await context.addInitScript((isPdf) => {
       localStorage.setItem("ds_consent", JSON.stringify({ version: 1, decided_at: new Date().toISOString(), analytics: false, advertising: false, recordings: false }));
       window.__marks = {};
       window.__heapPeak = 0;
       setInterval(() => { const m = performance.memory; if (m) window.__heapPeak = Math.max(window.__heapPeak, m.usedJSHeapSize); }, 25);
       new MutationObserver(() => {
         const text = document.body?.innerText ?? "";
-        for (const [key, needle] of [["encrypting", "Protecting your document on this device"], ["verifying", "Checking the protected copy"], ["done", PDF ? "Your PDF is protected" : "Your Word document is protected"], ["failed", "couldn't protect"], ["failed2", "too large for your browser"]]) {
+        for (const [key, needle] of [["encrypting", "Protecting your document on this device"], ["verifying", "Checking the protected copy"], ["done", isPdf ? "Your PDF is protected" : "Your Word document is protected"], ["failed", "couldn't protect"], ["failed2", "too large for your browser"]]) {
           if (!(key in window.__marks) && text.includes(needle)) window.__marks[key] = performance.now();
         }
       }).observe(document, { childList: true, subtree: true, characterData: true });
-    });
+    }, PDF);
     const page = await context.newPage();
     await page.goto(`${BASE}/tools/${PDF ? "protect-pdf" : "protect-word"}`, { waitUntil: "networkidle" });
     const cdp = await browser.newBrowserCDPSession();

@@ -129,6 +129,26 @@ await test("PDF: corrupt, empty and already-protected files are refused with no 
   assert.equal(await code(protectPdf(data, opts, createQpdf)), "protect_already_protected");
 });
 
+await test("PDF: the engine never prints the password (or any secret) to the console during protection", async () => {
+  const secret = "Very-Secret-Pw-987!";
+  const seen = [];
+  const out = process.stdout.write.bind(process.stdout), err = process.stderr.write.bind(process.stderr);
+  const origLog = console.log, origError = console.error;
+  process.stdout.write = (c) => (seen.push(String(c)), true);
+  process.stderr.write = (c) => (seen.push(String(c)), true);
+  console.log = (...a) => seen.push(a.join(" "));
+  console.error = (...a) => seen.push(a.join(" "));
+  try {
+    const { data } = await protectPdf(pdf, { password: secret, allowPrint: true, allowCopy: true, allowEdit: false }, createQpdf);
+    assert.ok(data.length > 0);
+    await assert.rejects(protectPdf(new TextEncoder().encode("%PDF-1.4\ngarbage"), { password: secret, allowPrint: true, allowCopy: true, allowEdit: false }, createQpdf));
+  } finally {
+    process.stdout.write = out; process.stderr.write = err; console.log = origLog; console.error = origError;
+  }
+  assert.ok(!seen.join("\n").includes(secret), `password leaked to console output: ${seen.join(" | ").slice(0, 300)}`);
+  assert.ok(!/User password|owner password/i.test(seen.join("\n")), "no encryption parameters printed");
+});
+
 await test("PDF: already-protected detection without parsing: user-password, owner-only, false positive, and no-copy output", async () => {
   const opts = { password: PASSWORD, allowPrint: true, allowCopy: true, allowEdit: false };
   const q = await createQpdf();
@@ -140,12 +160,9 @@ await test("PDF: already-protected detection without parsing: user-password, own
   const { data: locked } = await protectPdf(pdf, opts, createQpdf);
   assert.equal(await isEncryptedPdf(locked), true);
   assert.equal(await isEncryptedPdf(pdf), false);
-  // A PDF that merely MENTIONS /Encrypt in its content (near the start) is not encrypted: the parser overrules the scan.
-  const { PDFDocument, StandardFonts } = await import("pdf-lib");
-  const doc = await PDFDocument.create();
-  doc.addPage([300, 200]).drawText("the /Encrypt word", { x: 10, y: 100, size: 12, font: await doc.embedFont(StandardFonts.Helvetica) });
-  doc.setTitle("/Encrypt");
-  const mentions = new Uint8Array(await doc.save({ useObjectStreams: false }));
+  // A PDF that merely MENTIONS /Encrypt (here in a comment after the end marker) is not encrypted:
+  // the parser overrules the scan.
+  const mentions = new Uint8Array([...pdf, ...new TextEncoder().encode("\n% this comment mentions /Encrypt but the file is not encrypted\n")]);
   assert.equal(mentionsEncrypt(mentions), true, "the scan alone would be fooled");
   assert.equal(await isEncryptedPdf(mentions), false, "the parser confirms it is not encrypted");
   await protectPdf(mentions, opts, createQpdf);
