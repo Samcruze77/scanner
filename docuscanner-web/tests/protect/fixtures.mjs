@@ -107,3 +107,18 @@ export const PASSWORDS = {
   nfc: "caf\u00e9-pass-\u00f1",
   nfd: "cafe\u0301-pass-n\u0303",
 };
+
+// A valid PDF of about `megabytes` MB: one page per MB, each with an incompressible
+// 1 MB greyscale image, so it looks like a real scan (big, binary, many objects).
+export async function makeLargePdf(megabytes) {
+  const { pushGraphicsState, popGraphicsState, scale, drawObject } = await import("pdf-lib");
+  const pdf = await PDFDocument.create();
+  const pages = Math.max(1, Math.round(megabytes));
+  for (let i = 0; i < pages; i++) {
+    const page = pdf.addPage([612, 792]);
+    const ref = pdf.context.register(pdf.context.stream(crypto.randomBytes(1024 * 1024), { Type: "XObject", Subtype: "Image", Width: 1024, Height: 1024, ColorSpace: "DeviceGray", BitsPerComponent: 8 }));
+    page.node.newXObject(`Im${i}`, ref);
+    page.pushOperators(pushGraphicsState(), scale(612, 792), drawObject(`Im${i}`), popGraphicsState());
+  }
+  return new Uint8Array(await pdf.save({ useObjectStreams: false }));
+}
