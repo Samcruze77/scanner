@@ -343,6 +343,7 @@ for (const name of ["macros.docm", "template.dotx", "macro-template.dotm"]) {
     const s = await session();
     await open(s.page, "protect-word");
     await choose(s.page, name);
+    await s.page.getByLabel(/^Password to open/).waitFor(); // the form (and any macro notice) has rendered
     const macro = /docm|dotm/.test(name);
     assert.equal(await s.page.getByText("This file can contain macros. They are not opened, changed or removed").count(), macro ? 1 : 0);
     await fillPasswords(s.page, PASSWORD);
