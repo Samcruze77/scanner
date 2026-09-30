@@ -234,6 +234,54 @@ await test("signed-in visitor: the same Word flow works (no difference, no extra
   await s.context.close();
 });
 
+// Passwords typed into the real input on the live page, then the DOWNLOADED file checked with
+// an independent Office decryptor (msoffcrypto-tool): correct password opens, wrong one fails.
+const TYPED_PASSWORDS = { ascii: PASSWORD, accented: "Pässwörd-Ọlájídé-ñ-2024", beyondLatin1: "密码-пароль-🔐-Ωmega-\u{1D11E}" };
+for (const [label, typed] of Object.entries(TYPED_PASSWORDS)) {
+  await test(`live page, ${label} password: download decrypts to the original with msoffcrypto-tool; wrong and empty passwords fail`, async () => {
+    const s = await session();
+    await open(s.page, "protect-word");
+    await choose(s.page, "contract.docx");
+    await fillPasswords(s.page, typed);
+    await s.page.getByRole("button", { name: "Protect Word document" }).click();
+    await s.page.getByText("Your Word document is protected").waitFor({ timeout: 120000 });
+    const got = await downloadOf(s.page, /Download protected Word document/);
+    if (hasPython) {
+      const ok = msoffDecrypt(got.target, typed);
+      assert.equal(ok.status, 0, String(ok.stderr));
+      assert.equal(sha(ok.stdout.subarray(ok.stdout.indexOf(10) + 1)), sha(docx));
+      assert.notEqual(msoffDecrypt(got.target, typed + "x").status, 0);
+      assert.notEqual(msoffDecrypt(got.target, "").status, 0);
+    }
+    assert.equal(await s.page.getByLabel(/^Password to open/).count(), 0, "passwords are not left in a form");
+    await s.context.close();
+  });
+}
+
+if (process.env.LARGE) {
+  await test("live page, ~48 MB document: protects, offers the download, decrypts to the identical original", async () => {
+    const big = path.join(work, "large.docx");
+    const { makeLargeDocx } = await import("./fixtures.mjs");
+    const bytes = await makeLargeDocx(47.4);
+    fs.writeFileSync(big, bytes);
+    const s = await session();
+    await open(s.page, "protect-word");
+    const t0 = Date.now();
+    await s.page.locator('input[type="file"]').setInputFiles(big);
+    await fillPasswords(s.page, PASSWORD);
+    await s.page.getByRole("button", { name: "Protect Word document" }).click();
+    await s.page.getByText("Your Word document is protected").waitFor({ timeout: 300000 });
+    console.log(`     ${(bytes.length / 1048576).toFixed(1)} MB protected in ${Date.now() - t0} ms (select + protect + verify)`);
+    const got = await downloadOf(s.page, /Download protected Word document/);
+    if (hasPython) {
+      const ok = msoffDecrypt(got.target, PASSWORD);
+      assert.equal(ok.status, 0, String(ok.stderr));
+      assert.equal(sha(ok.stdout.subarray(ok.stdout.indexOf(10) + 1)), sha(bytes));
+    }
+    await s.context.close();
+  });
+}
+
 await test("validation: missing password, missing confirmation, mismatch, short password", async () => {
   const s = await session();
   await open(s.page, "protect-word");
