@@ -45,6 +45,10 @@ const nextConfig: NextConfig = {
         ? [
             { source: "/protect-word-document", destination: "/tools/protect-word", permanent: true },
             { source: "/password-protect-word-document", destination: "/tools/protect-word", permanent: true },
+            { source: "/protect-excel", destination: "/tools/protect-excel", permanent: true },
+            { source: "/password-protect-excel", destination: "/tools/protect-excel", permanent: true },
+            { source: "/protect-powerpoint", destination: "/tools/protect-powerpoint", permanent: true },
+            { source: "/password-protect-powerpoint", destination: "/tools/protect-powerpoint", permanent: true },
           ]
         : []),
     ];

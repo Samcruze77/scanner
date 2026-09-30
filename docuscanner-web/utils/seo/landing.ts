@@ -348,7 +348,7 @@ export const LANDING_PAGES: LandingPage[] = [
     goodFor:
       "Sending a contract, ID scan, payslip or medical letter by email or chat when you want only the person who knows the password to read it.",
     formats: WORD_PROTECTION
-      ? "PDF files up to 100 MB. JPG, PNG and WebP pictures are turned into a one-page PDF first. Word .docx files have their own page, Protect Word Document. Other Word and Excel files must be converted to PDF before they can be protected."
+      ? "PDF files up to 100 MB. JPG, PNG and WebP pictures are turned into a one-page PDF first. Word, Excel and PowerPoint files have their own pages (Protect Word Document, Protect Excel Workbook, Protect PowerPoint Presentation)."
       : "PDF files up to 100 MB. JPG, PNG and WebP pictures are turned into a one-page PDF first. Word and Excel files must be converted to PDF before they can be protected.",
     limits: [
       "If you forget the password, the PDF cannot be opened. PDFScanner never sees the password and cannot recover it.",
@@ -364,7 +364,7 @@ export const LANDING_PAGES: LandingPage[] = [
       {
         q: "Can I protect a Word document or a picture?",
         a: WORD_PROTECTION
-          ? "A picture (JPG, PNG or WebP) is turned into a one-page PDF and protected. A Word .docx file can be password protected as a Word document with the Protect Word Document tool. Excel files have to be converted to PDF first."
+          ? "A picture (JPG, PNG or WebP) is turned into a one-page PDF and protected. Word, Excel and PowerPoint files can be password protected with their own tools, which use Microsoft Office's own encryption instead of turning them into PDFs."
           : "A picture (JPG, PNG or WebP) is turned into a one-page PDF and protected. A Word or Excel file has to be converted to PDF first; the Word to PDF converter does that.",
       },
       { q: "Can I recover a forgotten password?", a: "No. Nobody, including PDFScanner, can open the file without it." },
@@ -373,51 +373,60 @@ export const LANDING_PAGES: LandingPage[] = [
   },
   ...(WORD_PROTECTION
     ? [
-        {
+        officePage({
           path: "/tools/protect-word",
+          crumb: "Protect Word Document",
+          appName: "PDFScanner Word document protector",
+          app: "Word",
+          noun: "Word document",
           title: "Protect Word Document: Password Protect a DOCX for Free",
           description:
-            "Encrypt a Word .docx with a password in your browser. Word asks for the password to open it. Free, no account, and your file and password never leave your device.",
+            "Encrypt a Word file with a password in your browser. Word asks for the password to open it. Free, no account, and your file and password never leave your device.",
           h1: "Password protect a Word document",
-          intro:
-            "Add a password to a Word document or template so it has to be entered to open it in Microsoft Word. Works with .docx, .docm, .dotx and .dotm. No account, and nothing is uploaded: the file is encrypted on your own device.",
-          crumbs: [TOOLS_CRUMB, { name: "Protect Word Document", path: "/tools/protect-word" }],
-          appName: "PDFScanner Word document protector",
-          features: [
-            "Encrypts a .docx, .docm, .dotx or .dotm with a password",
-            "Uses Microsoft Office's own encryption format for .docx files",
-            "Checks the protected copy before you download it",
-            "Runs in your browser: no upload, no account",
-            "Original file is never changed",
-          ],
-          how: [
-            "Choose a Word document or template (.docx, .docm, .dotx or .dotm, up to 50 MB).",
-            "Type a password and confirm it.",
-            "Choose Protect Word document.",
-            "Download the protected copy, then open it once to check that Word asks for the password.",
-          ],
-          goodFor: "Sending a contract, CV, report or letter as an editable Word file that only people with the password can open.",
-          formats: "Word documents and templates: .docx, .docm (macro-enabled), .dotx and .dotm, up to 50 MB. Old .doc files, .xml Word files, and files that already have a password are not supported.",
-          limits: [
-            "If you forget the password, the document cannot be opened. PDFScanner never sees the password and cannot recover it.",
-            "Only .docx, .docm, .dotx and .dotm are supported. Old .doc and .xml Word files are refused: open them in Word and save as .docx first.",
-            "Macro-enabled files (.docm, .dotm) are encrypted exactly as they are. Macros are not run, changed or removed, and Word decides whether to run them after you enter the password.",
-            "A file's contents must match its type: a macro-enabled document saved under a .docx name is refused.",
-            "The password protects the file at rest. Anyone you give the password to can open, copy and edit the document.",
-            "Password-protected documents open in Microsoft Word 2010 and later and in apps that support Office document encryption. Some other apps and online viewers cannot open them.",
-            "Choose a password that is not easy to guess, and send it separately from the file.",
-          ],
-          privacy: PRIVATE,
-          faq: [
-            { q: "How do I password protect a Word document for free?", a: "Choose your .docx, enter a password twice, and choose Protect Word document. Then download the protected copy. It is free and needs no account." },
-            { q: "Is my document or password uploaded?", a: "No. The document is encrypted by code running in your browser, so neither the file nor the password is sent to PDFScanner." },
-            { q: "Will Word ask for the password?", a: "Yes. The protected file uses the same password format as Word's own File > Info > Protect Document > Encrypt with Password, so Word asks for the password before it opens." },
+          formats: ".docx, .docm (macro-enabled), .dotx and .dotm",
+          sample: "a contract, CV, report or letter",
+          faqExtra: [
             { q: "Can I protect a .docm, .dotx or .dotm file?", a: "Yes. Macro-enabled documents (.docm) and templates (.dotx, .dotm) are encrypted as they are and keep their file type. Macros are never run, changed or removed." },
-            { q: "Can I protect an old .doc or an .xml Word file?", a: "No. Those formats cannot be password-protected the way Word does it. Open the file in Word, save it as .docx, then protect that file." },
-            { q: "Can I recover a forgotten password?", a: "No. Nobody, including PDFScanner, can open the file without it." },
+            { q: "Can I protect a Word XML file?", a: "A Word \"XML Document\" (saved from a current version of Word with Save As > Word XML Document) is converted to a regular .docx first, without changing its content, and the protected copy is that .docx. Word 2003 XML and other XML files cannot be converted and are refused." },
           ],
           related: [LINKS.protectPdf, LINKS.wordToPdf, LINKS.compressPdf, LINKS.sign],
-        },
+        }),
+        officePage({
+          path: "/tools/protect-excel",
+          crumb: "Protect Excel Workbook",
+          appName: "PDFScanner Excel workbook protector",
+          app: "Excel",
+          noun: "Excel workbook",
+          title: "Protect Excel Workbook: Password Protect an XLSX for Free",
+          description:
+            "Encrypt an Excel workbook with a password in your browser. Excel asks for the password to open it. Free, no account, and your file and password never leave your device.",
+          h1: "Password protect an Excel workbook",
+          formats: ".xlsx, .xlsm (macro-enabled), .xltx, .xltm and .xlsb",
+          sample: "a budget, payroll sheet, invoice list or financial model",
+          faqExtra: [
+            { q: "Are formulas, sheets and formatting changed?", a: "No. The workbook is encrypted exactly as it is. It is not opened, recalculated or rewritten." },
+            { q: "Can I protect an Excel XML file?", a: "An Excel \"XML Workbook\" saved from a current version of Excel is converted to a regular .xlsx first, without changing its content. Excel 2003 XML Spreadsheets and other XML files cannot be converted and are refused." },
+          ],
+          related: [LINKS.protectPdf, LINKS.compressPdf, LINKS.pdfToExcel, LINKS.editor],
+        }),
+        officePage({
+          path: "/tools/protect-powerpoint",
+          crumb: "Protect PowerPoint Presentation",
+          appName: "PDFScanner PowerPoint presentation protector",
+          app: "PowerPoint",
+          noun: "PowerPoint presentation",
+          title: "Protect PowerPoint: Password Protect a PPTX for Free",
+          description:
+            "Encrypt a PowerPoint presentation with a password in your browser. PowerPoint asks for the password to open it. Free, no account, and your file and password never leave your device.",
+          h1: "Password protect a PowerPoint presentation",
+          formats: ".pptx, .pptm (macro-enabled), .potx, .potm, .ppsx and .ppsm",
+          sample: "a pitch deck, proposal or board presentation",
+          faqExtra: [
+            { q: "Are my slides, notes and animations changed?", a: "No. The presentation is encrypted exactly as it is. It is not opened or rewritten." },
+            { q: "Can I protect a slide show (.ppsx)?", a: "Yes. Slide shows and templates keep their file type, and PowerPoint asks for the password before it opens them." },
+          ],
+          related: [LINKS.protectPdf, LINKS.compressPdf, LINKS.editor, LINKS.scan],
+        }),
       ]
     : []),
   {
@@ -905,6 +914,68 @@ export const LANDING_PAGES: LandingPage[] = [
     related: [LINKS.pdfToExcel, LINKS.ocr, LINKS.scan, LINKS.compressPdf],
   },
 ];
+
+
+// One Office protection landing page (Word, Excel or PowerPoint): the same tool and the same
+// honest limits, worded for the application.
+function officePage(o: {
+  path: string;
+  crumb: string;
+  appName: string;
+  app: "Word" | "Excel" | "PowerPoint";
+  noun: string;
+  title: string;
+  description: string;
+  h1: string;
+  formats: string;
+  sample: string;
+  faqExtra: FaqItem[];
+  related: RelatedLink[];
+}): LandingPage {
+  return {
+    path: o.path,
+    title: o.title,
+    description: o.description,
+    h1: o.h1,
+    intro: `Add a password so it has to be entered to open the file in Microsoft ${o.app}. Works with ${o.formats}. No account, and nothing is uploaded: the file is encrypted on your own device.`,
+    crumbs: [TOOLS_CRUMB, { name: o.crumb, path: o.path }],
+    appName: o.appName,
+    features: [
+      `Encrypts your ${o.noun} with a password`,
+      `Uses Microsoft Office's own encryption format, so ${o.app} asks for the password`,
+      "Checks the protected copy before you download it",
+      "Runs in your browser: no upload, no account",
+      "Original file is never changed",
+    ],
+    how: [
+      `Choose your ${o.noun} (${o.formats}, up to 50 MB).`,
+      "Type a password and confirm it.",
+      "Choose the Protect button.",
+      `Download the protected copy, then open it once to check that ${o.app} asks for the password.`,
+    ],
+    goodFor: `Sending ${o.sample} by email or chat so that only people who know the password can open it.`,
+    formats: `${o.formats}, up to 50 MB. Also Office "XML Document" files from a current version of Office, which are converted to the regular file they describe first. Old binary files (.doc, .xls, .ppt), 2003 XML files and files that already have a password are not supported.`,
+    limits: [
+      "If you forget the password, the file cannot be opened. PDFScanner never sees the password and cannot recover it.",
+      "Old .doc, .xls and .ppt files are refused: open them in Office and save in the current format first.",
+      "Macro-enabled files are encrypted exactly as they are. Macros are not run, changed or removed, and the application decides whether to run them after you enter the password.",
+      "A file's contents must match its type: a macro-enabled file saved under a plain .docx, .xlsx or .pptx name is refused.",
+      "The password protects the file at rest. Anyone you give the password to can open, copy and edit it.",
+      "Protected files open in Microsoft Office 2010 and later and in apps that support Office file encryption. Some other apps and online viewers cannot open them.",
+      "Choose a password that is not easy to guess, and send it separately from the file.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: `How do I password protect an ${o.noun} for free?`, a: `Choose your file, enter a password twice, and choose the Protect button. Then download the protected copy. It is free and needs no account.` },
+      { q: "Is my file or password uploaded?", a: "No. The file is encrypted by code running in your browser, so neither the file nor the password is sent to PDFScanner." },
+      { q: `Will ${o.app} ask for the password?`, a: `Yes. The protected file uses the same password format as ${o.app}'s own File > Info > Protect > Encrypt with Password, so ${o.app} asks for the password before it opens.` },
+      ...o.faqExtra,
+      { q: "Can I protect an old .doc, .xls or .ppt file?", a: "No. Those formats cannot be password-protected the way Office does it. Open the file in Office, save it in the current format, then protect that file." },
+      { q: "Can I recover a forgotten password?", a: "No. Nobody, including PDFScanner, can open the file without it." },
+    ],
+    related: o.related,
+  };
+}
 
 export function getLanding(path: string): LandingPage | undefined {
   return LANDING_PAGES.find((p) => p.path === path);

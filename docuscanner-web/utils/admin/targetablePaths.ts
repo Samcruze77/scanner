@@ -32,7 +32,13 @@ export const TARGETABLE_PATHS: { path: string; label: string }[] = [
   { path: "/tools/compress-word", label: "Compress Word" },
   { path: "/tools/compress-excel", label: "Compress Excel" },
   { path: "/tools/protect-pdf", label: "Protect PDF" },
-  ...(FEATURES["protect.docx"].implemented ? [{ path: "/tools/protect-word", label: "Protect Word Document" }] : []),
+  ...(FEATURES["protect.docx"].implemented
+    ? [
+        { path: "/tools/protect-word", label: "Protect Word Document" },
+        { path: "/tools/protect-excel", label: "Protect Excel Workbook" },
+        { path: "/tools/protect-powerpoint", label: "Protect PowerPoint Presentation" },
+      ]
+    : []),
 ];
 
 export const AD_SLOTS: { code: "top" | "side" | "bottom" | "inline"; label: string; box: string }[] = [

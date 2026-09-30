@@ -5,10 +5,10 @@
 import { MIN_PASSWORD_LENGTH } from "./protect.ts";
 
 const MESSAGES: Record<string, string> = {
-  protect_unsupported_type: "That file type isn't supported. Choose a PDF, a Word document or template (.docx, .docm, .dotx, .dotm), or a JPG, PNG or WebP picture.",
-  protect_legacy_doc: "Old .doc files aren't supported. Open it in Word, choose Save As, save it as a .docx document, then protect that file.",
-  protect_xml_unsupported: "Word XML files (.xml) can't be password-protected the way Word does it. Open the file in Word, choose Save As, save it as a .docx document, then protect that file.",
-  protect_type_mismatch: "That file's contents don't match its file type (for example, a macro-enabled document saved with a .docx name). Open it in Word, save it again in the format you want, then try again.",
+  protect_unsupported_type: "That file type isn't supported. Choose a PDF, a Word, Excel or PowerPoint file (.docx, .xlsx, .pptx and the macro-enabled and template versions), an Office XML Document (.xml), or a JPG, PNG or WebP picture.",
+  protect_legacy_doc: "Old Office files (.doc, .xls, .ppt) aren't supported. Open the file in Word, Excel or PowerPoint, choose Save As, save it in the current format (.docx, .xlsx or .pptx), then protect that file.",
+  protect_xml_unsupported: "Only Office \"XML Document\" files can be converted and protected (Word XML Document, Excel XML Workbook or PowerPoint XML Presentation saved from a current version of Office). Word 2003 XML, Excel 2003 XML Spreadsheet and other XML files can't be. Open the file in Office, save it as .docx, .xlsx or .pptx, then protect that file.",
+  protect_type_mismatch: "That file's contents don't match its file type (for example, a macro-enabled file saved with a plain .docx, .xlsx or .pptx name). Open it in Word, save it again in the format you want, then try again.",
   protect_too_large: "That file is too large to protect in the browser. PDFs and pictures can be up to 100 MB, Word documents up to 50 MB.",
   protect_invalid: "That file couldn't be read. It may be damaged or not a real PDF or picture.",
   protect_already_protected:
