@@ -218,7 +218,9 @@ export default {
     // metrics land on a separate synthetic row instead of being duplicated
     // across visitor-type rows.
     const allLocationRows = buildLocationRows(rows, adRows, returningIds)
-    const locations = allLocationRows.slice(0, MAX_LOCATION_ROWS)
+    // `region`/`city` are transitional aliases of state_province/city_town for
+    // admin pages deployed before the canonical names; remove once rolled out.
+    const locations = allLocationRows.slice(0, MAX_LOCATION_ROWS).map((r) => ({ ...r, region: r.state_province, city: r.city_town }))
 
     return response({
       role,

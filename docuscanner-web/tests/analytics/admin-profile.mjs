@@ -9,7 +9,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { EXCLUDED_AUTH_FIELDS, SECRET_NAME, buildAdminProfile } from "../../supabase/functions/_shared/adminProfile.ts";
+import { EXCLUDED_AUTH_API_FIELDS, EXCLUDED_AUTH_FIELDS, SECRET_NAME, buildAdminProfile } from "../../supabase/functions/_shared/adminProfile.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const schema = JSON.parse(fs.readFileSync(path.join(here, "../../supabase/schema/admin-profile.columns.json"), "utf8"));
@@ -70,6 +70,15 @@ check("token-named user metadata dropped", !keys.some((k) => /access_token/.test
 check("nested metadata objects are not flattened blindly", !keys.some((k) => k.includes("nested")));
 check("raw app metadata not exported", !keys.some((k) => k.includes("app_meta")));
 check("no raw IP style columns", !keys.some((k) => /(^|_)ip($|_)|ip_hash|ip_addr/.test(k)));
+
+console.log("4b. GoTrue admin-API-only keys that carry credentials are never exported");
+{
+  const withApi = buildAdminProfile({ adminRow, authUser: { ...authUser, action_link: "https://x.test/verify?token=T", new_email: "n@x.test", email_otp: "123456", hashed_token: "H", app_metadata: { provider: "email" }, user_metadata: { full_name: "Ada" }, identities: [{ id: "i" }] } });
+  const k = Object.keys(withApi);
+  for (const c of Object.keys(EXCLUDED_AUTH_API_FIELDS)) check(`account_${c} excluded`, !k.includes(`account_${c}`));
+  check("magic-link URL never in values", !Object.values(withApi).some((v) => String(v).includes("token=T")));
+  check("identities not exported", !k.some((x) => x.includes("identit")));
+}
 
 console.log("5. User metadata is exported key by key");
 check("full_name/avatar/locale/timezone", ["account_meta_full_name", "account_meta_avatar_url", "account_meta_locale", "account_meta_timezone"].every((k) => keys.includes(k)));

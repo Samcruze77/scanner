@@ -42,9 +42,21 @@ export const EXCLUDED_AUTH_FIELDS: Record<string, string> = {
   raw_user_meta_data: "exported flattened, key by key (account_meta_*), through the secret-name filter",
 };
 
+// Keys that exist only on GoTrue's admin API user object (not as auth.users
+// columns) and must not be exported. `action_link` is a live magic-link /
+// recovery URL, i.e. an authentication credential.
+export const EXCLUDED_AUTH_API_FIELDS: Record<string, string> = {
+  action_link: "live magic-link / recovery URL (authentication credential)",
+  new_email: "pending unverified address change (auth workflow state)",
+  new_phone: "pending unverified number change (auth workflow state)",
+  email_otp: "one-time passcode",
+  hashed_token: "authentication token",
+  verification_type: "internal auth workflow state",
+};
+
 // Any column/metadata key whose NAME looks like a secret is excluded, so a
 // future credential-like column can never leak through the derived export.
-export const SECRET_NAME = /pass(word|wd)?|secret|token|hash|salt|credential|api[_-]?key|private|otp|\bkey\b|_key$|^key_|refresh|session|ip_?addr|^ip$|_ip$|ip_hash/i;
+export const SECRET_NAME = /pass(word|wd)?|secret|token|hash|salt|credential|api[_-]?key|private|otp|\bkey\b|_key$|^key_|refresh|session|link|ip_?addr|^ip$|_ip$|ip_hash/i;
 
 const ADMIN_ORDER = ["user_id", "role", "display_name", "is_active", "created_at", "updated_at"];
 const PROFILE_ORDER = ["user_id", "display_name", "country_code", "created_at", "updated_at"];
@@ -85,7 +97,7 @@ export function buildAdminProfile({ adminRow, userProfileRow, authUser }: AdminP
   const out: AdminProfileRecord = {};
   take("admin_", adminRow, ADMIN_ORDER, out);
   take("profile_", userProfileRow, PROFILE_ORDER, out, (k) => k === "user_id");
-  take("account_", authUser, ACCOUNT_ORDER, out, (k) => k in EXCLUDED_AUTH_FIELDS || k === "user_metadata" || k === "app_metadata" || k === "identities" || k === "factors");
+  take("account_", authUser, ACCOUNT_ORDER, out, (k) => k in EXCLUDED_AUTH_FIELDS || k in EXCLUDED_AUTH_API_FIELDS || k === "user_metadata" || k === "app_metadata" || k === "identities" || k === "factors");
   // GoTrue's admin API names the metadata objects user_metadata /
   // raw_user_meta_data; both spellings are read.
   const meta = (authUser?.user_metadata ?? authUser?.raw_user_meta_data) as Record<string, unknown> | undefined;
