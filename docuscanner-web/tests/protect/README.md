@@ -18,8 +18,26 @@ Independent checks used (the code is never only checked against itself):
 Reported by the project owner (not run by the automated tests): `tests/protect/out/sample-protected.docx`
 (the rich fixture: headings, table, picture, hyperlink, lists, header/footer, two sections, Unicode names) was opened in
 Microsoft Word. Word asked for the password, `TestPassword123!` opened it, and all four manual checks below passed.
-The Word version and operating system were not recorded. Still untested in Word: a file produced by the live page,
-a non-ASCII password, and the ~48 MB document.
+The Word version and operating system were not recorded. For the later check of the deployed site see the next section.
+
+## Owner-reported validation of the deployed site (2026-09-30)
+
+Reported by the project owner in conversation, after they set `NEXT_PUBLIC_DOCX_PROTECTION_ENABLED=true` in Vercel and
+redeployed. Nothing below was observed by the automated tests or by the person who wrote this record, and the owner gave no
+further detail, so every field that is not listed here is `Unknown`.
+
+| What was reported | Detail |
+|---|---|
+| Protect Word on the deployed site | "it works great" |
+| Wrong password in Microsoft Word | refused with the message "invalid password please enter the password again" |
+| Phone | "it worked on my phone too" |
+
+Not recorded: Word version and operating system; phone model, OS, browser and Word app version; which passwords were used;
+file sizes; elapsed times; whether the phone check opened the protected file in Word; whether the downloaded file came
+from the live page for the desktop Word check.
+
+Not confirmed by anyone: a blank or cancelled password prompt in Word, an accented or beyond-Latin-1 password in Word, and
+the ~10 MB and ~48 MB files in Word or on a phone. The automated checks for those cases are in the tables below.
 
 ## Original note: Microsoft Word could not be run by the automated tests
 
@@ -92,5 +110,5 @@ downloaded file was decrypted with msoffcrypto-tool (Python) and compared byte-f
 | live page, 0.05 MB rich document | `密码-пароль-🔐-Ωmega-𝄞` (beyond Latin-1) | decrypts to identical original | rejected | rejected | pass |
 | live page, 47.5 MB document | `TestPassword123!` | decrypts to identical original | not run | not run | pass; 3.4 s from selecting the file to download-ready |
 
-Not yet recorded by anyone: Microsoft Word opening a file produced by the live page, any non-ASCII password in Word,
-the 47.5 MB file in Word, and any phone or tablet. See `MANUAL-VALIDATION.md` for the procedure and result tables.
+Still not recorded in detail by anyone: a non-ASCII password in Word, the 47.5 MB file in Word, and phone details.
+See "Owner-reported validation of the deployed site" above and `MANUAL-VALIDATION.md` for the procedure and result tables.
