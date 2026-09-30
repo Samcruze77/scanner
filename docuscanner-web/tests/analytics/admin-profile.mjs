@@ -106,5 +106,13 @@ console.log("7. Null/empty stays empty; ordering is deterministic");
   check("known columns first, in canonical order", Object.keys(sparse).slice(0, 6).join() === "admin_user_id,admin_role,admin_display_name,admin_is_active,admin_created_at,admin_updated_at");
 }
 
+console.log("8. A missing profile row still yields its (empty) columns");
+{
+  const noProfile = buildAdminProfile({ adminRow, userProfileRow: null, authUser });
+  const withProfile = buildAdminProfile({ adminRow, userProfileRow, authUser });
+  check("profile_* columns present and empty when the row is absent", ["profile_display_name", "profile_country_code", "profile_created_at", "profile_updated_at"].every((k) => k in noProfile && noProfile[k] === null));
+  check("same column set whether or not the row exists", Object.keys(noProfile).join() === Object.keys(withProfile).join());
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);

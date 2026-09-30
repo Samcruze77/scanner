@@ -78,7 +78,13 @@ function ordered(keys: string[], known: string[]): string[] {
 }
 
 function take(prefix: string, row: Record<string, unknown> | null | undefined, known: string[], out: AdminProfileRecord, skip: (key: string) => boolean = () => false) {
-  if (!row) return;
+  if (!row) {
+    // No row for this admin (e.g. no public.user_profiles row yet): the known
+    // columns are still emitted, empty, so the column set doesn't depend on
+    // which admin exports and an empty profile field stays an empty cell.
+    for (const key of known) if (!skip(key) && !SECRET_NAME.test(key)) out[`${prefix}${key}`] = null;
+    return;
+  }
   for (const key of ordered(Object.keys(row), known)) {
     if (skip(key) || SECRET_NAME.test(key)) continue;
     const cell = toCell(row[key]);
