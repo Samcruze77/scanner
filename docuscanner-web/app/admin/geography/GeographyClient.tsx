@@ -1,21 +1,31 @@
 "use client";
 
-// Country -> State/Region -> City is the primary structure of this page, not
-// an incidental table among others. Every section below is built around
-// that hierarchy: the country table drills into a region table, which
-// drills into a city table; the top filter bar's Country/State-Region/City
-// selectors are dependent on each other and built only from locations that
-// actually appear in the fetched data (never a hard-coded list, and never
-// Nigeria/US-specific); and every number is real production data from the
-// SAME admin-analytics response other admin metrics already come from --
-// there is no second/parallel analytics table here.
+// The five-level hierarchy is the structure of this page:
+//   Country -> State / Province -> City / Town -> County / District / LGA
+//   -> Neighborhood / Suburb
+// (canonical fields country, state_province, city_town, county_district_lga,
+// neighborhood_suburb -- see supabase/functions/_shared/geoFields.ts).
+// Every level has its own table and selector, built only from nodes that
+// exist in the fetched data (never a hard-coded list, never specific to one
+// country), and every number is real data from the SAME admin-analytics
+// response the rest of the admin uses. A level the location provider doesn't
+// supply shows an explicit "not available" state instead of made-up values.
 
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { getAdminAnalyticsBrowser } from "@/utils/admin/client.browser";
 import { defaultDateRange, todayRange } from "@/utils/admin/dateRange";
-import { countryName, formatFullLocation, regionName } from "@/utils/admin/location";
+import { buildExportUrl } from "@/utils/admin/exportClient";
+import { countryName, regionName } from "@/utils/admin/location";
 import { normalizeOverview } from "@/utils/admin/format";
-import type { AdminAnalyticsResponse, AdminGeoRow, AdminLocationRow, DateRange } from "@/utils/admin/types";
+import type {
+  AdminAnalyticsResponse,
+  AdminGeoChildField,
+  AdminGeoField,
+  AdminGeoRow,
+  AdminLocationRow,
+  DateRange,
+  DownloadExportFormat,
+} from "@/utils/admin/types";
 import { MetricCard } from "@/components/admin/MetricCard";
 
 const PRESETS: { label: string; range: () => DateRange }[] = [
@@ -27,8 +37,26 @@ const PRESETS: { label: string; range: () => DateRange }[] = [
 
 const DEVICES = ["desktop", "mobile", "tablet"];
 
-type SortKey = "users" | "sessions" | "regions" | "cities" | "ad_impressions" | "ad_clicks" | "ctr";
-type AdvertiserLevel = "country" | "region" | "city";
+// Administrator-facing labels; the keys are the canonical field names.
+const LEVELS: { field: AdminGeoField; label: string; plural: string }[] = [
+  { field: "country", label: "Country", plural: "countries" },
+  { field: "state_province", label: "State / Province", plural: "states / provinces" },
+  { field: "city_town", label: "City / Town", plural: "cities / towns" },
+  { field: "county_district_lga", label: "County / District / LGA", plural: "counties / districts / LGAs" },
+  { field: "neighborhood_suburb", label: "Neighborhood / Suburb", plural: "neighborhoods / suburbs" },
+];
+const CHILD_LEVELS = LEVELS.slice(1) as { field: AdminGeoChildField; label: string; plural: string }[];
+
+type Selection = Record<AdminGeoField, string | null>;
+const EMPTY_SELECTION: Selection = {
+  country: null,
+  state_province: null,
+  city_town: null,
+  county_district_lga: null,
+  neighborhood_suburb: null,
+};
+
+type SortKey = "users" | "sessions" | "ad_impressions" | "ad_clicks" | "ctr" | AdminGeoChildField;
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 
@@ -46,7 +74,23 @@ function countryLabel(code: string): string {
   return code === "Unknown" ? "Unknown" : (countryName(code) ?? code);
 }
 
+// Display name for a node at a level: country and state get their real names
+// (ISO data, worldwide); every other level shows the stored value as-is.
+function nodeLabel(field: AdminGeoField, row: AdminGeoRow): string {
+  if (field === "country") return countryLabel(row.key);
+  if (field === "state_province") return regionName(row.path.country, row.key) ?? row.key;
+  return row.key;
+}
+
+function sortValue(row: AdminGeoRow, key: SortKey): number {
+  if (key === "users" || key === "sessions" || key === "ad_impressions" || key === "ad_clicks" || key === "ctr") {
+    return row[key] ?? -Infinity;
+  }
+  return row.child_counts?.[key] ?? 0;
+}
+
 const inputClass = "rounded-md border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-800 dark:bg-black disabled:opacity-50";
+const thClass = "cursor-pointer select-none whitespace-nowrap px-4 py-2 text-right font-medium hover:text-zinc-900 dark:hover:text-zinc-100";
 
 export function GeographyClient({
   initialRange,
@@ -67,14 +111,11 @@ export function GeographyClient({
   const [sortKey, setSortKey] = useState<SortKey>("users");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  // The one drill-down/filter state the whole page revolves around: set by
-  // clicking a table row OR by the Country/State-Region/City selectors --
-  // both are the same action, just two ways to reach it.
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  // The one drill-down/filter state the page revolves around: set by
+  // clicking a table row OR by the selectors -- both are the same action.
+  const [selection, setSelection] = useState<Selection>(EMPTY_SELECTION);
 
-  const [advertiserLevel, setAdvertiserLevel] = useState<AdvertiserLevel>("country");
+  const [advertiserLevel, setAdvertiserLevel] = useState<AdminGeoField>("country");
 
   function refetch(next: { range?: DateRange; device?: string; visitorType?: string }) {
     const nextRange = next.range ?? range;
@@ -102,61 +143,71 @@ export function GeographyClient({
   const overviewValue = (key: string) => overview.find((o) => o.key === key)?.value ?? null;
 
   const allCountries = useMemo(() => data?.geo?.countries ?? [], [data]);
-  const regionsByCountry = useMemo(() => data?.geo?.regions_by_country ?? {}, [data]);
-  const citiesByCountry = useMemo(() => data?.geo?.cities_by_country ?? {}, [data]);
+  const levelNodes = useMemo(
+    () => ({
+      country: allCountries,
+      state_province: data?.geo?.levels?.state_province ?? [],
+      city_town: data?.geo?.levels?.city_town ?? [],
+      county_district_lga: data?.geo?.levels?.county_district_lga ?? [],
+      neighborhood_suburb: data?.geo?.levels?.neighborhood_suburb ?? [],
+    }),
+    [data, allCountries],
+  );
   const locationRows: AdminLocationRow[] = useMemo(() => data?.locations ?? [], [data]);
 
-  const regionsForSelectedCountry = useMemo(
-    () => (selectedCountry ? (regionsByCountry[selectedCountry] ?? []) : []),
-    [regionsByCountry, selectedCountry],
-  );
-  const citiesForSelectedCountry = useMemo(
-    () => (selectedCountry ? (citiesByCountry[selectedCountry] ?? []) : []),
-    [citiesByCountry, selectedCountry],
-  );
-  const citiesForSelectedRegion = useMemo(
-    () => citiesForSelectedCountry.filter((c) => c.region === selectedRegion),
-    [citiesForSelectedCountry, selectedRegion],
-  );
-
-  // --- Dependent selectors: options built only from what's actually in the
-  // fetched data (never a hard-coded country/region/city list).
-  function selectCountry(code: string | null) {
-    setSelectedCountry(code);
-    setSelectedRegion(null);
-    setSelectedCity(null);
+  // Selecting a node at a level pins every ancestor from its own path and
+  // clears everything deeper, so the selectors and tables can never disagree.
+  function select(field: AdminGeoField, row: AdminGeoRow | null) {
+    if (!row) {
+      const index = LEVELS.findIndex((l) => l.field === field);
+      setSelection((prev) => {
+        const next = { ...prev };
+        for (const level of LEVELS.slice(index)) next[level.field] = null;
+        return next;
+      });
+      return;
+    }
+    const index = LEVELS.findIndex((l) => l.field === field);
+    const next: Selection = { ...EMPTY_SELECTION };
+    for (const level of LEVELS.slice(0, index + 1)) {
+      next[level.field] = level.field === "country" ? row.path.country : row.path[level.field];
+    }
+    setSelection(next);
   }
-  function selectRegion(key: string | null) {
-    setSelectedRegion(key);
-    setSelectedCity(null);
+
+  // Nodes at a level that sit under every currently-selected ancestor.
+  function nodesUnder(field: AdminGeoField): AdminGeoRow[] {
+    const index = LEVELS.findIndex((l) => l.field === field);
+    return levelNodes[field].filter((row) =>
+      LEVELS.slice(0, index).every((ancestor) => {
+        const chosen = selection[ancestor.field];
+        if (!chosen) return true;
+        return (ancestor.field === "country" ? row.path.country : row.path[ancestor.field]) === chosen;
+      }),
+    );
+  }
+
+  const isSelected = (field: AdminGeoField, row: AdminGeoRow) => selection[field] === row.key && nodeOnPath(field, row);
+  function nodeOnPath(field: AdminGeoField, row: AdminGeoRow): boolean {
+    const index = LEVELS.findIndex((l) => l.field === field);
+    return LEVELS.slice(0, index).every((a) => {
+      const chosen = selection[a.field];
+      return !chosen || (a.field === "country" ? row.path.country : row.path[a.field]) === chosen;
+    });
   }
 
   const filteredCountries = useMemo(() => {
     const q = countrySearch.trim().toLowerCase();
     if (!q) return allCountries;
-    return allCountries.filter((c) => {
-      const name = countryLabel(c.key).toLowerCase();
-      return c.key.toLowerCase().includes(q) || name.includes(q);
-    });
+    return allCountries.filter((c) => c.key.toLowerCase().includes(q) || countryLabel(c.key).toLowerCase().includes(q));
   }, [allCountries, countrySearch]);
 
-  const sortRows = useCallback(
-    <T extends AdminGeoRow>(rows: T[]): T[] => {
-      const copy = [...rows];
-      copy.sort((a, b) => {
-        const av = a[sortKey] ?? -Infinity;
-        const bv = b[sortKey] ?? -Infinity;
-        return sortDir === "desc" ? bv - av : av - bv;
-      });
-      return copy;
-    },
-    [sortKey, sortDir],
-  );
-
-  const sortedCountries = useMemo(() => sortRows(filteredCountries), [filteredCountries, sortRows]);
-  const visibleCountries = showAllCountries ? sortedCountries : sortedCountries.slice(0, 20);
-  const sortedRegions = useMemo(() => sortRows(regionsForSelectedCountry), [regionsForSelectedCountry, sortRows]);
-  const sortedCities = useMemo(() => sortRows(citiesForSelectedRegion), [citiesForSelectedRegion, sortRows]);
+  function sortRows(rows: AdminGeoRow[]): AdminGeoRow[] {
+    return [...rows].sort((a, b) => {
+      const diff = sortValue(b, sortKey) - sortValue(a, sortKey);
+      return sortDir === "desc" ? diff : -diff;
+    });
+  }
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -166,76 +217,73 @@ export function GeographyClient({
       setSortDir("desc");
     }
   }
+  const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "desc" ? " ↓" : " ↑") : "");
 
-  // --- Location Overview cards --------------------------------------
-  const countriesRepresented = overviewValue("countries") ?? allCountries.filter((c) => c.key !== "Unknown").length;
-  const citiesRepresented =
-    overviewValue("cities") ?? new Set(Object.values(citiesByCountry).flatMap((list) => list.map((c) => c.key))).size;
+  const sortedCountries = sortRows(filteredCountries);
+  const visibleCountries = showAllCountries ? sortedCountries : sortedCountries.slice(0, 20);
 
   // --- Advertiser Audience: same hierarchy, grouped by whichever level is
-  // picked, scoped to the current Country/Region selection so it always
-  // matches what the drill-down above is showing.
-  interface AdvertiserRow {
-    label: string;
-    users: number;
-    sessions: number;
-    ad_impressions: number;
-    ad_clicks: number;
-    ctr: number | null;
-  }
-  const advertiserRows: AdvertiserRow[] = useMemo(() => {
-    if (advertiserLevel === "country") {
-      return allCountries.map((c) => ({ label: countryLabel(c.key), users: c.users, sessions: c.sessions, ad_impressions: c.ad_impressions, ad_clicks: c.ad_clicks, ctr: c.ctr }));
-    }
-    if (advertiserLevel === "region") {
-      const scope = selectedCountry ? [selectedCountry] : Object.keys(regionsByCountry);
-      return scope.flatMap((country) =>
-        (regionsByCountry[country] ?? []).map((r) => ({
-          label: formatFullLocation(country, r.key, null),
-          users: r.users,
-          sessions: r.sessions,
-          ad_impressions: r.ad_impressions,
-          ad_clicks: r.ad_clicks,
-          ctr: r.ctr,
-        })),
-      );
-    }
-    const scope = selectedCountry ? [selectedCountry] : Object.keys(citiesByCountry);
-    return scope.flatMap((country) =>
-      (citiesByCountry[country] ?? [])
-        .filter((c) => !selectedRegion || c.region === selectedRegion)
-        .map((c) => ({
-          label: formatFullLocation(country, c.region, c.key),
-          users: c.users,
-          sessions: c.sessions,
-          ad_impressions: c.ad_impressions,
-          ad_clicks: c.ad_clicks,
-          ctr: c.ctr,
-        })),
-    );
-  }, [advertiserLevel, allCountries, regionsByCountry, citiesByCountry, selectedCountry, selectedRegion]);
-  const topAdvertiserRows = useMemo(
-    () => [...advertiserRows].sort((a, b) => b.ad_impressions - a.ad_impressions || b.users - a.users).slice(0, 15),
-    [advertiserRows],
+  // picked, scoped to the current selection so it always matches the tables.
+  const topAdvertiserRows = useMemo(() => {
+    const index = LEVELS.findIndex((l) => l.field === advertiserLevel);
+    return levelNodes[advertiserLevel]
+      .filter((row) =>
+        LEVELS.slice(0, index).every((a) => {
+          const chosen = selection[a.field];
+          return !chosen || (a.field === "country" ? row.path.country : row.path[a.field]) === chosen;
+        }),
+      )
+      .map((row) => ({
+        // Deepest selected level first, up to the country: "Ikeja GRA, Ikeja, Lagos, Nigeria".
+        label: LEVELS.slice(0, index + 1)
+          .reverse()
+          .map((l) => {
+            if (l.field === "country") return countryLabel(row.path.country);
+            const value = row.path[l.field];
+            return value && l.field === "state_province" ? (regionName(row.path.country, value) ?? value) : value;
+          })
+          .filter(Boolean)
+          .join(", "),
+        row,
+      }))
+      .sort((a, b) => b.row.ad_impressions - a.row.ad_impressions || b.row.users - a.row.users)
+      .slice(0, 15);
+  }, [advertiserLevel, levelNodes, selection]);
+
+  const filteredLocationRows = useMemo(
+    () =>
+      locationRows.filter((r) => {
+        if (selection.country && r.country !== selection.country) return false;
+        if (selection.state_province && r.state_province !== selection.state_province) return false;
+        if (selection.city_town && r.city_town !== selection.city_town) return false;
+        if (selection.county_district_lga && r.county_district_lga !== selection.county_district_lga) return false;
+        if (selection.neighborhood_suburb && r.neighborhood_suburb !== selection.neighborhood_suburb) return false;
+        return true;
+      }),
+    [locationRows, selection],
   );
 
-  // --- All users by location: the detailed date x location breakdown,
-  // narrowed to whatever Country/Region/City is currently selected.
-  const filteredLocationRows = useMemo(() => {
-    return locationRows.filter((r) => {
-      if (selectedCountry && r.country !== selectedCountry) return false;
-      if (selectedRegion && r.region !== selectedRegion) return false;
-      if (selectedCity && r.city !== selectedCity) return false;
-      return true;
-    });
-  }, [locationRows, selectedCountry, selectedRegion, selectedCity]);
-
-  const headers: { key: SortKey; label: string }[] = [
-    { key: "users", label: "Users" },
-    { key: "sessions", label: "Sessions" },
-  ];
-
   const visitorTypeLabel: Record<string, string> = { new: "New", returning: "Returning", unknown: "Unknown", ads: "Ad activity" };
+  const anySelected = LEVELS.some((l) => selection[l.field]);
+
+  // Export of exactly what's selected on this page: same range, device,
+  // visitor type and location selection.
+  function exportUrl(format: DownloadExportFormat) {
+    return buildExportUrl({
+      reportType: "full",
+      format,
+      dateRange: range,
+      filters: {
+        country: selection.country ?? undefined,
+        state_province: selection.state_province ?? undefined,
+        city_town: selection.city_town ?? undefined,
+        county_district_lga: selection.county_district_lga ?? undefined,
+        neighborhood_suburb: selection.neighborhood_suburb ?? undefined,
+        device: device || undefined,
+        visitorType: visitorType === "new" || visitorType === "returning" ? visitorType : undefined,
+      },
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -243,7 +291,9 @@ export function GeographyClient({
         <div>
           <h1 className="text-lg font-semibold">Geography</h1>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Country → State/Region → City, derived server-side from request geolocation (never browser GPS). Approximate.
+            Country → State / Province → City / Town → County / District / LGA → Neighborhood / Suburb, derived
+            server-side from request geolocation (never browser GPS). Approximate; a level appears only when the
+            location provider supplies it.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -275,51 +325,38 @@ export function GeographyClient({
         </div>
       </div>
 
-      {/* --- Location filters: dependent Country / State-Region / City selectors, built only from real data --- */}
+      {/* --- Location filters: one dependent selector per level, built only from real data --- */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-surface p-3 dark:border-zinc-800">
-        <select
-          value={selectedCountry ?? ""}
-          onChange={(e) => selectCountry(e.target.value || null)}
-          className={inputClass}
-        >
-          <option value="">All Countries</option>
-          {[...allCountries]
-            .filter((c) => c.key !== "Unknown")
-            .sort((a, b) => countryLabel(a.key).localeCompare(countryLabel(b.key)))
-            .map((c) => (
-              <option key={c.key} value={c.key}>
-                {countryLabel(c.key)}
+        {LEVELS.map((level) => {
+          const options = nodesUnder(level.field)
+            .filter((row) => !(level.field === "country" && row.key === "Unknown"))
+            // Same value can appear under different parents; the parent path
+            // is already constrained above, so de-duplicate by value.
+            .filter((row, i, all) => all.findIndex((r) => r.key === row.key) === i)
+            .sort((a, b) => nodeLabel(level.field, a).localeCompare(nodeLabel(level.field, b)));
+          return (
+            <select
+              key={level.field}
+              aria-label={level.label}
+              value={selection[level.field] ?? ""}
+              onChange={(e) => {
+                const row = options.find((r) => r.key === e.target.value) ?? null;
+                select(level.field, row);
+              }}
+              disabled={options.length === 0}
+              className={inputClass}
+            >
+              <option value="">
+                {options.length === 0 ? `${level.label}: no data` : `All ${level.plural}`}
               </option>
-            ))}
-        </select>
-        <select
-          value={selectedRegion ?? ""}
-          onChange={(e) => selectRegion(e.target.value || null)}
-          disabled={!selectedCountry || regionsForSelectedCountry.length === 0}
-          className={inputClass}
-        >
-          <option value="">{selectedCountry ? "All States / Regions" : "Select a country first"}</option>
-          {[...regionsForSelectedCountry]
-            .sort((a, b) => regionName(selectedCountry, a.key)!.localeCompare(regionName(selectedCountry, b.key) ?? b.key))
-            .map((r) => (
-              <option key={r.key} value={r.key}>
-                {regionName(selectedCountry, r.key) ?? r.key}
-              </option>
-            ))}
-        </select>
-        <select
-          value={selectedCity ?? ""}
-          onChange={(e) => setSelectedCity(e.target.value || null)}
-          disabled={!selectedRegion || citiesForSelectedRegion.length === 0}
-          className={inputClass}
-        >
-          <option value="">{selectedRegion ? "All Cities" : "Select a state/region first"}</option>
-          {[...citiesForSelectedRegion].sort((a, b) => a.key.localeCompare(b.key)).map((c) => (
-            <option key={c.key} value={c.key}>
-              {c.key}
-            </option>
-          ))}
-        </select>
+              {options.map((row) => (
+                <option key={row.key} value={row.key}>
+                  {nodeLabel(level.field, row)}
+                </option>
+              ))}
+            </select>
+          );
+        })}
         <select value={device} onChange={(e) => refetch({ device: e.target.value })} className={inputClass}>
           <option value="">All devices</option>
           {DEVICES.map((d) => (
@@ -333,11 +370,19 @@ export function GeographyClient({
           <option value="new">New visitors only</option>
           <option value="returning">Returning visitors only</option>
         </select>
-        {(selectedCountry || selectedRegion || selectedCity) && (
-          <button type="button" onClick={() => selectCountry(null)} className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">
+        {anySelected && (
+          <button type="button" onClick={() => select("country", null)} className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">
             Clear location filters
           </button>
         )}
+        <span className="ml-auto flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+          Export this view:
+          {(["csv", "xlsx", "json"] as DownloadExportFormat[]).map((format) => (
+            <a key={format} href={exportUrl(format)} download className="font-medium text-blue-600 hover:underline dark:text-blue-400">
+              {format === "xlsx" ? "Excel" : format.toUpperCase()}
+            </a>
+          ))}
+        </span>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -346,13 +391,14 @@ export function GeographyClient({
       {/* --- Location Overview --- */}
       <section>
         <p className="mb-2 text-sm font-medium">Location overview</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <MetricCard label="Countries" value={countriesRepresented} />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+          <MetricCard label="Countries" value={overviewValue("countries") ?? allCountries.filter((c) => c.key !== "Unknown").length} />
           <MetricCard label="Users" value={overviewValue("unique_visitors")} />
           <MetricCard label="Sessions" value={overviewValue("sessions")} />
-          <MetricCard label="Cities" value={citiesRepresented} />
+          <MetricCard label="Cities / towns" value={overviewValue("cities") ?? levelNodes.city_town.length} />
+          <MetricCard label="Counties / districts" value={overviewValue("counties") ?? levelNodes.county_district_lga.length} />
+          <MetricCard label="Neighborhoods" value={overviewValue("neighborhoods") ?? levelNodes.neighborhood_suburb.length} />
           <MetricCard label="Ad impressions" value={overviewValue("ad_impressions")} />
-          <MetricCard label="Ad clicks" value={overviewValue("ad_clicks")} />
         </div>
       </section>
 
@@ -382,48 +428,40 @@ export function GeographyClient({
             <thead>
               <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                 <th className="px-4 py-2 font-medium">Country</th>
-                {headers.map((h) => (
-                  <th key={h.key} onClick={() => toggleSort(h.key)} className="cursor-pointer select-none whitespace-nowrap px-4 py-2 text-right font-medium hover:text-zinc-900 dark:hover:text-zinc-100">
-                    {h.label}
-                    {sortKey === h.key ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
+                <th onClick={() => toggleSort("users")} className={thClass}>Users{arrow("users")}</th>
+                <th onClick={() => toggleSort("sessions")} className={thClass}>Sessions{arrow("sessions")}</th>
+                {CHILD_LEVELS.map((l) => (
+                  <th key={l.field} onClick={() => toggleSort(l.field)} className={thClass}>
+                    {l.label}{arrow(l.field)}
                   </th>
                 ))}
-                <th onClick={() => toggleSort("regions")} className="cursor-pointer select-none whitespace-nowrap px-4 py-2 text-right font-medium hover:text-zinc-900 dark:hover:text-zinc-100">
-                  States/Regions{sortKey === "regions" ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
-                </th>
-                <th onClick={() => toggleSort("cities")} className="cursor-pointer select-none whitespace-nowrap px-4 py-2 text-right font-medium hover:text-zinc-900 dark:hover:text-zinc-100">
-                  Cities{sortKey === "cities" ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
-                </th>
-                <th onClick={() => toggleSort("ad_impressions")} className="cursor-pointer select-none whitespace-nowrap px-4 py-2 text-right font-medium hover:text-zinc-900 dark:hover:text-zinc-100">
-                  Ad impressions{sortKey === "ad_impressions" ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
-                </th>
-                <th onClick={() => toggleSort("ad_clicks")} className="cursor-pointer select-none whitespace-nowrap px-4 py-2 text-right font-medium hover:text-zinc-900 dark:hover:text-zinc-100">
-                  Ad clicks{sortKey === "ad_clicks" ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
-                </th>
-                <th onClick={() => toggleSort("ctr")} className="cursor-pointer select-none whitespace-nowrap px-4 py-2 text-right font-medium hover:text-zinc-900 dark:hover:text-zinc-100">
-                  CTR{sortKey === "ctr" ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
-                </th>
+                <th onClick={() => toggleSort("ad_impressions")} className={thClass}>Ad impressions{arrow("ad_impressions")}</th>
+                <th onClick={() => toggleSort("ad_clicks")} className={thClass}>Ad clicks{arrow("ad_clicks")}</th>
+                <th onClick={() => toggleSort("ctr")} className={thClass}>CTR{arrow("ctr")}</th>
               </tr>
             </thead>
             <tbody>
               {visibleCountries.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-6 text-center text-zinc-400">
+                  <td colSpan={9} className="px-4 py-6 text-center text-zinc-400">
                     No geographic data yet
                   </td>
                 </tr>
               ) : (
-                visibleCountries.map((row: AdminGeoRow) => (
+                visibleCountries.map((row) => (
                   <tr
                     key={row.key}
-                    onClick={() => (row.key === "Unknown" ? undefined : selectCountry(selectedCountry === row.key ? null : row.key))}
-                    className={`border-b border-zinc-100 last:border-0 dark:border-zinc-900 ${row.key === "Unknown" ? "" : "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950"} ${selectedCountry === row.key ? "bg-zinc-50 dark:bg-zinc-950" : ""}`}
+                    onClick={() => (row.key === "Unknown" ? undefined : select("country", selection.country === row.key ? null : row))}
+                    className={`border-b border-zinc-100 last:border-0 dark:border-zinc-900 ${row.key === "Unknown" ? "" : "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950"} ${selection.country === row.key ? "bg-zinc-50 dark:bg-zinc-950" : ""}`}
                   >
                     <td className="px-4 py-2 font-medium">{countryLabel(row.key)}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{fmt(row.users)}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{fmt(row.sessions)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{row.key === "Unknown" ? "—" : fmt(row.regions)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{row.key === "Unknown" ? "—" : fmt(row.cities)}</td>
+                    {CHILD_LEVELS.map((l) => (
+                      <td key={l.field} className="px-4 py-2 text-right tabular-nums">
+                        {row.key === "Unknown" ? "—" : fmt(row.child_counts?.[l.field])}
+                      </td>
+                    ))}
                     <td className="px-4 py-2 text-right tabular-nums">{fmt(row.ad_impressions)}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{fmt(row.ad_clicks)}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{fmtPct(row.ctr)}</td>
@@ -435,109 +473,75 @@ export function GeographyClient({
         </div>
       </section>
 
-      {/* --- Region table: Country -> State/Region --- */}
-      {selectedCountry && (
-        <section className="rounded-lg border border-zinc-200 bg-surface dark:border-zinc-800">
-          <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
-            <p className="text-sm font-medium">
-              Audience in {countryLabel(selectedCountry)} <span className="text-zinc-400">({sortedRegions.length} states/regions)</span>
-            </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">{countryLabel(selectedCountry)} → State/Region</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                  <th className="px-4 py-2 font-medium">State / Region</th>
-                  <th className="px-4 py-2 text-right font-medium">Users</th>
-                  <th className="px-4 py-2 text-right font-medium">Sessions</th>
-                  <th className="px-4 py-2 text-right font-medium">Cities</th>
-                  <th className="px-4 py-2 text-right font-medium">Ad impressions</th>
-                  <th className="px-4 py-2 text-right font-medium">Ad clicks</th>
-                  <th className="px-4 py-2 text-right font-medium">CTR</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedRegions.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-zinc-400">
-                      No state/region-level data available for this country.
-                    </td>
-                  </tr>
-                ) : (
-                  sortedRegions.map((r) => (
-                    <tr
-                      key={r.key}
-                      onClick={() => selectRegion(selectedRegion === r.key ? null : r.key)}
-                      className={`cursor-pointer border-b border-zinc-100 last:border-0 hover:bg-zinc-50 dark:border-zinc-900 dark:hover:bg-zinc-950 ${selectedRegion === r.key ? "bg-zinc-50 dark:bg-zinc-950" : ""}`}
-                    >
-                      <td className="px-4 py-2 font-medium">{regionName(selectedCountry, r.key) ?? r.key}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(r.users)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(r.sessions)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(r.cities)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(r.ad_impressions)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(r.ad_clicks)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmtPct(r.ctr)}</td>
+      {/* --- One drill-down table per level below country. Shown once a country is chosen; rows are only
+           values that exist in the data, and an empty level says so instead of inventing values. --- */}
+      {selection.country &&
+        CHILD_LEVELS.map((level, childIndex) => {
+          const rows = sortRows(nodesUnder(level.field));
+          const deeper = CHILD_LEVELS.slice(childIndex + 1);
+          const trail = LEVELS.slice(0, childIndex + 2)
+            .map((l) => {
+              const chosen = selection[l.field];
+              if (l.field === level.field) return l.label;
+              if (!chosen) return l.label;
+              return l.field === "country" ? countryLabel(chosen) : l.field === "state_province" ? (regionName(selection.country, chosen) ?? chosen) : chosen;
+            })
+            .join(" → ");
+          return (
+            <section key={level.field} className="rounded-lg border border-zinc-200 bg-surface dark:border-zinc-800">
+              <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
+                <p className="text-sm font-medium">
+                  {level.label} <span className="text-zinc-400">({rows.length})</span>
+                </p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">{trail}</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                      <th className="px-4 py-2 font-medium">{level.label}</th>
+                      <th className="px-4 py-2 text-right font-medium">Users</th>
+                      <th className="px-4 py-2 text-right font-medium">Sessions</th>
+                      {deeper.map((l) => (
+                        <th key={l.field} className="px-4 py-2 text-right font-medium">{l.label}</th>
+                      ))}
+                      <th className="px-4 py-2 text-right font-medium">Ad impressions</th>
+                      <th className="px-4 py-2 text-right font-medium">Ad clicks</th>
+                      <th className="px-4 py-2 text-right font-medium">CTR</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {/* --- City table: Country -> State/Region -> City --- */}
-      {selectedCountry && selectedRegion && (
-        <section className="rounded-lg border border-zinc-200 bg-surface dark:border-zinc-800">
-          <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
-            <p className="text-sm font-medium">
-              Audience in {regionName(selectedCountry, selectedRegion) ?? selectedRegion} <span className="text-zinc-400">({sortedCities.length} cities)</span>
-            </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              {countryLabel(selectedCountry)} → {regionName(selectedCountry, selectedRegion) ?? selectedRegion} → City
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                  <th className="px-4 py-2 font-medium">City</th>
-                  <th className="px-4 py-2 text-right font-medium">Users</th>
-                  <th className="px-4 py-2 text-right font-medium">Sessions</th>
-                  <th className="px-4 py-2 text-right font-medium">Ad impressions</th>
-                  <th className="px-4 py-2 text-right font-medium">Ad clicks</th>
-                  <th className="px-4 py-2 text-right font-medium">CTR</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedCities.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-zinc-400">
-                      No city-level data available for this state/region.
-                    </td>
-                  </tr>
-                ) : (
-                  sortedCities.map((c) => (
-                    <tr
-                      key={c.key}
-                      onClick={() => setSelectedCity((prev) => (prev === c.key ? null : c.key))}
-                      className={`cursor-pointer border-b border-zinc-100 last:border-0 hover:bg-zinc-50 dark:border-zinc-900 dark:hover:bg-zinc-950 ${selectedCity === c.key ? "bg-zinc-50 dark:bg-zinc-950" : ""}`}
-                    >
-                      <td className="px-4 py-2 font-medium">{c.key}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(c.users)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(c.sessions)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(c.ad_impressions)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(c.ad_clicks)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmtPct(c.ctr)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+                  </thead>
+                  <tbody>
+                    {rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6 + deeper.length} className="px-4 py-6 text-center text-zinc-400">
+                          No {level.label} data available for this selection (the location provider did not supply it).
+                        </td>
+                      </tr>
+                    ) : (
+                      rows.map((row) => (
+                        <tr
+                          key={[row.path.country, row.path.state_province, row.path.city_town, row.path.county_district_lga, row.path.neighborhood_suburb].join("\u0001")}
+                          onClick={() => select(level.field, isSelected(level.field, row) ? null : row)}
+                          className={`cursor-pointer border-b border-zinc-100 last:border-0 hover:bg-zinc-50 dark:border-zinc-900 dark:hover:bg-zinc-950 ${isSelected(level.field, row) ? "bg-zinc-50 dark:bg-zinc-950" : ""}`}
+                        >
+                          <td className="px-4 py-2 font-medium">{nodeLabel(level.field, row)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{fmt(row.users)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{fmt(row.sessions)}</td>
+                          {deeper.map((l) => (
+                            <td key={l.field} className="px-4 py-2 text-right tabular-nums">{fmt(row.child_counts?.[l.field])}</td>
+                          ))}
+                          <td className="px-4 py-2 text-right tabular-nums">{fmt(row.ad_impressions)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{fmt(row.ad_clicks)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{fmtPct(row.ctr)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          );
+        })}
 
       {/* --- All users by location: the detailed inspection table --- */}
       <section className="rounded-lg border border-zinc-200 bg-surface dark:border-zinc-800">
@@ -547,7 +551,7 @@ export function GeographyClient({
           </p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             Where traffic is actually coming from, by day. No IP addresses -- anonymized visitor/session identifiers only.
-            {data?.locations_truncated ? ` Showing the top ${data.locations?.length ?? 0} of ${fmt(data.locations_total_rows)} combinations for this range.` : ""}
+            {data?.locations_truncated ? ` Showing the top ${data.locations?.length ?? 0} of ${fmt(data.locations_total_rows)} combinations for this range. Use Export for the complete dataset.` : ""}
           </p>
         </div>
         <div className="max-h-[28rem] overflow-auto">
@@ -555,9 +559,9 @@ export function GeographyClient({
             <thead className="sticky top-0 bg-surface">
               <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                 <th className="px-4 py-2 font-medium">Date</th>
-                <th className="px-4 py-2 font-medium">Country</th>
-                <th className="px-4 py-2 font-medium">State / Region</th>
-                <th className="px-4 py-2 font-medium">City</th>
+                {LEVELS.map((l) => (
+                  <th key={l.field} className="px-4 py-2 font-medium">{l.label}</th>
+                ))}
                 <th className="px-4 py-2 font-medium">Device</th>
                 <th className="px-4 py-2 font-medium">Visitor type</th>
                 <th className="px-4 py-2 text-right font-medium">Sessions</th>
@@ -568,7 +572,7 @@ export function GeographyClient({
             <tbody>
               {filteredLocationRows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-6 text-center text-zinc-400">
+                  <td colSpan={12} className="px-4 py-6 text-center text-zinc-400">
                     No location activity for this range/filters yet.
                   </td>
                 </tr>
@@ -577,8 +581,10 @@ export function GeographyClient({
                   <tr key={i} className="border-b border-zinc-100 last:border-0 dark:border-zinc-900">
                     <td className="px-4 py-2 tabular-nums">{r.date}</td>
                     <td className="px-4 py-2">{countryLabel(r.country)}</td>
-                    <td className="px-4 py-2">{regionName(r.country, r.region) ?? "—"}</td>
-                    <td className="px-4 py-2">{r.city ?? "—"}</td>
+                    <td className="px-4 py-2">{regionName(r.country, r.state_province) ?? "—"}</td>
+                    <td className="px-4 py-2">{r.city_town ?? "—"}</td>
+                    <td className="px-4 py-2">{r.county_district_lga ?? "—"}</td>
+                    <td className="px-4 py-2">{r.neighborhood_suburb ?? "—"}</td>
                     <td className="px-4 py-2">{r.device ?? "—"}</td>
                     <td className="px-4 py-2">{visitorTypeLabel[r.visitor_type] ?? r.visitor_type}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{fmt(r.sessions)}</td>
@@ -599,20 +605,20 @@ export function GeographyClient({
             <p className="text-sm font-medium">Advertiser audience</p>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Where is the FreePDFScanner audience? Ranked by ad impressions -- share with advertisers targeting a specific market.</p>
           </div>
-          <div className="flex items-center gap-1 rounded-md border border-zinc-200 p-0.5 dark:border-zinc-800">
-            {(["country", "region", "city"] as AdvertiserLevel[]).map((level) => (
+          <div className="flex flex-wrap items-center gap-1 rounded-md border border-zinc-200 p-0.5 dark:border-zinc-800">
+            {LEVELS.map((level) => (
               <button
-                key={level}
+                key={level.field}
                 type="button"
-                onClick={() => setAdvertiserLevel(level)}
-                className={`rounded px-2.5 py-1 text-xs font-medium ${advertiserLevel === level ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "text-zinc-600 dark:text-zinc-400"}`}
+                onClick={() => setAdvertiserLevel(level.field)}
+                className={`rounded px-2.5 py-1 text-xs font-medium ${advertiserLevel === level.field ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "text-zinc-600 dark:text-zinc-400"}`}
               >
-                {level === "country" ? "Country" : level === "region" ? "State/Region" : "City"}
+                {level.label}
               </button>
             ))}
           </div>
         </div>
-        {topAdvertiserRows.length === 0 || topAdvertiserRows.every((c) => c.ad_impressions === 0) ? (
+        {topAdvertiserRows.length === 0 || topAdvertiserRows.every((c) => c.row.ad_impressions === 0) ? (
           <p className="p-4 text-sm text-zinc-400">No ad impressions recorded yet in this range.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -629,15 +635,15 @@ export function GeographyClient({
               </thead>
               <tbody>
                 {topAdvertiserRows
-                  .filter((r) => r.ad_impressions > 0)
-                  .map((r) => (
-                    <tr key={r.label} className="border-b border-zinc-100 last:border-0 dark:border-zinc-900">
-                      <td className="px-4 py-2 font-medium">{r.label}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(r.users)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(r.sessions)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(r.ad_impressions)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(r.ad_clicks)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmtPct(r.ctr)}</td>
+                  .filter((r) => r.row.ad_impressions > 0)
+                  .map(({ label, row }) => (
+                    <tr key={label + row.key} className="border-b border-zinc-100 last:border-0 dark:border-zinc-900">
+                      <td className="px-4 py-2 font-medium">{label}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{fmt(row.users)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{fmt(row.sessions)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{fmt(row.ad_impressions)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{fmt(row.ad_clicks)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{fmtPct(row.ctr)}</td>
                     </tr>
                   ))}
               </tbody>

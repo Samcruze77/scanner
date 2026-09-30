@@ -8,11 +8,11 @@
 //   GET {SUPABASE_URL}/functions/v1/admin-analytics?from=&to=&days=
 //   Authorization: Bearer <caller's Supabase access token> (attached
 //     automatically by supabase-js's functions.invoke when a session exists)
-//   -> { role, range, overview, breakdowns, daily }
+//   -> { role, range, filters, overview, breakdowns, geo, locations, daily }
 //
 // It does NOT support a `whoami` action or an export-job API -- do not call
 // this for those; see app/admin/layout.tsx (role comes from this same GET
-// response) and utils/admin/exportClient.ts (isolated, not-yet-connected).
+// response) and app/api/admin/analytics-export (file downloads).
 //
 // supabase-js's FunctionsClient builds its request URL as
 // `${functionsUrl}/${functionName}`, so a query string appended to
@@ -32,8 +32,10 @@ export async function fetchAdminAnalytics(
   if (range.to) params.set("to", range.to);
   if (range.days) params.set("days", String(range.days));
   if (range.country) params.set("country", range.country);
-  if (range.region) params.set("region", range.region);
-  if (range.city) params.set("city", range.city);
+  if (range.state_province) params.set("state_province", range.state_province);
+  if (range.city_town) params.set("city_town", range.city_town);
+  if (range.county_district_lga) params.set("county_district_lga", range.county_district_lga);
+  if (range.neighborhood_suburb) params.set("neighborhood_suburb", range.neighborhood_suburb);
   if (range.device) params.set("device", range.device);
   if (range.visitorType) params.set("visitor_type", range.visitorType);
 

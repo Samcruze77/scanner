@@ -1,3 +1,5 @@
+import { normalizeGeoLevels } from "./geoFields.ts"
+
 // Shared by track-analytics, heartbeat, and track-ad-event: user-agent
 // parsing, string normalization, and trusted-geo extraction. All three are
 // now called ONLY by this app's own Next.js Route Handlers (see
@@ -24,11 +26,21 @@ export interface TrustedGeo {
   countryCode: string | null;
   region: string | null;
   city: string | null;
+  countyDistrictLga: string | null;
+  neighborhoodSuburb: string | null;
   postalCode: string | null;
   source: "vercel" | "cloudflare" | "unknown";
 }
 
-const UNKNOWN_GEO: TrustedGeo = { countryCode: null, region: null, city: null, postalCode: null, source: "unknown" };
+const UNKNOWN_GEO: TrustedGeo = {
+  countryCode: null,
+  region: null,
+  city: null,
+  countyDistrictLga: null,
+  neighborhoodSuburb: null,
+  postalCode: null,
+  source: "unknown",
+};
 
 // `body.geo` is the object the Next.js proxy computed from Vercel's real
 // geolocation headers. Falls back to Cloudflare's country-only header
@@ -39,10 +51,15 @@ export function extractTrustedGeo(req: Request, body: Record<string, unknown>): 
   const countryCode = normalizeCountryCode(geo?.country_code);
   if (countryCode) {
     const source = geo?.source === "vercel" || geo?.source === "cloudflare" ? geo.source : "vercel";
+    // Provider terminology (state/province, town, county/district/LGA,
+    // suburb/neighbourhood, ...) is normalized onto the canonical levels.
+    const levels = normalizeGeoLevels(geo)
     return {
       countryCode,
-      region: normalizeString(geo?.region, 120),
-      city: normalizeString(geo?.city, 160),
+      region: levels.state_province,
+      city: levels.city_town,
+      countyDistrictLga: levels.county_district_lga,
+      neighborhoodSuburb: levels.neighborhood_suburb,
       postalCode: normalizeString(geo?.postal_code, 20),
       source,
     };

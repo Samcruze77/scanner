@@ -82,6 +82,19 @@ console.log("5. Works for arbitrary countries worldwide, not a hard-coded list")
   }
 }
 
+console.log("7. County/district/LGA and neighborhood/suburb are stored when a provider supplies them, null otherwise");
+{
+  const req = fakeRequest();
+  const full = extractTrustedGeo(req, {
+    geo: { country_code: "aa", state: "State-1", town: "Town-1", lga: "District-1", suburb: "Suburb-1", source: "vercel" },
+  });
+  check("provider terminology normalized", full.region === "State-1" && full.city === "Town-1" && full.countyDistrictLga === "District-1" && full.neighborhoodSuburb === "Suburb-1", JSON.stringify(full));
+  const vercelOnly = extractTrustedGeo(req, { geo: { country_code: "AA", region: "State-1", city: "Town-1", source: "vercel" } });
+  check("levels the provider lacks are null, never invented", vercelOnly.countyDistrictLga === null && vercelOnly.neighborhoodSuburb === null);
+  const cf = extractTrustedGeo(fakeRequest({ "cf-ipcountry": "AA" }), {});
+  check("country-only fallback has null deeper levels", cf.countyDistrictLga === null && cf.neighborhoodSuburb === null && cf.region === null);
+}
+
 console.log("6. normalizeString trims, caps length, and rejects non-strings");
 {
   check("trims", normalizeString("  hi  ") === "hi");

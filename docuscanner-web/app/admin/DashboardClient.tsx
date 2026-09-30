@@ -49,7 +49,7 @@ export function DashboardClient({
   // Countries/regions/cities now have their own dedicated Geography page
   // (full dataset, sortable, region/city drill-down, advertiser view) --
   // skip them here rather than showing a second, less capable copy.
-  const GEO_KEYS = new Set(["countries", "regions", "cities"]);
+  const GEO_KEYS = new Set(["countries", "regions", "cities", "counties", "neighborhoods"]);
   const breakdownEntries = data?.breakdowns && typeof data.breakdowns === "object"
     ? Object.entries(data.breakdowns as Record<string, unknown>).filter(([key]) => !GEO_KEYS.has(key))
     : [];

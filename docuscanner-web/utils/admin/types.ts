@@ -23,9 +23,13 @@ export interface AdminAnalyticsRange {
   // Geographic + audience filters -- verified live against admin-analytics
   // (see supabase/functions/admin-analytics/index.ts). All optional; each
   // narrows overview/breakdowns/daily/geo consistently.
+  // Canonical geography hierarchy (see supabase/functions/_shared/geoFields.ts):
+  // country, state_province, city_town, county_district_lga, neighborhood_suburb.
   country?: string;
-  region?: string;
-  city?: string;
+  state_province?: string;
+  city_town?: string;
+  county_district_lga?: string;
+  neighborhood_suburb?: string;
   device?: string;
   visitorType?: "new" | "returning";
 }
@@ -40,15 +44,28 @@ export type AdminAnalyticsBreakdowns = Record<string, unknown>;
 // `geo` IS a verified, concrete part of the admin-analytics contract (unlike
 // overview/breakdowns above, kept loose for historical reasons) -- it's the
 // per-country/region/city aggregation the Geography admin page renders.
+export type AdminGeoField = "country" | "state_province" | "city_town" | "county_district_lga" | "neighborhood_suburb";
+export type AdminGeoChildField = Exclude<AdminGeoField, "country">;
+
+// Full path down to a node's level. A level with no value is null (never
+// guessed); "Unknown" appears only as the country of events with no country.
+export interface AdminGeoPath {
+  country: string;
+  state_province: string | null;
+  city_town: string | null;
+  county_district_lga: string | null;
+  neighborhood_suburb: string | null;
+}
+
 export interface AdminGeoRow {
-  key: string; // ISO country code, region/state code, or city name ("Unknown" at country level)
+  key: string; // value at this node's own level (ISO country code, state/province code or name, city name, ...)
+  path: AdminGeoPath;
   users: number;
   sessions: number;
-  // Distinct child locations rolled up under this row -- at a country row,
-  // how many states/regions and cities it contains; at a region row, how
-  // many cities. Always 0 on a city row (nothing below it).
-  regions: number;
-  cities: number;
+  // Distinct descendants under this node, per deeper level.
+  child_counts: Record<AdminGeoChildField, number>;
+  regions: number; // == child_counts.state_province
+  cities: number; // == child_counts.city_town
   opens: number;
   pdf_jobs: number;
   ad_impressions: number;
@@ -64,6 +81,9 @@ export interface AdminGeoCityRow extends AdminGeoRow {
 
 export interface AdminAnalyticsGeo {
   countries: AdminGeoRow[];
+  // Every existing node at each level below country. Drill-down = filter by
+  // path prefix; a value that isn't in the data can't be selected.
+  levels: Record<AdminGeoChildField, AdminGeoRow[]>;
   regions_by_country: Record<string, AdminGeoRow[]>;
   cities_by_country: Record<string, AdminGeoCityRow[]>;
 }
@@ -77,8 +97,10 @@ export type AdminVisitorType = "new" | "returning" | "unknown" | "ads";
 export interface AdminLocationRow {
   date: string;
   country: string; // ISO code, or "Unknown"
-  region: string | null;
-  city: string | null;
+  state_province: string | null;
+  city_town: string | null;
+  county_district_lga: string | null;
+  neighborhood_suburb: string | null;
   device: string | null;
   visitor_type: AdminVisitorType;
   sessions: number;
@@ -103,31 +125,19 @@ export interface DateRange {
   to: string;
 }
 
-// --- Exports (CSV/PDF/email) ---
+// --- Exports ---
 //
-// No backend endpoint for this exists yet (see utils/admin/exportClient.ts)
-// -- these types describe the UI's *intended* request/job shape for when one
-// is deployed, not a confirmed contract. analytics_export_jobs exists as a
-// table, but nothing here writes to it directly from the browser.
+// CSV / XLSX / JSON are served by GET /api/admin/analytics-export (see
+// app/api/admin/analytics-export/route.ts), a plain file download that
+// carries the whole selection in its query string. PDF and email delivery
+// are not implemented.
 
-export type ExportFormat = "csv" | "pdf" | "email";
+export type ExportFormat = "csv" | "xlsx" | "json" | "pdf" | "email";
+export type DownloadExportFormat = "csv" | "xlsx" | "json";
 
-export type ExportJobStatus = "pending" | "processing" | "completed" | "failed";
-
-export interface ExportJob {
-  id: string;
+export interface ExportRequest {
   reportType: string;
-  format: ExportFormat;
-  status: ExportJobStatus;
-  createdAt: string;
-  downloadUrl?: string | null;
-  emailTo?: string | null;
-}
-
-export interface CreateExportJobInput {
-  reportType: string;
-  format: ExportFormat;
+  format: DownloadExportFormat;
   dateRange: DateRange;
-  filters?: Record<string, unknown>;
-  emailTo?: string;
+  filters?: Omit<AdminAnalyticsRange, "from" | "to" | "days">;
 }

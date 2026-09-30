@@ -23,6 +23,11 @@ export interface NormalizedGeo {
   countryCode: string | null;
   region: string | null;
   city: string | null;
+  // Not supplied by Vercel's geolocation -- always null with the current
+  // provider, carried so a provider that has them can populate them without
+  // another schema/API change.
+  countyDistrictLga: string | null;
+  neighborhoodSuburb: string | null;
   postalCode: string | null;
   source: LocationSource;
 }
@@ -31,6 +36,8 @@ const UNKNOWN_GEO: NormalizedGeo = {
   countryCode: null,
   region: null,
   city: null,
+  countyDistrictLga: null,
+  neighborhoodSuburb: null,
   postalCode: null,
   source: "unknown",
 };
@@ -56,6 +63,8 @@ export function normalizeVercelGeo(geo: Geo | null | undefined): NormalizedGeo {
     countryCode,
     region: clean(geo?.countryRegion, 120),
     city: clean(geo?.city ? decodeURIComponent(geo.city) : null, 160),
+    countyDistrictLga: null,
+    neighborhoodSuburb: null,
     postalCode: clean(geo?.postalCode, 20),
     source: "vercel",
   };
@@ -67,7 +76,7 @@ export function normalizeVercelGeo(geo: Geo | null | undefined): NormalizedGeo {
 export function normalizeCloudflareCountry(countryCode: string | null | undefined): NormalizedGeo {
   const code = cleanCountryCode(countryCode);
   if (!code) return UNKNOWN_GEO;
-  return { countryCode: code, region: null, city: null, postalCode: null, source: "cloudflare" };
+  return { ...UNKNOWN_GEO, countryCode: code, source: "cloudflare" };
 }
 
 // City + Region + Country -> Region + Country -> Country -> Unknown. Used

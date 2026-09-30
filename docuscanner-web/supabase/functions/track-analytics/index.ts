@@ -109,6 +109,8 @@ export default {
       country_code: geo.countryCode,
       region: geo.region,
       city: geo.city,
+      county_district_lga: geo.countyDistrictLga,
+      neighborhood_suburb: geo.neighborhoodSuburb,
       postal_code: geo.postalCode,
       location_source: geo.source === "unknown" ? null : geo.source,
       device_type: deviceFromUserAgent(userAgent),

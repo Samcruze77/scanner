@@ -101,5 +101,24 @@ console.log("4. track-analytics rejects an invalid/forged secret key");
   check("rejected (401/403)", status === 401 || status === 403, `got ${status}`);
 }
 
+// NOTE: the gateway also answers 401 for a slug that is not deployed, so this
+// check only proves anything once admin-analytics-export is deployed. The
+// admin-role check itself lives in the function and is covered by
+// tests/analytics/export.mjs (source assertions) and needs a real admin
+// session to exercise end to end.
+console.log("5. admin-analytics-export rejects unauthenticated and forged-token callers");
+{
+  const anon = await fetch(`${SUPABASE_URL}/functions/v1/admin-analytics-export?dataset=events&report_type=full`);
+  if (anon.status === 404) {
+    console.log("  SKIP admin-analytics-export is not deployed to this project yet");
+  } else {
+    check("no token rejected (401/403)", anon.status === 401 || anon.status === 403, `got ${anon.status}`);
+    const forged = await fetch(`${SUPABASE_URL}/functions/v1/admin-analytics-export?dataset=events&report_type=full`, {
+      headers: { Authorization: "Bearer not.a.real.jwt" },
+    });
+    check("forged token rejected (401/403)", forged.status === 401 || forged.status === 403, `got ${forged.status}`);
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);

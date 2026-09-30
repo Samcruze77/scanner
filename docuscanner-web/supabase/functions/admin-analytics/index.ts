@@ -7,6 +7,8 @@ import {
   type AnalyticsEventRow as GeoAnalyticsEventRow,
   type AdEventRow as GeoAdEventRow,
 } from "../_shared/geoHierarchy.ts"
+import { matchesFilters, parseFilters, resolveRange } from "../_shared/analyticsFilters.ts"
+import { chunk, fetchAllByKeyset } from "../_shared/paginate.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,13 +30,14 @@ const OPEN_EVENTS = new Set(["page_view", "app_open"])
 // user_id/browser/os/referrer/properties for the non-geo overview and
 // breakdowns sections, which geoHierarchy has no reason to know about.
 interface EventRow extends GeoAnalyticsEventRow {
+  id: number
   browser: string | null
   operating_system: string | null
   referrer: string | null
   properties: Record<string, unknown> | null
 }
 
-type AdEventRow = GeoAdEventRow
+type AdEventRow = GeoAdEventRow & { id: number }
 
 // Max rows returned in the "all users by location" detail table -- this is
 // a per-(date, country, region, city, device, visitor_type) breakdown, which
@@ -44,11 +47,10 @@ type AdEventRow = GeoAdEventRow
 // the response say so rather than silently hiding data.
 const MAX_LOCATION_ROWS = 500
 
-// Cap the visitor-history lookback that would happen only when the
-// visitor_type filter is requested (a network call, not a hard requirement
-// like locations' rows above), and now the same set doubles as the source of
-// truth for grouping the location-detail table by new/returning.
-const MAX_RETURNING_LOOKUP = 5000
+// Visitors are looked up for new/returning in chunks of this size (see
+// public.returning_visitor_ids); the result is the source of truth for both
+// the visitor_type filter and the location-detail table's new/returning split.
+const RETURNING_CHUNK = 500
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
@@ -72,57 +74,46 @@ export default {
 
     const role = adminRow.role
     const url = new URL(req.url)
-    const toParam = url.searchParams.get("to")
-    const fromParam = url.searchParams.get("from")
-    const days = Math.min(Math.max(Number(url.searchParams.get("days") ?? "30"), 1), 365)
-
     // Geographic + audience filters. All optional; each narrows the SAME
-    // dataset used for overview/breakdowns/daily/geo, so filtering is
-    // consistent across the whole response rather than only affecting one
-    // section. Country/region/city are never hard-coded -- whatever value
-    // is passed is matched against whatever the data actually contains.
-    const filterCountry = url.searchParams.get("country")?.toUpperCase() || null
-    const filterRegion = url.searchParams.get("region") || null
-    const filterCity = url.searchParams.get("city") || null
-    const filterDevice = url.searchParams.get("device") || null
-    const filterVisitorType = url.searchParams.get("visitor_type") // "new" | "returning"
+    // dataset used for overview/breakdowns/daily/geo (and, via the shared
+    // ../_shared/analyticsFilters.ts, the export), so filtering is consistent
+    // across the whole response. Whatever value is passed is matched against
+    // whatever the data actually contains -- never a hard-coded place.
+    const filters = parseFilters(url.searchParams)
+    const range = resolveRange(url.searchParams)
+    if (range.ok === false) return response({ error: range.error }, 400)
+    const { from, to, toExclusive } = range
 
-    const to = toParam ? new Date(toParam) : new Date()
-    const from = fromParam
-      ? new Date(fromParam)
-      : new Date(to.getTime() - days * 24 * 60 * 60 * 1000)
-
-    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) {
-      return response({ error: "Invalid date range" }, 400)
-    }
-
-    // `to` is always a bare calendar date (yyyy-mm-dd) from the client,
-    // which parses to that day's UTC midnight -- querying with a plain
-    // `lt(to)` would exclude the entire `to` day, including "today" itself
-    // whenever from === to (exactly the Today preset). Query up to the
-    // START of the day AFTER `to` instead, so the whole `to` day is
-    // included; `range` in the response still echoes exactly what was
-    // requested, unshifted.
-    const toExclusive = new Date(to.getTime() + 24 * 60 * 60 * 1000)
-
-    const [{ data: events, error }, { data: adEvents, error: adError }] = await Promise.all([
-      ctx.supabaseAdmin
-        .from("analytics_events")
-        .select("event_name,visitor_id,session_id,user_id,country_code,region,city,device_type,browser,operating_system,referrer,created_at,properties")
-        .gte("created_at", from.toISOString())
-        .lt("created_at", toExclusive.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(100000),
-      ctx.supabaseAdmin
-        .from("ad_events")
-        .select("event_type,country_code,region,city,device_type,created_at")
-        .gte("created_at", from.toISOString())
-        .lt("created_at", toExclusive.toISOString())
-        .limit(100000),
+    // Paged with keyset pagination: PostgREST caps a single response at its
+    // max-rows setting (1000 by default) whatever `.limit()` asks for, which
+    // used to silently truncate every aggregate on busy ranges.
+    const [eventsResult, adResult] = await Promise.all([
+      fetchAllByKeyset<EventRow>((afterId, pageSize) =>
+        ctx.supabaseAdmin
+          .from("analytics_events")
+          .select("id,event_name,visitor_id,session_id,user_id,country_code,region,city,county_district_lga,neighborhood_suburb,device_type,browser,operating_system,referrer,created_at,properties")
+          .gte("created_at", from.toISOString())
+          .lt("created_at", toExclusive.toISOString())
+          .gt("id", afterId)
+          .order("id", { ascending: true })
+          .limit(pageSize),
+      ),
+      fetchAllByKeyset<AdEventRow>((afterId, pageSize) =>
+        ctx.supabaseAdmin
+          .from("ad_events")
+          .select("id,event_type,country_code,region,city,county_district_lga,neighborhood_suburb,device_type,created_at")
+          .gte("created_at", from.toISOString())
+          .lt("created_at", toExclusive.toISOString())
+          .gt("id", afterId)
+          .order("id", { ascending: true })
+          .limit(pageSize),
+      ),
     ])
 
-    if (error) return response({ error: "Unable to load analytics" }, 500)
-    if (adError) return response({ error: "Unable to load ad analytics" }, 500)
+    if (eventsResult.error) return response({ error: "Unable to load analytics" }, 500)
+    if (adResult.error) return response({ error: "Unable to load ad analytics" }, 500)
+    const events = eventsResult.rows
+    const adEvents = adResult.rows
 
     let rows = (events ?? []) as EventRow[]
     let adRows = (adEvents ?? []) as AdEventRow[]
@@ -134,36 +125,28 @@ export default {
     // realistic admin query. Computed unconditionally now (not only when
     // ?visitor_type= is passed) because the location-detail table below
     // always breaks sessions down by new/returning.
-    const visitorIds = [...new Set(rows.map((r) => r.visitor_id).filter((v): v is string => !!v))].slice(0, MAX_RETURNING_LOOKUP)
-    let returningIds = new Set<string>()
-    if (visitorIds.length > 0) {
-      const { data: priorRows } = await ctx.supabaseAdmin
-        .from("analytics_events")
-        .select("visitor_id")
-        .lt("created_at", from.toISOString())
-        .in("visitor_id", visitorIds)
-        .limit(100000)
-      returningIds = new Set((priorRows ?? []).map((r: { visitor_id: string | null }) => r.visitor_id).filter((v): v is string => !!v))
+    const visitorIds = [...new Set(rows.map((r) => r.visitor_id).filter((v): v is string => !!v))]
+    const returningIds = new Set<string>()
+    for (const ids of chunk(visitorIds, RETURNING_CHUNK)) {
+      const { data: priorRows, error: priorError } = await ctx.supabaseAdmin.rpc("returning_visitor_ids", {
+        visitor_ids: ids,
+        before: from.toISOString(),
+      })
+      if (priorError) return response({ error: "Unable to load visitor history" }, 500)
+      for (const r of (priorRows ?? []) as { visitor_id: string }[]) returningIds.add(r.visitor_id)
     }
 
-    if (filterVisitorType === "new" || filterVisitorType === "returning") {
+    if (filters.visitor_type) {
       rows = rows.filter((r) => {
         const isReturning = !!r.visitor_id && returningIds.has(r.visitor_id)
-        return filterVisitorType === "returning" ? isReturning : !isReturning
+        return filters.visitor_type === "returning" ? isReturning : !isReturning
       })
     }
 
-    if (filterCountry) rows = rows.filter((r) => (r.country_code ?? UNKNOWN) === filterCountry)
-    if (filterRegion) rows = rows.filter((r) => r.region === filterRegion)
-    if (filterCity) rows = rows.filter((r) => r.city === filterCity)
-    if (filterDevice) rows = rows.filter((r) => r.device_type === filterDevice)
-
-    // Ad events use the same geo filters where applicable (country/region/city)
-    // so "ad impressions/clicks" in the summary reflect the same slice.
-    if (filterCountry) adRows = adRows.filter((r) => (r.country_code ?? UNKNOWN) === filterCountry)
-    if (filterRegion) adRows = adRows.filter((r) => r.region === filterRegion)
-    if (filterCity) adRows = adRows.filter((r) => r.city === filterCity)
-    if (filterDevice) adRows = adRows.filter((r) => r.device_type === filterDevice)
+    // Location + device filters apply to events and to ad events alike, so
+    // ad impressions/clicks reflect the same slice.
+    rows = rows.filter((r) => matchesFilters(r, filters))
+    adRows = adRows.filter((r) => matchesFilters(r, filters))
 
     const unique = (values: unknown[]) => new Set(values.filter(Boolean)).size
     const eventCount = (name: string) => rows.filter((r) => r.event_name === name).length
@@ -219,12 +202,14 @@ export default {
     // data.
     const totalUsers = visitors
     const totalSessions = sessions
-    const { countries, regionsByCountry, citiesByCountry } = buildGeoHierarchy(rows, adRows, totalUsers, totalSessions)
+    const { countries, levels, regionsByCountry, citiesByCountry } = buildGeoHierarchy(rows, adRows, totalUsers, totalSessions)
 
     const countriesRepresented = countries.filter((c) => c.key !== UNKNOWN).length
-    const citiesRepresented = new Set(
-      Object.values(citiesByCountry).flatMap((list) => list.map((c) => c.key)),
-    ).size
+    // Distinct places actually present at each level (full-path keyed, so
+    // same-named places under different parents are counted separately).
+    const citiesRepresented = levels.city_town.length
+    const countiesRepresented = levels.county_district_lga.length
+    const neighborhoodsRepresented = levels.neighborhood_suburb.length
 
     // --- "All users by location": one row per (date, country, region,
     // city, device, new/returning), capped and sorted by activity so the
@@ -239,11 +224,13 @@ export default {
       role,
       range: { from: from.toISOString(), to: to.toISOString() },
       filters: {
-        country: filterCountry,
-        region: filterRegion,
-        city: filterCity,
-        device: filterDevice,
-        visitor_type: filterVisitorType ?? null,
+        country: filters.country,
+        state_province: filters.state_province,
+        city_town: filters.city_town,
+        county_district_lga: filters.county_district_lga,
+        neighborhood_suburb: filters.neighborhood_suburb,
+        device: filters.device,
+        visitor_type: filters.visitor_type,
       },
       overview: {
         page_views: eventCount("page_view"),
@@ -262,11 +249,15 @@ export default {
         ad_ctr: totalAdImpressions > 0 ? Number(((totalAdClicks / totalAdImpressions) * 100).toFixed(2)) : null,
         countries: countriesRepresented,
         cities: citiesRepresented,
+        counties: countiesRepresented,
+        neighborhoods: neighborhoodsRepresented,
       },
       breakdowns: {
         countries: topCounts(rows.map((r) => r.country_code)),
         regions: topCounts(rows.map((r) => r.region)),
         cities: topCounts(rows.map((r) => r.city)),
+        counties: topCounts(rows.map((r) => r.county_district_lga ?? null)),
+        neighborhoods: topCounts(rows.map((r) => r.neighborhood_suburb ?? null)),
         devices: topCounts(rows.map((r) => r.device_type)),
         browsers: topCounts(rows.map((r) => r.browser)),
         operating_systems: topCounts(rows.map((r) => r.operating_system)),
@@ -274,6 +265,9 @@ export default {
       },
       geo: {
         countries,
+        // Every existing node at each level below country, keyed by full
+        // path (see GeoRow.path). Drill-down = filter by path prefix.
+        levels,
         regions_by_country: regionsByCountry,
         cities_by_country: citiesByCountry,
       },

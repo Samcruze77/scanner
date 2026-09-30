@@ -36,6 +36,8 @@ export async function POST(request: Request) {
         country_code: geo.countryCode,
         region: geo.region,
         city: geo.city,
+        county_district_lga: geo.countyDistrictLga,
+        neighborhood_suburb: geo.neighborhoodSuburb,
         postal_code: geo.postalCode,
         source: geo.source,
       },
