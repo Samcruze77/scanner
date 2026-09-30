@@ -29,6 +29,7 @@
 // Failure policy: every call here MUST fail silently. Analytics must never
 // throw, block, or slow down the scanner/document workflows it's attached to.
 
+import { hasConsent } from "@/utils/consent/consent";
 import { getSessionId, getVisitorId } from "./identity";
 
 export type AnalyticsEventType =
@@ -72,6 +73,8 @@ export async function trackEvent(
 ): Promise<void> {
   try {
     if (typeof window === "undefined") return;
+    // No analytics without the visitor's opt-in (see utils/consent/consent.ts).
+    if (!hasConsent("analytics")) return;
 
     const properties: Record<string, unknown> = { ...options.properties };
     if (options.conversionType) properties.conversion_type = options.conversionType;

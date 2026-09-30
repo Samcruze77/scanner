@@ -154,6 +154,21 @@ function AuthModalDialog() {
     try {
       if (mode === "signup") {
         void trackSignupStarted("email");
+        // An address whose account was deleted in the last 24 hours can't sign up yet
+        // (the database enforces it; this just explains it).
+        try {
+          const check = await fetch("/api/auth/signup-check", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: address }),
+          }).then((r) => r.json());
+          if (check?.blocked === true) {
+            setError("An account with this email was deleted less than 24 hours ago. You can sign up again with it at any time after 24 hours.");
+            return;
+          }
+        } catch {
+          /* fall through: the database still enforces the rule */
+        }
         // The confirmation link brings the person back to the site they signed up on. The
         // trailing slash matters: it is the form the project's Redirect URLs allow-list holds
         // (https://…vercel.app/ and http://localhost:3000/**), and a bare origin is refused.
@@ -207,7 +222,7 @@ function AuthModalDialog() {
         if (e.target === e.currentTarget) closeAuthModal();
       }}
     >
-      <div className="my-auto w-full max-w-sm rounded-2xl bg-elevated p-6 shadow-xl">
+      <div data-clarity-mask="true" className="my-auto w-full max-w-sm rounded-2xl bg-elevated p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 id="auth-modal-title" className="text-lg font-semibold">
             {title}

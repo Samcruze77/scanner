@@ -9,6 +9,8 @@
 // sessionStorage plus a "last seen" timestamp in localStorage so a new tab
 // still counts as the same session within the idle window.
 
+import { hasConsent } from "@/utils/consent/consent";
+
 const VISITOR_ID_KEY = "ds_visitor_id";
 const SESSION_ID_KEY = "ds_session_id";
 const SESSION_LAST_SEEN_KEY = "ds_session_last_seen";
@@ -38,8 +40,11 @@ function safeSet(storage: Storage, key: string, value: string): void {
   }
 }
 
+// Every identifier below is created and read ONLY with "analytics" consent;
+// without it there is no visitor or session ID at all (and therefore nothing
+// for the tracking calls to send).
 export function getVisitorId(): string | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || !hasConsent("analytics")) return null;
 
   let id = safeGet(window.localStorage, VISITOR_ID_KEY);
   if (!id) {
@@ -50,7 +55,7 @@ export function getVisitorId(): string | null {
 }
 
 export function getSessionId(): string | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || !hasConsent("analytics")) return null;
 
   const now = Date.now();
   const lastSeen = Number(safeGet(window.localStorage, SESSION_LAST_SEEN_KEY) ?? 0);
@@ -67,7 +72,7 @@ export function getSessionId(): string | null {
 }
 
 export function isNewSessionThisPageLoad(): boolean {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined" || !hasConsent("analytics")) return false;
   // sessionStorage is per-tab and empty on first load of a tab/session, so
   // absence here (before getSessionId() creates one) means app_open.
   return !safeGet(window.sessionStorage, SESSION_ID_KEY);

@@ -476,7 +476,7 @@ export default function PrivacyPage() {
         </section>
 
         {SECTIONS.map((section) => (
-          <section key={section.title} className="card p-5 sm:p-6">
+          <section key={section.title} id={`section-${parseInt(section.title, 10)}`} className="card scroll-mt-20 p-5 sm:p-6">
             <h2 className="section-title">{section.title}</h2>
             <div className="muted mt-3 space-y-3 text-sm leading-6">
               <Blocks blocks={section.blocks} />

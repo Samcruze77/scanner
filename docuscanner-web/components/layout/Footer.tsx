@@ -2,6 +2,7 @@
 // (and crawlers) can always reach them, and one honest line about how the site works.
 
 import Link from "next/link";
+import { CookieSettingsButton } from "@/components/consent/CookieSettingsButton";
 import { GUIDES } from "@/utils/seo/guides";
 import { SITE_NAME } from "@/utils/seo/site";
 
@@ -66,6 +67,8 @@ export function Footer() {
             <Link href="/privacy" className="underline hover:no-underline">
               Privacy Policy
             </Link>
+            {" \u00B7 "}
+            <CookieSettingsButton />
           </p>
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span className="muted">

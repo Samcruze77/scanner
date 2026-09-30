@@ -24,6 +24,9 @@ verify_jwt = false
 [functions.admin-analytics-export]
 verify_jwt = false
 
+[functions.delete-account]
+verify_jwt = false
+
 [functions.admin-users]
 verify_jwt = false
 

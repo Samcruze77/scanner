@@ -11,6 +11,7 @@
 // (utils/analytics/identity.ts) -- no extra DB writes, no new tracking.
 
 import { getSessionId, getVisitorId } from "@/utils/analytics/identity";
+import { hasConsent } from "@/utils/consent/consent";
 import type { AdSlotCode } from "@/utils/admin/ads";
 
 const FUNCTIONS_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1`;
@@ -34,7 +35,11 @@ export interface EligibleAd {
   frequency_cap_per_session: number | null;
 }
 
+// Per-session frequency capping is stored in sessionStorage, which is
+// advertising storage: it is read and written only with "advertising" consent.
+// Without consent nothing is stored, so caps can't persist for that visitor.
 function impressionCount(campaignId: string): number {
+  if (!hasConsent("advertising")) return 0;
   try {
     return Number(sessionStorage.getItem(IMPRESSION_KEY_PREFIX + campaignId) ?? "0");
   } catch {
@@ -43,6 +48,7 @@ function impressionCount(campaignId: string): number {
 }
 
 function recordImpressionLocally(campaignId: string): void {
+  if (!hasConsent("advertising")) return;
   try {
     sessionStorage.setItem(IMPRESSION_KEY_PREFIX + campaignId, String(impressionCount(campaignId) + 1));
   } catch {
@@ -82,6 +88,8 @@ export function trackAdClickEvent(ad: EligibleAd, path: string): void {
 }
 
 async function sendAdEvent(ad: EligibleAd, eventType: "impression" | "click", path: string): Promise<void> {
+  // Ad impression/click measurement runs only with "advertising" consent.
+  if (!hasConsent("advertising")) return;
   try {
     // Recording (impression/click) goes through this app's own proxy route
     // so the write carries Vercel's real geolocation -- see

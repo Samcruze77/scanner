@@ -21,6 +21,8 @@
 // block or slow down the scanner/converter workflow it sits next to.
 
 import { useEffect, useRef, useState } from "react";
+import { openConsentSettings } from "@/utils/consent/consent";
+import { useConsent } from "@/utils/consent/useConsent";
 import { usePathname } from "next/navigation";
 import type { AdPlacement } from "@/utils/ads/config";
 import { getEligibleAd, trackAdClickEvent, trackAdImpressionEvent, type EligibleAd } from "@/utils/ads/eligible";
@@ -66,6 +68,9 @@ function AdSlot({ placement, className }: { placement: AdPlacement; className?: 
   const pathname = usePathname();
   const [ad, setAd] = useState<EligibleAd | null | undefined>(undefined);
   const impressionTracked = useRef(false);
+  // Embedded video ads come from YouTube/Vimeo, which may set their own cookies,
+  // so they only play with "advertising" consent.
+  const adsConsent = useConsent("advertising");
 
   // Reset to "loading" synchronously during render when the slot/page
   // changes -- the React-documented pattern for clearing derived state on a
@@ -121,6 +126,16 @@ function AdSlot({ placement, className }: { placement: AdPlacement; className?: 
           ref={setNode}
           className={`overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100/60 dark:border-zinc-800 dark:bg-zinc-900/60 ${BOX[placement]}`}
         >
+          {!adsConsent ? (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-3 text-center">
+              <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                This ad is a video from a third party. Allow advertising cookies to play it.
+              </p>
+              <button type="button" onClick={openConsentSettings} className="btn btn-secondary px-3 text-xs">
+                Cookie settings
+              </button>
+            </div>
+          ) : (
           <iframe
             src={safeEmbedUrl(ad.embed_url)!}
             title={ad.title ?? "Advertisement"}
@@ -130,6 +145,7 @@ function AdSlot({ placement, className }: { placement: AdPlacement; className?: 
             allow="encrypted-media; picture-in-picture"
             loading="lazy"
           />
+          )}
         </div>
       ) : ad ? (
         <a

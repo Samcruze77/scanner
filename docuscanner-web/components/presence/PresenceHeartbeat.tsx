@@ -12,6 +12,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { getSessionId, getVisitorId } from "@/utils/analytics/identity";
+import { hasConsent, subscribeConsent } from "@/utils/consent/consent";
 
 const HEARTBEAT_MS = 30_000;
 
@@ -56,7 +57,8 @@ export function PresenceHeartbeat() {
 
   useEffect(() => {
     function start() {
-      if (timer.current) return;
+      // Presence needs "analytics" consent (utils/consent/consent.ts).
+      if (timer.current || !hasConsent("analytics")) return;
       void sendHeartbeat(pathname || "/");
       timer.current = setInterval(() => void sendHeartbeat(pathname || "/"), HEARTBEAT_MS);
     }
@@ -71,9 +73,16 @@ export function PresenceHeartbeat() {
       else stop();
     }
 
+    // Consent granted mid-visit starts presence at once; withdrawn stops it.
+    const unsubscribe = subscribeConsent(() => {
+      if (hasConsent("analytics") && document.visibilityState === "visible") start();
+      else stop();
+    });
+
     if (document.visibilityState === "visible") start();
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
+      unsubscribe();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       stop();
     };

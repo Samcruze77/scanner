@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AnalyticsListener } from "@/components/analytics/AnalyticsListener";
 import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
+import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { PresenceHeartbeat } from "@/components/presence/PresenceHeartbeat";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { AuthModal } from "@/components/auth/AuthModal";
@@ -81,6 +82,7 @@ export default function RootLayout({
           <Footer />
           <MobileActionBar />
           <AuthModal />
+          <ConsentBanner />
         </AuthProvider>
       </body>
     </html>

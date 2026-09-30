@@ -28,14 +28,19 @@ export function PageShell({
   children,
   width = "wide",
   ads = "content",
+  maskRecordings = ads === "workflow",
 }: {
   children: React.ReactNode;
   width?: keyof typeof WIDTH;
   ads?: "content" | "workflow";
+  // Hides this page's content from Microsoft Clarity session recordings. On by
+  // default for workflow pages (scanner, editors, converters), which show the
+  // visitor's own documents and extracted text.
+  maskRecordings?: boolean;
 }) {
   const rail = ads === "content" && width === "wide";
   return (
-    <main id="main" className={`mx-auto w-full flex-1 px-4 py-6 sm:px-6 sm:py-8 ${WIDTH[width]}`}>
+    <main id="main" data-clarity-mask={maskRecordings ? "true" : undefined} className={`mx-auto w-full flex-1 px-4 py-6 sm:px-6 sm:py-8 ${WIDTH[width]}`}>
       {ads === "content" && <AdTop className="mb-6" />}
       <div className={rail ? "lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-8" : ""}>
         <div className="min-w-0">{children}</div>

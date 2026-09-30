@@ -33,7 +33,7 @@ export default async function HistoryPage() {
 
   if (!claims) {
     return (
-      <PageShell width="narrow">
+      <PageShell width="narrow" maskRecordings>
         <PageHeader title="Document history">Documents you&apos;ve saved to your account.</PageHeader>
         <RequireAuthPrompt message="Sign in to see documents you've saved to your account." />
       </PageShell>
@@ -59,7 +59,7 @@ export default async function HistoryPage() {
   );
 
   return (
-    <PageShell width="narrow">
+    <PageShell width="narrow" maskRecordings>
       <PageHeader title="Document history">Documents you&apos;ve saved to your account. Download or print them from any device.</PageHeader>
       {withUrls.length === 0 ? (
         <div className="card flex flex-col items-start gap-3 p-6 text-sm">

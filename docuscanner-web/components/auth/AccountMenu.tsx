@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { trackError, trackLogout } from "@/utils/analytics/events";
@@ -33,6 +34,9 @@ export function AccountMenu() {
       <span className="hidden max-w-[10rem] truncate text-sm text-zinc-600 dark:text-zinc-400 sm:inline">
         {user.email}
       </span>
+      <Link href="/account" className="btn btn-ghost px-3">
+        Account
+      </Link>
       <button
         type="button"
         onClick={handleLogout}

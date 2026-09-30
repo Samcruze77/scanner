@@ -61,6 +61,11 @@ export function authErrorMessage(error: unknown, context: AuthContext): string {
     case "validation_failed":
       return context === "reset_update" ? GENERIC_AUTH_ERROR : "Enter a valid email address, like name@example.com.";
     default:
+      // The database refuses a sign-up for an address whose account was deleted in the
+      // last 24 hours; the auth API reports that as a generic database error.
+      if (context === "signup" && /database error saving new user/i.test(e.message ?? "")) {
+        return "This email can't be used to sign up right now. If you deleted an account with it less than 24 hours ago, you can sign up again after 24 hours.";
+      }
       return GENERIC_AUTH_ERROR;
   }
 }
