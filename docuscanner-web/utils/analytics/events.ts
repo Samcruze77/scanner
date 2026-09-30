@@ -124,6 +124,20 @@ export function trackCompressionFailed(kind: string, code: string) {
   return trackError(`compress_${kind}`, code);
 }
 
+// Protect PDF / Word: only the fact it ran, how long it took, which permission boxes were
+// ticked, and a failure code. Never the file, its name, or any password.
+export function trackProtectStarted(kind: "pdf" | "docx" | "image") {
+  return trackEvent("conversion_started", { conversionType: "protect_pdf", properties: { kind } });
+}
+
+export function trackProtectCompleted(kind: "pdf" | "docx" | "image", durationMs: number, permissions?: { allowPrint: boolean; allowCopy: boolean; allowEdit: boolean }) {
+  return trackEvent("conversion_completed", { conversionType: "protect_pdf", properties: { kind, durationMs, ...permissions } });
+}
+
+export function trackProtectFailed(code: string) {
+  return trackError("protect_pdf", code);
+}
+
 // signature_drawn / signature_uploaded (and typed): which method, never the image.
 export function trackSignatureAdded(method: "draw" | "upload" | "type") {
   return trackFeatureUsed(method === "draw" ? "signature_drawn" : method === "upload" ? "signature_uploaded" : "signature_typed");

@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { CookieSettingsButton } from "@/components/consent/CookieSettingsButton";
+import { FEATURES } from "@/utils/features/plans";
 import { GUIDES } from "@/utils/seo/guides";
 import { SITE_NAME } from "@/utils/seo/site";
 
@@ -14,6 +15,8 @@ const TOOLS = [
   { href: "/tools/ocr", label: "OCR: extract text" },
   { href: "/tools/compress-pdf", label: "Compress PDF" },
   { href: "/tools/compress-image", label: "Compress image" },
+  { href: "/tools/protect-pdf", label: "Protect PDF" },
+  ...(FEATURES["protect.docx"].implemented ? [{ href: "/tools/protect-word", label: "Protect Word document" }] : []),
 ];
 
 const CONVERT = [

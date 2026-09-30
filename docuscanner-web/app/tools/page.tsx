@@ -9,7 +9,7 @@ import { TOOL_GROUPS, toolsInGroup } from "@/utils/tools/registry";
 export const metadata: Metadata = pageMetadata({
   title: "Tools",
   absoluteTitle: "Tools - PDFScanner",
-  description: "Edit, sign and compress documents for free, right in your browser. Nothing is uploaded.",
+  description: "Edit, sign, compress and password-protect documents for free, right in your browser. Nothing is uploaded.",
   path: "/tools",
 });
 
@@ -17,7 +17,7 @@ export default function ToolsHubPage() {
   return (
     <PageShell>
       <PageHeader title="Tools">
-        Edit, sign and compress your documents. Everything runs in your browser, so your files are never uploaded. To change a
+        Edit, sign, compress and password-protect your documents. Everything runs in your browser, so your files are never uploaded. To change a
         file&apos;s type, like Word to PDF, use{" "}
         <Link href="/convert" className="link-inline">
           Convert
