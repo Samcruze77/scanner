@@ -20,6 +20,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import JSZip from "jszip";
+import sharp from "sharp";
 import { makePdf, makeTestDocx, PASSWORD, retypeDocx } from "./fixtures.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -40,6 +41,11 @@ const files = {
   "notes.txt": new TextEncoder().encode("plain text"),
   "empty.docx": new Uint8Array(0),
 };
+// Pictures for the "picture -> protected one-page PDF" flow.
+const photo = { create: { width: 320, height: 200, channels: 3, background: { r: 200, g: 60, b: 40 } } };
+files["photo.png"] = new Uint8Array(await sharp(photo).png().toBuffer());
+files["photo.jpg"] = new Uint8Array(await sharp(photo).jpeg().toBuffer());
+files["photo.webp"] = new Uint8Array(await sharp(photo).webp().toBuffer());
 for (const [name, bytes] of Object.entries(files)) fs.writeFileSync(path.join(work, name), bytes);
 const file = (name) => path.join(work, name);
 
@@ -197,6 +203,24 @@ await test("anonymous: full PDF flow -> download needs the password (pdf.js)", a
   assert.deepEqual(s.requests.filter((r) => r.method !== "GET").filter((r) => !r.url.includes("/api/analytics")).map((r) => r.url), [], "no uploads");
   await s.context.close();
 });
+
+for (const image of ["photo.png", "photo.jpg", "photo.webp"]) {
+  await test(`picture (${image}) -> protected one-page PDF that needs the password`, async () => {
+    const s = await session();
+    await open(s.page, "protect-pdf");
+    await choose(s.page, image);
+    await fillPasswords(s.page, PASSWORD);
+    await s.page.getByRole("button", { name: "Protect PDF" }).click();
+    await s.page.getByText("Your picture is protected").waitFor({ timeout: 60000 });
+    const got = await downloadOf(s.page, /Download protected PDF/);
+    assert.equal(got.name, `${image.split(".")[0]}-protected.pdf`);
+    await assert.rejects(pdfjs.getDocument({ data: got.bytes.slice(), verbosity: 0 }).promise, (e) => e.name === "PasswordException");
+    const doc = await pdfjs.getDocument({ data: got.bytes.slice(), password: PASSWORD, verbosity: 0 }).promise;
+    assert.equal(doc.numPages, 1);
+    assert.deepEqual(s.requests.filter((r) => r.method !== "GET").filter((r) => !r.url.includes("/api/analytics")).map((r) => r.url), [], "no uploads");
+    await s.context.close();
+  });
+}
 
 await test("signed-in visitor: the same Word flow works (no difference, no extra prompts)", async () => {
   const s = await session({ signedIn: true });
