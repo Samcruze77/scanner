@@ -17,7 +17,8 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import * as CFB from "cfb";
 import JSZip from "jszip";
-import { makeBasicDocx, makeLargeDocx, makePdf, makeTestDocx, makeUnicodeDocx, PASSWORD, PASSWORDS, retypeDocx } from "./fixtures.mjs";
+import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
+import { asOfficeType, makeBasicDocx, makeLargeDocx, makePdf, makePptx, makeTestDocx, makeUnicodeDocx, makeXlsx, PASSWORD, PASSWORDS, retypeDocx, toFlatOpc } from "./fixtures.mjs";
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -27,10 +28,13 @@ process.on("exit", () => fs.rmSync(work, { recursive: true, force: true }));
 
 const { protectPdf, encryptArgs, validatePassword, protectedFilename, ProtectError, MIN_PASSWORD_LENGTH, mentionsEncrypt, isEncryptedPdf } = await import("../../utils/protect/protect.ts");
 const { encryptDocx, verifyEncryptedDocx, dataSpaceStructures, looksLikeOfficeEncrypted } = await import("../../utils/protect/ooxml.ts");
-const { validateDocxPackage } = await import("../../utils/protect/docx.ts");
+const { validateOfficePackage } = await import("../../utils/protect/office.ts");
 const { runProtection, toProtectError } = await import("../../utils/protect/operation.ts");
 const { protectErrorMessage } = await import("../../utils/protect/messages.ts");
 const { writeCfb, allocateCfb } = await import("../../utils/protect/cfbWriter.ts");
+const { flatOpcToPackage, looksLikeFlatOpc } = await import("../../utils/protect/flatOpc.ts");
+const { OFFICE_TYPES, OFFICE_EXTENSIONS, officeExtensionOf } = await import("../../utils/protect/office.ts");
+const dom = { parse: (xml) => new DOMParser({ onError: () => {} }).parseFromString(xml, "application/xml"), serialize: (n) => new XMLSerializer().serializeToString(n) };
 const { readCfb } = await import("../../utils/protect/cfbReader.ts");
 const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 const createModule = require("@neslinesli93/qpdf-wasm");
@@ -356,7 +360,7 @@ const loAvailable = spawnSync("which", ["soffice"]).status === 0 && spawnSync("p
 const docs = { "A basic (headings, page breaks, pages)": await makeBasicDocx(), "B rich (table, image, link, lists, header/footer, sections)": docx, "C Unicode (Yoruba, Igbo, Hausa, symbols, scripts)": await makeUnicodeDocx() };
 for (const [label, original] of Object.entries(docs)) {
   await test(`document ${label}: protect -> decrypts byte-identical; opens in LibreOffice with identical text, tables and images`, async () => {
-    const out = await runProtection(req("docx", original), engines);
+    const out = await runProtection(req("office", original), engines);
     assert.ok(looksLikeOfficeEncrypted(out.data));
     const file = path.join(work, `doc-${sha(original).slice(0, 8)}.docx`);
     fs.writeFileSync(file, out.data);
@@ -435,72 +439,178 @@ await test("Word input validation: four package types accepted under their own e
       variants[ext] = fixed;
     }
   }
-  for (const [ext, bytes] of Object.entries(variants)) await validateDocxPackage(bytes, ext);
+  for (const [ext, bytes] of Object.entries(variants)) await validateOfficePackage(bytes, ext);
   // The extension must match the contents, in every direction.
   for (const [actual, bytes] of Object.entries(variants)) {
     for (const claimed of Object.keys(variants)) {
       if (claimed === actual) continue;
-      assert.equal(await code(validateDocxPackage(bytes, claimed)), "protect_type_mismatch", `${actual} contents named .${claimed}`);
+      assert.equal(await code(validateOfficePackage(bytes, claimed)), "protect_type_mismatch", `${actual} contents named .${claimed}`);
     }
   }
   // Macro code may only travel in macro-enabled types.
   const withVba = await JSZip.loadAsync(docx);
   withVba.file("word/vbaProject.bin", new Uint8Array([1, 2, 3]));
   const plainWithVba = new Uint8Array(await withVba.generateAsync({ type: "uint8array" }));
-  assert.equal(await code(validateDocxPackage(plainWithVba, "docx")), "protect_type_mismatch");
-  assert.equal(await code(validateDocxPackage(plainWithVba, "dotx")), "protect_type_mismatch");
+  assert.equal(await code(validateOfficePackage(plainWithVba, "docx")), "protect_type_mismatch");
+  assert.equal(await code(validateOfficePackage(plainWithVba, "dotx")), "protect_type_mismatch");
   const docmWithVba = await JSZip.loadAsync(variants.docm);
   docmWithVba.file("word/vbaProject.bin", new Uint8Array([1, 2, 3]));
-  await validateDocxPackage(new Uint8Array(await docmWithVba.generateAsync({ type: "uint8array" })), "docm");
+  await validateOfficePackage(new Uint8Array(await docmWithVba.generateAsync({ type: "uint8array" })), "docm");
   // Not Word packages at all.
-  assert.equal(await code(validateDocxPackage(new Uint8Array(0))), "protect_invalid");
-  assert.equal(await code(validateDocxPackage(new TextEncoder().encode("hello"))), "protect_invalid");
-  assert.equal(await code(validateDocxPackage(docx.subarray(0, Math.floor(docx.length / 2)))), "protect_invalid", "truncated zip");
+  assert.equal(await code(validateOfficePackage(new Uint8Array(0))), "protect_invalid");
+  assert.equal(await code(validateOfficePackage(new TextEncoder().encode("hello"))), "protect_invalid");
+  assert.equal(await code(validateOfficePackage(docx.subarray(0, Math.floor(docx.length / 2)))), "protect_invalid", "truncated zip");
   const noDoc = new JSZip();
   noDoc.file("[Content_Types].xml", "<Types/>");
-  assert.equal(await code(validateDocxPackage(new Uint8Array(await noDoc.generateAsync({ type: "uint8array" })))), "protect_invalid");
-  assert.equal(await code(validateDocxPackage(encrypted)), "protect_already_protected");
+  assert.equal(await code(validateOfficePackage(new Uint8Array(await noDoc.generateAsync({ type: "uint8array" })))), "protect_invalid");
+  assert.equal(await code(validateOfficePackage(encrypted)), "protect_already_protected");
   const legacy = writeCfb({ name: "Root Entry", children: [{ name: "WordDocument", data: new Uint8Array(5000) }] });
-  assert.equal(await code(validateDocxPackage(legacy)), "protect_legacy_doc");
-  assert.equal(await code(validateDocxPackage(new Uint8Array(51 * 1024 * 1024))), "protect_too_large");
+  assert.equal(await code(validateOfficePackage(legacy)), "protect_legacy_doc");
+  assert.equal(await code(validateOfficePackage(new Uint8Array(51 * 1024 * 1024))), "protect_too_large");
 });
 
-await test("Word formats: each type protects to the same extension, decrypts to the identical file, macros untouched (msoffcrypto-tool)", async () => {
-  const MAIN = "wordprocessingml.document.main+xml";
-  const make = async (to) => retypeDocx(docx, (ct) => ct.replace(MAIN, to));
-  const files = {
-    docm: await make("wordprocessingml.document.macroEnabled.main+xml"),
-    dotx: await make("wordprocessingml.template.main+xml"),
-    dotm: await make("wordprocessingml.template.macroEnabled.main+xml"),
-  };
-  for (const ext of ["docm", "dotm"]) {
-    files[ext] = await retypeDocx(files[ext], (ct) => ct.replace(/application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.(document|template)\.macroEnabled\.main\+xml/, "application/vnd.ms-word.$1.macroEnabled.main+xml"));
-    const z = await JSZip.loadAsync(files[ext]);
-    z.file("word/vbaProject.bin", crypto.randomBytes(2048)); // stand-in macro project
-    files[ext] = new Uint8Array(await z.generateAsync({ type: "uint8array" }));
+const xlsx = await makeXlsx();
+const pptx = await makePptx();
+const REAL = { docx, xlsx, pptx };
+const APP_BASE = { word: "docx", excel: "xlsx", powerpoint: "pptx" };
+
+await test("Office types: every extension is accepted for its own contents and refused for any other type's", async () => {
+  const variants = {};
+  for (const ext of OFFICE_EXTENSIONS) {
+    const app = OFFICE_TYPES[ext].app;
+    const base = APP_BASE[app];
+    if (ext === "xlsb") continue; // a binary workbook cannot be made from an .xlsx; covered by content-type strings only
+    variants[ext] = ext === base ? REAL[base] : await asOfficeType(REAL[base], base, ext);
   }
-  for (const [ext, original] of Object.entries(files)) {
-    const out = await runProtection({ ...req("docx", original), wordExtension: ext }, engines);
+  for (const [ext, bytes] of Object.entries(variants)) await validateOfficePackage(bytes, ext);
+  for (const [actual, bytes] of Object.entries(variants)) {
+    for (const claimed of OFFICE_EXTENSIONS) {
+      if (claimed === actual) continue;
+      assert.ok(["protect_type_mismatch", "protect_invalid"].includes(await code(validateOfficePackage(bytes, claimed))), `${actual} contents named .${claimed} must be refused`);
+    }
+  }
+  // Macro code may only travel in macro-enabled types, in every application.
+  for (const [app, base] of Object.entries(APP_BASE)) {
+    const z = await JSZip.loadAsync(REAL[base]);
+    z.file(`${{ word: "word", excel: "xl", powerpoint: "ppt" }[app]}/vbaProject.bin`, new Uint8Array([1, 2, 3]));
+    assert.equal(await code(validateOfficePackage(new Uint8Array(await z.generateAsync({ type: "uint8array" })), base)), "protect_type_mismatch", `${app}: macros inside a plain .${base}`);
+  }
+  assert.equal(officeExtensionOf("Budget 2024.XLSX"), "xlsx");
+  assert.equal(officeExtensionOf("deck.ppsm"), "ppsm");
+  assert.equal(officeExtensionOf("notes.txt"), null);
+  assert.equal(officeExtensionOf("old.xls"), null);
+});
+
+for (const [label, original, ext] of [["Excel workbook", xlsx, "xlsx"], ["PowerPoint presentation", pptx, "pptx"]]) {
+  await test(`${label}: protect -> decrypts byte-identical (msoffcrypto-tool); LibreOffice shows identical content before and after; wrong/no password refused`, async () => {
+    const out = await runProtection({ ...req("office", original), officeExtension: ext }, engines);
     assert.equal(out.extension, ext);
+    assert.equal(out.mime, OFFICE_TYPES[ext].mime);
     assert.ok(looksLikeOfficeEncrypted(out.data));
-    assert.notEqual(out.mime, "application/pdf");
+    assert.notEqual(String.fromCharCode(out.data[0], out.data[1]), "PK");
+    const file = path.join(work, `app-protected.${ext}`);
+    fs.writeFileSync(file, out.data);
+    if (hasPython) {
+      const r = msoffcryptoDecrypt(file, PASSWORD);
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(sha(r.stdout.subarray(r.stdout.indexOf(10) + 1)), sha(original));
+      assert.notEqual(msoffcryptoDecrypt(file, "wrong").status, 0);
+    }
+    if (loAvailable) {
+      const plain = path.join(work, `app-plain.${ext}`);
+      fs.writeFileSync(plain, original);
+      const before = lo(plain);
+      const after = lo(file, PASSWORD);
+      assert.ok(before && after, "both open");
+      assert.deepEqual(after, before, "what LibreOffice shows is identical before and after protection");
+      assert.equal(lo(file, "wrong"), null);
+      assert.equal(lo(file), null);
+    }
+  });
+}
+
+await test("Macro-enabled and template types (Word, Excel, PowerPoint): protect keeps the extension and the package, macro project included (msoffcrypto-tool)", async () => {
+  for (const [ext, base] of [["docm", "docx"], ["dotx", "docx"], ["dotm", "docx"], ["xlsm", "xlsx"], ["xltx", "xlsx"], ["xltm", "xlsx"], ["pptm", "pptx"], ["potx", "pptx"], ["potm", "pptx"], ["ppsx", "pptx"], ["ppsm", "pptx"]]) {
+    const original = await asOfficeType(REAL[base], base, ext);
+    const out = await runProtection({ ...req("office", original), officeExtension: ext }, engines);
+    assert.equal(out.extension, ext);
+    assert.equal(out.mime, OFFICE_TYPES[ext].mime);
     if (hasPython) {
       const file = path.join(work, `fmt-${ext}.bin`);
       fs.writeFileSync(file, out.data);
       const r = msoffcryptoDecrypt(file, PASSWORD);
-      assert.equal(r.status, 0, r.stderr);
+      assert.equal(r.status, 0, `${ext}: ${r.stderr}`);
       assert.equal(sha(r.stdout.subarray(r.stdout.indexOf(10) + 1)), sha(original), `${ext}: package (including any macro project) identical`);
     }
     // Claiming the wrong type is refused before anything is encrypted.
-    assert.equal(await code(runProtection({ ...req("docx", original), wordExtension: ext === "dotx" ? "docx" : "dotx" }, engines)), "protect_type_mismatch");
+    assert.equal(await code(runProtection({ ...req("office", original), officeExtension: ext === "docx" ? "dotx" : "docx" }, engines)), "protect_type_mismatch");
   }
+});
+
+// ================================ Office XML Documents (Flat OPC) ================================
+
+async function partsOf(bytes) {
+  const z = await JSZip.loadAsync(bytes);
+  const out = new Map();
+  for (const name of Object.keys(z.files).filter((n) => !z.files[n].dir && n !== "[Content_Types].xml")) {
+    const raw = await z.file(name).async("uint8array");
+    const isXml = /\.(xml|rels)$/i.test(name);
+    out.set(name, isXml ? `xml:${dom.serialize(dom.parse(new TextDecoder().decode(raw).replace(/^\uFEFF/, "")))}` : `bin:${sha(raw)}`);
+  }
+  return out;
+}
+
+for (const [label, original, ext] of [["Word", docx, "docx"], ["Excel", xlsx, "xlsx"], ["PowerPoint", pptx, "pptx"], ["Word macro-enabled", await asOfficeType(docx, "docx", "docm"), "docm"]]) {
+  await test(`XML Document (${label}): converts losslessly to the package it describes, then protects it`, async () => {
+    const xml = await toFlatOpc(original);
+    assert.ok(looksLikeFlatOpc(xml));
+    const converted = await flatOpcToPackage(xml, dom);
+    assert.equal(converted.extension, ext);
+    // Every part comes back: XML parts equal after normalization, binary parts byte-identical.
+    const before = await partsOf(original);
+    const after = await partsOf(converted.bytes);
+    assert.deepEqual([...after.keys()].sort(), [...before.keys()].sort(), "same set of parts");
+    for (const [name, value] of before) assert.equal(after.get(name), value, `part ${name}`);
+    await validateOfficePackage(converted.bytes, converted.extension);
+    // and the converted package is protected like any other file
+    const out = await runProtection({ ...req("office", converted.bytes), officeExtension: converted.extension }, engines);
+    assert.equal(out.extension, ext);
+    if (hasPython) {
+      const file = path.join(work, `flat-${ext}.bin`);
+      fs.writeFileSync(file, out.data);
+      const r = msoffcryptoDecrypt(file, PASSWORD);
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(sha(r.stdout.subarray(r.stdout.indexOf(10) + 1)), sha(converted.bytes));
+    }
+    if (loAvailable && ext !== "docm") {
+      // the converted package opens in LibreOffice with the same content as the original file
+      const a = path.join(work, `flat-orig.${ext}`), b = path.join(work, `flat-conv.${ext}`);
+      fs.writeFileSync(a, original);
+      fs.writeFileSync(b, converted.bytes);
+      assert.deepEqual(lo(b), lo(a));
+    }
+  });
+}
+
+await test("XML Document: Word 2003 XML, other XML, DOCTYPE/entities, malformed and oversized input are refused, never converted", async () => {
+  const wordml2003 = '<?xml version="1.0"?><w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml"><w:body/></w:wordDocument>';
+  assert.equal(looksLikeFlatOpc(wordml2003), false);
+  assert.equal(await code(flatOpcToPackage(wordml2003, dom)), "protect_xml_unsupported");
+  assert.equal(await code(flatOpcToPackage('<?xml version="1.0"?><note><to>x</to></note>', dom)), "protect_xml_unsupported");
+  const flat = await toFlatOpc(docx);
+  assert.equal(await code(flatOpcToPackage(flat.replace("<pkg:package", '<!DOCTYPE pkg:package [<!ENTITY a "aaaa">]><pkg:package'), dom)), "protect_invalid");
+  assert.equal(await code(flatOpcToPackage(flat.slice(0, flat.length - 400), dom)), "protect_invalid", "truncated");
+  assert.equal(await code(flatOpcToPackage(flat.replace("/_rels/.rels", "/other.rels"), dom)), "protect_invalid", "no root relationships part");
+  assert.equal(await code(flatOpcToPackage(flat.replace(/pkg:name="\/word\/document.xml"/, 'pkg:name="/../evil.xml"'), dom)), "protect_invalid", "path traversal");
+  assert.equal(await code(flatOpcToPackage(flat.replace(/pkg:contentType="application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document\.main\+xml"/, 'pkg:contentType="application/xml"'), dom)), "protect_xml_unsupported", "no Office main part");
+  assert.equal(await code(flatOpcToPackage(flat + " ".repeat(26 * 1024 * 1024), dom)), "protect_too_large");
 });
 
 // ================================ The transaction ================================
 
 await test("operation: valid DOCX + password -> protected .docx, phases in order, original untouched", async () => {
   const phases = [];
-  const out = await runProtection(req("docx", docx), engines, { onPhase: (p) => phases.push(p) });
+  const out = await runProtection(req("office", docx), engines, { onPhase: (p) => phases.push(p) });
   assert.deepEqual(phases, ["validating", "encrypting", "verifying", "completed"]);
   assert.equal(out.extension, "docx");
   assert.ok(looksLikeOfficeEncrypted(out.data));
@@ -516,68 +626,68 @@ await test("operation: valid PDF + password -> protected PDF", async () => {
 await test("operation: missing / short password fails validation before any encryption", async () => {
   let encryptCalled = false;
   const spy = { ...engines, encryptDocx: async (...a) => ((encryptCalled = true), encryptDocx(...a)) };
-  assert.equal(await code(runProtection(req("docx", docx, { password: "" }), spy)), "protect_password_missing");
-  assert.equal(await code(runProtection(req("docx", docx, { password: "abc" }), spy)), "protect_password_short");
+  assert.equal(await code(runProtection(req("office", docx, { password: "" }), spy)), "protect_password_missing");
+  assert.equal(await code(runProtection(req("office", docx, { password: "abc" }), spy)), "protect_password_short");
   assert.equal(encryptCalled, false);
 });
 
 await test("operation: corrupt DOCX -> no output, original preserved", async () => {
   const corrupt = docx.slice(0, 3000);
   const before = sha(corrupt);
-  assert.equal(await code(runProtection(req("docx", corrupt), engines)), "protect_invalid");
+  assert.equal(await code(runProtection(req("office", corrupt), engines)), "protect_invalid");
   assert.equal(sha(corrupt), before);
 });
 
 await test("operation: an encryption exception -> generic failure, no output, retry works", async () => {
   const boom = { ...engines, encryptDocx: async () => { throw new Error("secret internal detail with TestPassword123!"); } };
-  const error = await runProtection(req("docx", docx), boom).catch((e) => e);
+  const error = await runProtection(req("office", docx), boom).catch((e) => e);
   assert.equal(error.code, "protect_failed");
   assert.ok(!error.message.includes("secret") && !error.message.includes(PASSWORD), "raw exception text never surfaces");
-  const retry = await runProtection(req("docx", docx), engines);
+  const retry = await runProtection(req("office", docx), engines);
   assert.ok(looksLikeOfficeEncrypted(retry.data));
 });
 
 await test("operation: output that fails verification is discarded", async () => {
   const bad = { ...engines, encryptDocx: async () => ({ data: docx }) }; // "encrypts" to the plain .docx
-  assert.equal(await code(runProtection(req("docx", docx), bad)), "protect_unverified");
+  assert.equal(await code(runProtection(req("office", docx), bad)), "protect_unverified");
   const garbage = { ...engines, encryptDocx: async () => ({ data: new Uint8Array(100) }) };
-  assert.equal(await code(runProtection(req("docx", docx), garbage)), "protect_unverified");
+  assert.equal(await code(runProtection(req("office", docx), garbage)), "protect_unverified");
 });
 
 await test("operation: memory failure -> protect_memory with the friendly message", async () => {
   const oom = { ...engines, encryptDocx: async () => { throw new RangeError("Array buffer allocation failed"); } };
-  assert.equal(await code(runProtection(req("docx", docx), oom)), "protect_memory");
+  assert.equal(await code(runProtection(req("office", docx), oom)), "protect_memory");
   assert.match(protectErrorMessage("protect_memory"), /too large for your browser/);
 });
 
 await test("operation: cancelling mid-encryption -> protect_cancelled, no output", async () => {
   const controller = new AbortController();
-  const promise = runProtection(req("docx", docx), engines, { signal: controller.signal, onPhase: (p) => p === "encrypting" && setTimeout(() => controller.abort(), 200) });
+  const promise = runProtection(req("office", docx), engines, { signal: controller.signal, onPhase: (p) => p === "encrypting" && setTimeout(() => controller.abort(), 200) });
   assert.equal(await code(promise), "protect_cancelled");
   assert.equal(protectErrorMessage("protect_cancelled"), "Protection cancelled. Your original document is unchanged.");
   const already = new AbortController();
   already.abort();
-  assert.equal(await code(runProtection(req("docx", docx), engines, { signal: already.signal })), "protect_cancelled");
+  assert.equal(await code(runProtection(req("office", docx), engines, { signal: already.signal })), "protect_cancelled");
 });
 
 await test("operation: a hung step times out instead of leaving the UI stuck", async () => {
   const hang = { ...engines, encryptDocx: () => new Promise(() => {}) }; // never settles, ignores the signal
   const t = Date.now();
-  assert.equal(await code(runProtection(req("docx", docx), hang, { timeoutMs: 300 })), "protect_timeout");
+  assert.equal(await code(runProtection(req("office", docx), hang, { timeoutMs: 300 })), "protect_timeout");
   assert.ok(Date.now() - t < 3000);
 });
 
 await test("operation: retry after a failure starts fresh; a later failure never returns an earlier result", async () => {
-  const ok1 = await runProtection(req("docx", docx), engines);
-  const failure = await code(runProtection(req("docx", docx), { ...engines, encryptDocx: async () => { throw new Error("x"); } }));
+  const ok1 = await runProtection(req("office", docx), engines);
+  const failure = await code(runProtection(req("office", docx), { ...engines, encryptDocx: async () => { throw new Error("x"); } }));
   assert.equal(failure, "protect_failed");
-  const ok2 = await runProtection(req("docx", docx), engines);
+  const ok2 = await runProtection(req("office", docx), engines);
   assert.notDeepEqual(Buffer.from(ok1.data), Buffer.from(ok2.data));
 });
 
 await test("operation: two simultaneous operations do not cross-contaminate", async () => {
   const docB = await makeTestDocx({ imageSize: 60 });
-  const [a, b] = await Promise.all([runProtection(req("docx", docx, { password: "password-for-A" }), engines), runProtection(req("docx", docB, { password: "password-for-B" }), engines)]);
+  const [a, b] = await Promise.all([runProtection(req("office", docx, { password: "password-for-A" }), engines), runProtection(req("office", docB, { password: "password-for-B" }), engines)]);
   await verifyEncryptedDocx(a.data, docx, "password-for-A");
   await verifyEncryptedDocx(b.data, docB, "password-for-B");
   assert.equal(await code(verifyEncryptedDocx(a.data, docB, "password-for-B")), "protect_unverified");
@@ -596,7 +706,7 @@ async function sizeTest(label, megabytes) {
     const big = megabytes ? await makeLargeDocx(megabytes) : docx;
     const rssBefore = process.memoryUsage().rss;
     const t = Date.now();
-    const out = await runProtection(req("docx", big), engines);
+    const out = await runProtection(req("office", big), engines);
     const ms = Date.now() - t;
     console.log(`     ${(big.length / 1048576).toFixed(1)} MB in -> ${(out.data.length / 1048576).toFixed(1)} MB out, ${ms} ms total (encrypt + verify), rss +${Math.round((process.memoryUsage().rss - rssBefore) / 1048576)} MB`);
     if (hasPython) {
@@ -615,7 +725,7 @@ if (process.env.LARGE) await sizeTest("a 48 MB document (near the 50 MB limit)",
 // ================================ Policy checks on the source ================================
 
 const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
-const protectSources = ["utils/protect/protect.ts", "utils/protect/ooxml.ts", "utils/protect/cfbWriter.ts", "utils/protect/docx.ts", "utils/protect/operation.ts", "utils/protect/browser.ts", "components/tools/ProtectTool.tsx"];
+const protectSources = ["utils/protect/protect.ts", "utils/protect/ooxml.ts", "utils/protect/cfbWriter.ts", "utils/protect/office.ts", "utils/protect/operation.ts", "utils/protect/browser.ts", "components/tools/ProtectTool.tsx"];
 
 await test("policy: nothing in the protect code talks to a server, logs, or stores a password", () => {
   for (const f of protectSources) {
