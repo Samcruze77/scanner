@@ -11,9 +11,9 @@
 //    wired (see components/tools/ToolGate.tsx).
 
 import type { AnnotationTool } from "@/utils/scanner/annotations";
-import type { FeatureId } from "@/utils/features/plans";
+import { FEATURES, type FeatureId } from "../features/plans.ts";
 
-export type ToolGroupId = "edit-sign" | "text" | "compress";
+export type ToolGroupId = "edit-sign" | "text" | "compress" | "protect";
 export type CompressKind = "pdf" | "image" | "word" | "excel";
 
 interface ToolBase {
@@ -40,12 +40,20 @@ export interface CompressTool extends ToolBase {
   compress: CompressKind;
 }
 
-export type ToolDef = EditorTool | CompressTool;
+// Password-protects a PDF in the browser. Public: no account, nothing uploaded.
+export interface ProtectTool extends ToolBase {
+  kind: "protect";
+  // Which document type the page leads with; the tool itself accepts both.
+  focus: "pdf" | "word";
+}
+
+export type ToolDef = EditorTool | CompressTool | ProtectTool;
 
 export const TOOL_GROUPS: { id: ToolGroupId; title: string; body: string }[] = [
   { id: "edit-sign", title: "Edit & Sign", body: "Add text, marks and your signature to a document." },
   { id: "text", title: "Extract text", body: "Read the words from scans and photos with OCR." },
   { id: "compress", title: "Compress", body: "Make files smaller so they are easier to send." },
+  { id: "protect", title: "Protect", body: "Lock a PDF with a password before you share it." },
 ];
 
 const editor = (
@@ -81,6 +89,19 @@ const compress = (slug: string, title: string, body: string, kind: CompressKind,
   requiresAuth: false,
 });
 
+const protect = (slug: string, title: string, body: string, focus: "pdf" | "word", feature: FeatureId = "protect.pdf"): ProtectTool => ({
+  id: slug.replace(/-/g, "_"),
+  slug,
+  title,
+  body,
+  group: "protect",
+  kind: "protect",
+  feature,
+  focus,
+  // Locking happens on the visitor's device, so it never needs a login.
+  requiresAuth: false,
+});
+
 export const TOOLS: ToolDef[] = [
   editor("pdf-editor", "PDF Editor", "Crop, enhance, reorder pages, add text and sign, then save one clean PDF.", null, "Upload a PDF or image, tap a page to open the editor, then choose what to add."),
   editor("add-text", "Add Text", "Type text anywhere on a page and choose its size, colour and style.", "text", "Upload a document, tap a page, then tap where you want to type."),
@@ -109,6 +130,11 @@ export const TOOLS: ToolDef[] = [
   compress("compress-pdf", "Compress PDF", "Shrink a PDF with a quality-to-size slider, keeping text readable.", "pdf", "compress.pdf"),
   compress("compress-image", "Compress Image", "Reduce a photo's file size with a quality-to-size slider.", "image", "compress.image"),
   compress("compress-word", "Compress Word", "Shrink the pictures inside a Word document without touching its layout.", "word", "compress.word"),
+  protect("protect-pdf", "Protect PDF", "Lock a PDF with a password. Free, no account, and the file never leaves your device.", "pdf"),
+  // Only listed while the Word option is switched on (utils/features/plans.ts).
+  ...(FEATURES["protect.docx"].implemented
+    ? [protect("protect-word", "Protect Word Document", "Password protect a .docx so Microsoft Word asks for the password. Free, no account, and the file never leaves your device.", "word", "protect.docx")]
+    : []),
   compress("compress-excel", "Compress Excel", "Shrink the pictures inside a workbook. Formulas, sheets and formatting stay as they are.", "excel", "compress.excel"),
 ];
 

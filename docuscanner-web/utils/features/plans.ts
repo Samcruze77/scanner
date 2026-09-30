@@ -22,6 +22,8 @@ export type FeatureId =
   | "compress.image"
   | "compress.word"
   | "compress.excel"
+  | "protect.pdf"
+  | "protect.docx"
   | "ocr.basic"
   | "ocr.advanced"
   | "ocr.batch"
@@ -59,6 +61,15 @@ export const FEATURES: Record<FeatureId, FeatureDefinition> = {
   "compress.image": { minPlan: "free", implemented: true },
   "compress.word": { minPlan: "free", implemented: true },
   "compress.excel": { minPlan: "free", implemented: true },
+  // Protect PDF locks the file in the browser (AES-256), free and with no account.
+  "protect.pdf": { minPlan: "free", implemented: true },
+  // Password-protect a Word (.docx) with Office's own encryption (AES-256 Agile), in the
+  // browser. This is the release switch for the Word option. It is OFF unless the build sets
+  // NEXT_PUBLIC_DOCX_PROTECTION_ENABLED=true, so it ships dark until someone has opened a
+  // protected sample in real Microsoft Word (see tests/protect/README.md). Turning it off
+  // again (unset the variable and redeploy) removes the Word option, the Word page, its
+  // sitemap entry and its redirects, and leaves Protect PDF and every other tool untouched.
+  "protect.docx": { minPlan: "free", implemented: process.env.NEXT_PUBLIC_DOCX_PROTECTION_ENABLED === "true" },
   // Free at launch: in-browser Tesseract, English, page-by-page.
   "ocr.basic": { minPlan: "free", implemented: true },
   // Reserved for the paid tier (~6-8 months post launch): higher-accuracy

@@ -24,6 +24,11 @@ const CompressTool = dynamic(() => import("@/components/tools/CompressTool").the
   loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
 });
 
+const ProtectTool = dynamic(() => import("@/components/tools/ProtectTool").then((m) => m.ProtectTool), {
+  ssr: false,
+  loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
+});
+
 // `heading` lets the page override the H1 with the fuller, search-intent-matching
 // wording from utils/seo/landing.ts (e.g. "Compress PDF online" rather than the Tools
 // menu's short "Compress PDF") without ToolWorkspace itself needing to know about SEO
@@ -59,6 +64,8 @@ export function ToolWorkspace({ tool, heading }: { tool: ToolDef; heading?: stri
               <Hint id={`tool-${tool.id}`}>{tool.guide}</Hint>
               <ScannerWorkspace intent={{ tool: tool.editor.tool, signatureTab: tool.editor.signatureTab, guide: tool.guide }} />
             </>
+          ) : tool.kind === "protect" ? (
+            <ProtectTool focus={tool.focus} />
           ) : (
             <CompressTool kind={tool.compress} />
           )}

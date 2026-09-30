@@ -261,6 +261,12 @@ const ICONS = {
       <path d="M3 16.5l9 4.5 9-4.5" />
     </>
   ),
+  lock: (
+    <>
+      <rect x="5" y="10.5" width="14" height="10" rx="2" />
+      <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
+    </>
+  ),
   copy: (
     <>
       <rect x="8.5" y="8.5" width="11" height="11" rx="2" />

@@ -10,6 +10,10 @@
 // limits, English-only OCR, image-based exported PDFs. If a limit changes there, change
 // it here too.
 
+import { FEATURES } from "../features/plans";
+
+const WORD_PROTECTION = FEATURES["protect.docx"].implemented;
+
 export interface RelatedLink {
   href: string;
   // The link text: describes where it goes, in plain words.
@@ -59,6 +63,7 @@ const LINKS = {
   sign: { href: "/tools/sign-pdf", label: "Sign a PDF online", note: "Draw, type or upload your signature." },
   annotate: { href: "/tools/annotate", label: "Annotate a PDF", note: "Text, highlights, drawings and check marks." },
   ocr: { href: "/tools/ocr", label: "Extract text with OCR", note: "Read text from scans and photos." },
+  protectPdf: { href: "/tools/protect-pdf", label: "Password protect a PDF", note: "Lock a PDF so it asks for a password to open." },
   compressPdf: { href: "/tools/compress-pdf", label: "Compress a PDF", note: "Make a PDF smaller to email or upload." },
   compressWord: { href: "/tools/compress-word", label: "Compress a Word document", note: "Shrink the pictures inside a .docx." },
   compressExcel: { href: "/tools/compress-excel", label: "Compress an Excel file", note: "Shrink the pictures inside an .xlsx." },
@@ -317,6 +322,101 @@ export const LANDING_PAGES: LandingPage[] = [
     ],
     related: [LINKS.compressImage, LINKS.scan, LINKS.editor, LINKS.imageToPdf],
   },
+  {
+    path: "/tools/protect-pdf",
+    title: "Protect PDF: Password Protect a PDF Online for Free",
+    description:
+      "Lock a PDF with a password in your browser. Free, no account or sign-in, and your file and password never leave your device.",
+    h1: "Protect a PDF with a password",
+    intro:
+      "Add a password so your PDF asks for it before it opens. Choose whether people may print, copy or edit it. No account, and nothing is uploaded: the file is locked on your own device.",
+    crumbs: [TOOLS_CRUMB, { name: "Protect PDF", path: "/tools/protect-pdf" }],
+    appName: "PDFScanner PDF protector",
+    features: [
+      "Password required to open the PDF",
+      "AES-256 encryption, opens in normal PDF readers",
+      "Optional limits on printing, copying and editing",
+      "Runs in your browser: no upload, no account",
+      "Original file is never changed",
+    ],
+    how: [
+      "Choose a PDF (up to 100 MB), or a JPG, PNG or WebP picture to lock as a one-page PDF.",
+      "Type a password and confirm it.",
+      "Tick what people may do with the PDF once it is open: print, copy, edit.",
+      "Choose Protect PDF, then download the locked copy and open it once to check the password.",
+    ],
+    goodFor:
+      "Sending a contract, ID scan, payslip or medical letter by email or chat when you want only the person who knows the password to read it.",
+    formats: WORD_PROTECTION
+      ? "PDF files up to 100 MB. JPG, PNG and WebP pictures are turned into a one-page PDF first. Word .docx files have their own page, Protect Word Document. Other Word and Excel files must be converted to PDF before they can be protected."
+      : "PDF files up to 100 MB. JPG, PNG and WebP pictures are turned into a one-page PDF first. Word and Excel files must be converted to PDF before they can be protected.",
+    limits: [
+      "If you forget the password, the PDF cannot be opened. PDFScanner never sees the password and cannot recover it.",
+      "Printing, copying and editing limits are requests that PDF apps honour; they are not a lock. The password is what keeps the file private. Anyone you share it with can read the file.",
+      "PDFs that already have a password or restrictions are not changed. Remove those first.",
+      "Choose a password that is not easy to guess, and send it separately from the file. Plain letters and numbers work in every PDF app; some apps handle other characters differently.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "How do I password protect a PDF for free?", a: "Choose your PDF, enter a password twice, and choose Protect PDF. Then download the locked copy. It is free and needs no account." },
+      { q: "Is my PDF or password uploaded?", a: "No. The PDF is locked by code running in your browser, so neither the file nor the password is sent to PDFScanner. Only your browser downloads the small program that does the locking." },
+      { q: "How strong is the protection?", a: "The PDF is encrypted with AES-256, the strongest standard PDF encryption. Its strength then depends mostly on your password, so pick a long one." },
+      {
+        q: "Can I protect a Word document or a picture?",
+        a: WORD_PROTECTION
+          ? "A picture (JPG, PNG or WebP) is turned into a one-page PDF and protected. A Word .docx file can be password protected as a Word document with the Protect Word Document tool. Excel files have to be converted to PDF first."
+          : "A picture (JPG, PNG or WebP) is turned into a one-page PDF and protected. A Word or Excel file has to be converted to PDF first; the Word to PDF converter does that.",
+      },
+      { q: "Can I recover a forgotten password?", a: "No. Nobody, including PDFScanner, can open the file without it." },
+    ],
+    related: [LINKS.compressPdf, LINKS.sign, LINKS.editor, LINKS.wordToPdf],
+  },
+  ...(WORD_PROTECTION
+    ? [
+        {
+          path: "/tools/protect-word",
+          title: "Protect Word Document: Password Protect a DOCX for Free",
+          description:
+            "Encrypt a Word .docx with a password in your browser. Word asks for the password to open it. Free, no account, and your file and password never leave your device.",
+          h1: "Password protect a Word document",
+          intro:
+            "Add a password to a .docx so it has to be entered to open the document in Microsoft Word. No account, and nothing is uploaded: the document is encrypted on your own device.",
+          crumbs: [TOOLS_CRUMB, { name: "Protect Word Document", path: "/tools/protect-word" }],
+          appName: "PDFScanner Word document protector",
+          features: [
+            "Encrypts your .docx with a password",
+            "Uses Microsoft Office's own encryption format for .docx files",
+            "Checks the protected copy before you download it",
+            "Runs in your browser: no upload, no account",
+            "Original file is never changed",
+          ],
+          how: [
+            "Choose a Word document (.docx, up to 50 MB).",
+            "Type a password and confirm it.",
+            "Choose Protect Word document.",
+            "Download the protected copy, then open it once to check that Word asks for the password.",
+          ],
+          goodFor: "Sending a contract, CV, report or letter as an editable Word file that only people with the password can open.",
+          formats: "Word documents in the .docx format, up to 50 MB. Macro-enabled files (.docm), templates, old .doc files and files that already have a password are not supported.",
+          limits: [
+            "If you forget the password, the document cannot be opened. PDFScanner never sees the password and cannot recover it.",
+            "Only .docx is supported. Macro-enabled .docm files are refused, not converted or stripped.",
+            "The password protects the file at rest. Anyone you give the password to can open, copy and edit the document.",
+            "Password-protected documents open in Microsoft Word 2010 and later and in apps that support Office document encryption. Some other apps and online viewers cannot open them.",
+            "Choose a password that is not easy to guess, and send it separately from the file.",
+          ],
+          privacy: PRIVATE,
+          faq: [
+            { q: "How do I password protect a Word document for free?", a: "Choose your .docx, enter a password twice, and choose Protect Word document. Then download the protected copy. It is free and needs no account." },
+            { q: "Is my document or password uploaded?", a: "No. The document is encrypted by code running in your browser, so neither the file nor the password is sent to PDFScanner." },
+            { q: "Will Word ask for the password?", a: "Yes. The protected file uses the same password format as Word's own File > Info > Protect Document > Encrypt with Password, so Word asks for the password before it opens." },
+            { q: "Can I protect a .doc or .docm file?", a: "No. Only .docx is supported. Save an old .doc as .docx in Word first. Macro-enabled .docm files are not supported." },
+            { q: "Can I recover a forgotten password?", a: "No. Nobody, including PDFScanner, can open the file without it." },
+          ],
+          related: [LINKS.protectPdf, LINKS.wordToPdf, LINKS.compressPdf, LINKS.sign],
+        },
+      ]
+    : []),
   {
     path: "/tools/compress-image",
     title: "Compress Image Online: Reduce JPG & PNG Size",

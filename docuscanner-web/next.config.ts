@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { FEATURES } from "./utils/features/plans";
 
 const nextConfig: NextConfig = {
   turbopack: {
@@ -7,6 +8,13 @@ const nextConfig: NextConfig = {
     // (C:\Users\ADMIN and C:\Users\ADMIN\Documents\scanner), which makes
     // Next.js infer the wrong workspace root. Pin it explicitly.
     root: path.join(__dirname),
+    // The QPDF WebAssembly engine (Protect PDF) also ships Node code paths that require
+    // these built-ins. They are never reached in a browser; give the bundler an empty stand-in.
+    resolveAlias: {
+      fs: { browser: "./utils/protect/emptyModule.ts" },
+      path: { browser: "./utils/protect/emptyModule.ts" },
+      crypto: { browser: "./utils/protect/emptyModule.ts" },
+    },
   },
   experimental: {
     // Since Next 16.3 Turbopack caches build work in .next/cache, and Vercel restores
@@ -29,6 +37,16 @@ const nextConfig: NextConfig = {
       { source: "/image-to-pdf", destination: "/convert/image-to-pdf", permanent: true },
       { source: "/compress-pdf", destination: "/tools/compress-pdf", permanent: true },
       { source: "/ocr", destination: "/tools/ocr", permanent: true },
+      { source: "/protect-pdf", destination: "/tools/protect-pdf", permanent: true },
+      { source: "/lock-pdf", destination: "/tools/protect-pdf", permanent: true },
+      { source: "/password-protect-pdf", destination: "/tools/protect-pdf", permanent: true },
+      // The Word pages only exist while the Word option is on (utils/features/plans.ts).
+      ...(FEATURES["protect.docx"].implemented
+        ? [
+            { source: "/protect-word-document", destination: "/tools/protect-word", permanent: true },
+            { source: "/password-protect-word-document", destination: "/tools/protect-word", permanent: true },
+          ]
+        : []),
     ];
   },
   async headers() {
@@ -38,6 +56,12 @@ const nextConfig: NextConfig = {
         // only when a Word file is converted, and unchanged between deploys.
         source: "/fonts/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=2592000" }],
+      },
+      {
+        // Self-hosted PDF protection engine (see scripts/copy-qpdf-assets.mjs): loaded
+        // only when a PDF is protected, and unchanged between deploys.
+        source: "/qpdf/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
       },
       {
         // Self-hosted OCR runtime (see scripts/copy-ocr-assets.mjs). Multi-MB

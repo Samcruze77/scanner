@@ -2,6 +2,8 @@
 // from utils/tools/registry.ts (TOOLS) and the app/convert/* routes, not
 // invented. Empty target_paths on a campaign means "entire site."
 
+import { FEATURES } from "@/utils/features/plans";
+
 export const TARGETABLE_PATHS: { path: string; label: string }[] = [
   { path: "/", label: "Homepage" },
   { path: "/scan", label: "Scanner" },
@@ -29,6 +31,8 @@ export const TARGETABLE_PATHS: { path: string; label: string }[] = [
   { path: "/tools/compress-image", label: "Compress Image" },
   { path: "/tools/compress-word", label: "Compress Word" },
   { path: "/tools/compress-excel", label: "Compress Excel" },
+  { path: "/tools/protect-pdf", label: "Protect PDF" },
+  ...(FEATURES["protect.docx"].implemented ? [{ path: "/tools/protect-word", label: "Protect Word Document" }] : []),
 ];
 
 export const AD_SLOTS: { code: "top" | "side" | "bottom" | "inline"; label: string; box: string }[] = [
