@@ -19,15 +19,24 @@ const NOSTREAM = 0xffffffff;
 
 export interface CfbNode {
   name: string;
-  // Present for a stream; absent for a storage.
+  // A stream has a size (in bytes) and, optionally, initial data; a storage has children.
+  size?: number;
   data?: Uint8Array;
   children?: CfbNode[];
+}
+
+export interface AllocatedCfb {
+  // The complete container. Stream contents are zero until written through `stream()`.
+  file: Uint8Array;
+  // A writable view of a stream's bytes inside `file` (no copy), by path such as
+  // "EncryptionInfo" or "\u0006DataSpaces/Version".
+  stream: (path: string) => Uint8Array;
 }
 
 interface Entry {
   name: string;
   type: 1 | 2 | 5;
-  data?: Uint8Array;
+  path: string;
   children: Entry[];
   left: number;
   right: number;
@@ -45,18 +54,22 @@ function compareNames(a: string, b: string): number {
   return ua < ub ? -1 : ua > ub ? 1 : 0;
 }
 
-export function writeCfb(root: CfbNode): Uint8Array {
+// Lays out the container from the stream SIZES alone and returns it with views to write each
+// stream into, so a big stream (the encrypted package) can be produced straight into its final
+// place instead of being built elsewhere and copied.
+export function allocateCfb(root: CfbNode): AllocatedCfb {
   // 1. Flatten into directory entries, root first.
   const entries: Entry[] = [];
-  const make = (node: CfbNode, type: 1 | 2 | 5): Entry => {
-    const entry: Entry = { name: node.name, type, data: node.data, children: [], left: NOSTREAM, right: NOSTREAM, child: NOSTREAM, color: 1, start: ENDOFCHAIN, size: node.data?.length ?? 0 };
+  const make = (node: CfbNode, type: 1 | 2 | 5, path: string): Entry => {
+    const entry: Entry = { name: node.name, type, path, children: [], left: NOSTREAM, right: NOSTREAM, child: NOSTREAM, color: 1, start: ENDOFCHAIN, size: node.size ?? node.data?.length ?? 0 };
     entries.push(entry);
     return entry;
   };
-  const rootEntry = make(root, 5);
+  const rootEntry = make(root, 5, "");
   const walk = (node: CfbNode, entry: Entry) => {
     for (const c of node.children ?? []) {
-      const e = make(c, c.data ? 2 : 1);
+      const isStream = c.size !== undefined || c.data !== undefined;
+      const e = make(c, isStream ? 2 : 1, entry.path ? `${entry.path}/${c.name}` : c.name);
       entry.children.push(e);
       walk(c, e);
     }
@@ -110,10 +123,9 @@ export function writeCfb(root: CfbNode): Uint8Array {
     for (let i = 0; i < n; i++) miniFat.push(i === n - 1 ? ENDOFCHAIN : miniCount + i + 1);
     miniCount += n;
   }
-  const miniStream = new Uint8Array(miniCount * MINI);
-  for (const e of small) miniStream.set(e.data!, e.start * MINI);
 
-  const miniStreamSectors = sectorsFor(miniStream.length, SECTOR);
+  const miniStreamLength = miniCount * MINI;
+  const miniStreamSectors = sectorsFor(miniStreamLength, SECTOR);
   const miniFatSectors = sectorsFor(miniFat.length * 4, SECTOR);
   const dirSectors = sectorsFor(entries.length, 4);
   const bigSectors = big.map((e) => sectorsFor(e.size, SECTOR));
@@ -149,7 +161,7 @@ export function writeCfb(root: CfbNode): Uint8Array {
   const difStart = difSectors ? take(difSectors) : ENDOFCHAIN;
 
   rootEntry.start = miniStreamStart;
-  rootEntry.size = miniStream.length;
+  rootEntry.size = miniStreamLength;
 
   const fat = new Uint32Array(fatSectors * FAT_PER_SECTOR).fill(FREESECT);
   const chain = (start: number, count: number) => {
@@ -194,9 +206,7 @@ export function writeCfb(root: CfbNode): Uint8Array {
   }
 
   for (let i = 0; i < fat.length; i++) view.setUint32(at(fatStart) + i * 4, fat[i], true);
-  if (miniStreamSectors) out.set(miniStream, at(miniStreamStart));
   for (let i = 0; i < miniFatSectors * FAT_PER_SECTOR; i++) view.setUint32(at(miniFatStart) + i * 4, i < miniFat.length ? miniFat[i] : FREESECT, true);
-  for (const e of big) out.set(e.data!, at(e.start));
 
   // Directory: 128 bytes per entry; unused slots are marked NOSTREAM.
   for (let i = 0; i < dirSectors * 4; i++) {
@@ -218,5 +228,31 @@ export function writeCfb(root: CfbNode): Uint8Array {
     view.setUint32(base + 116, e.size === 0 && e.type !== 5 ? 0 : e.start, true);
     view.setUint32(base + 120, e.size, true);
   }
-  return out;
+  
+  // Views for writing stream contents: a small stream is contiguous inside the mini stream,
+  // a big one is contiguous in regular sectors.
+  const byPath = new Map(entries.filter((e) => e.type === 2).map((e) => [e.path, e]));
+  const initial = (n: CfbNode, prefix: string) => {
+    for (const c of n.children ?? []) {
+      const path = prefix ? `${prefix}/${c.name}` : c.name;
+      if (c.data) out.set(c.data, offsetOf(byPath.get(path)!));
+      initial(c, path);
+    }
+  };
+  const offsetOf = (e: Entry): number => (e.size < MINI_CUTOFF ? at(miniStreamStart) + e.start * MINI : at(e.start));
+  initial(root, "");
+  return {
+    file: out,
+    stream: (path) => {
+      const e = byPath.get(path);
+      if (!e) throw new Error("no such stream");
+      const start = offsetOf(e);
+      return out.subarray(start, start + e.size);
+    },
+  };
+}
+
+// Convenience for small containers with all contents known up front.
+export function writeCfb(root: CfbNode): Uint8Array {
+  return allocateCfb(root).file;
 }

@@ -18,7 +18,10 @@ try:
     doc = desktop.loadComponentFromURL(uno.systemPathToFileUrl(f), "_blank", 0, tuple(props))
     if doc is None: print("OPEN_FAILED"); 
     else:
-        print("OPENED:", doc.getText().getString()[:200].replace("\n"," | ")); doc.close(True)
+        import json
+        text = doc.getText().getString()
+        summary = {"text": text, "tables": doc.getTextTables().getCount(), "images": doc.getGraphicObjects().getCount(), "sections": doc.getTextSections().getCount()}
+        print("OPENED:", json.dumps(summary, ensure_ascii=False)); doc.close(True)
 except Exception as e:
     import traceback; print("OPEN_FAILED", type(e).__name__, str(e)[:200])
 finally:

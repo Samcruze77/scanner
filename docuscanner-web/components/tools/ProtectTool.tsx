@@ -36,7 +36,7 @@ type Stage =
   | { name: "idle" }
   | { name: "ready"; file: File; kind: Kind }
   | { name: "working"; file: File; kind: Kind; phase: ProtectPhase; progress: number }
-  | { name: "done"; file: File; kind: Kind; data: Uint8Array; filename: string; protectedBytes: number };
+  | { name: "done"; file: File; kind: Kind; blob: Blob; filename: string };
 
 interface FieldErrors {
   password?: string;
@@ -147,7 +147,10 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
       );
       if (!stillCurrent()) return; // superseded, cancelled or unmounted: discard the output
       void trackProtectCompleted(kind, Math.round(performance.now() - started), kind === "docx" ? undefined : { allowPrint, allowCopy, allowEdit });
-      setStage({ name: "done", file, kind, data: result.data, filename: outputFilename(file, kind), protectedBytes: result.data.length });
+      // Keep only a Blob (the browser can hold it outside the JavaScript heap); the verified bytes
+      // are then dropped, so a large result is not held twice.
+      const blob = new Blob([result.data as BlobPart], { type: result.mime });
+      setStage({ name: "done", file, kind, blob, filename: outputFilename(file, kind) });
     } catch (err) {
       if (!stillCurrent()) return;
       const code = toProtectError(err).code;
@@ -175,8 +178,7 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
   function download(done: Extract<Stage, { name: "done" }>) {
     setError(null);
     try {
-      const mime = done.kind === "docx" ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "application/pdf";
-      downloadBlob(new Blob([done.data as BlobPart], { type: mime }), done.filename);
+      downloadBlob(done.blob, done.filename);
       void trackDocumentDownloaded(done.kind === "docx" ? "docx" : "pdf");
     } catch {
       // The verified result is kept, so this can simply be tried again.
@@ -315,12 +317,12 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
             <p className="text-base font-semibold">Your {KIND_NOUN[stage.kind]} is protected</p>
             {stage.kind === "docx" ? (
               <p>
-                It is now an encrypted Word document ({stage.filename}, {formatBytes(stage.protectedBytes)}) that asks for your password when you open it in Microsoft Word. We
+                It is now an encrypted Word document ({stage.filename}, {formatBytes(stage.blob.size)}) that asks for your password when you open it in Microsoft Word. We
                 checked here that only your password opens it. Open it once to confirm, and keep the password somewhere safe.
               </p>
             ) : (
               <p>
-                It now asks for your password before it opens ({stage.filename}, {formatBytes(stage.protectedBytes)}). It uses AES-256 encryption. Open it once to check the
+                It now asks for your password before it opens ({stage.filename}, {formatBytes(stage.blob.size)}). It uses AES-256 encryption. Open it once to check the
                 password works, and keep the password somewhere safe.
               </p>
             )}

@@ -11,8 +11,8 @@
 // password-hashing rounds, 16-byte random salts, and an HMAC-SHA-512 over the encrypted
 // package so tampering is detected. All the cryptography is the browser's own Web Crypto
 // (AES-CBC, SHA-512, HMAC, getRandomValues): no cipher or hash is implemented here.
-// The container is written by ./cfbWriter.ts and read back for verification with the `cfb`
-// package (Apache-2.0, SheetJS), an independent implementation.
+// The container is written by ./cfbWriter.ts and read back for verification by ./cfbReader.ts
+// (the tests also check both against the independent `cfb` package, msoffcrypto-tool and LibreOffice).
 //
 // Web Crypto's AES-CBC always adds/checks PKCS#7 padding but Office uses none, so:
 //  - encrypting: the extra padding block Web Crypto appends is dropped (the blocks before
@@ -22,8 +22,8 @@
 // Runs in the browser and in Node (which has the same `crypto.subtle`), so the tests
 // exercise this exact code.
 
-import * as CFB from "cfb";
-import { writeCfb, type CfbNode } from "./cfbWriter.ts";
+import { allocateCfb, type CfbNode } from "./cfbWriter.ts";
+import { readCfb } from "./cfbReader.ts";
 import { ProtectError } from "./protect.ts";
 
 const SEGMENT = 4096;
@@ -87,15 +87,25 @@ function utf16le(text: string): Uint8Array {
   return out;
 }
 
+// Web Crypto keys are prepared once per key (importing one per 4 KB segment is slow).
+const keyCache = new WeakMap<Uint8Array, Promise<CryptoKey>>();
+function aesKey(raw: Uint8Array): Promise<CryptoKey> {
+  let key = keyCache.get(raw);
+  if (!key) {
+    key = subtle().importKey("raw", raw as BufferSource, "AES-CBC", false, ["encrypt", "decrypt"]);
+    keyCache.set(raw, key);
+  }
+  return key;
+}
+
 // AES-256-CBC with no padding. `data.length` must be a multiple of 16.
 async function aesEncrypt(key: Uint8Array, iv: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
-  const k = await subtle().importKey("raw", key as BufferSource, "AES-CBC", false, ["encrypt"]);
-  const withPadding = new Uint8Array(await subtle().encrypt({ name: "AES-CBC", iv: iv as BufferSource }, k, data as BufferSource));
+  const withPadding = new Uint8Array(await subtle().encrypt({ name: "AES-CBC", iv: iv as BufferSource }, await aesKey(key), data as BufferSource));
   return withPadding.subarray(0, data.length);
 }
 
 async function aesDecrypt(key: Uint8Array, iv: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
-  const k = await subtle().importKey("raw", key as BufferSource, "AES-CBC", false, ["encrypt", "decrypt"]);
+  const k = await aesKey(key);
   // Append one block that decrypts to valid PKCS#7 padding (sixteen 0x10 bytes): it is
   // E(0x10*16 xor lastCipherBlock), which CBC-encrypting that block with IV = lastCipherBlock gives.
   const last = data.subarray(data.length - BLOCK);
@@ -263,10 +273,23 @@ export async function encryptDocx(pkg: Uint8Array, password: string, hooks: Cryp
   const encryptedVerifierHashValue = await aesEncrypt(kValue, iv, await sha512(verifierInput));
   const encryptedKeyValue = await aesEncrypt(kKey, iv, secretKey);
 
-  // 2. The package: an 8-byte original size, then 4096-byte segments, each with its own IV.
+  // 2. Lay out the output container first (from the sizes alone), so the encrypted package
+  //    is produced straight into its final place: the input and the output are the only two
+  //    large buffers that ever exist.
   const segments = Math.ceil(pkg.length / SEGMENT);
-  const body = new Uint8Array(8 + segments * SEGMENT);
-  new DataView(body.buffer).setBigUint64(0, BigInt(pkg.length), true);
+  const lastLength = pkg.length - (segments - 1) * SEGMENT;
+  const packageSize = 8 + (segments - 1) * SEGMENT + Math.ceil(lastLength / BLOCK) * BLOCK;
+  const blank = new Uint8Array(HASH_BYTES);
+  const placeholder: Descriptor = {
+    keyDataSalt, encryptedHmacKey: blank, encryptedHmacValue: blank, spinCount: SPIN_COUNT, passwordSalt,
+    encryptedVerifierHashInput, encryptedVerifierHashValue, encryptedKeyValue,
+  };
+  const infoSize = encryptionInfoStream(placeholder).length; // every field has a fixed length
+  const { file, stream } = allocateCfb(containerLayout(infoSize, packageSize));
+  const encryptedPackage = stream("EncryptedPackage");
+
+  // The package: an 8-byte original size, then 4096-byte segments, each with its own IV.
+  new DataView(encryptedPackage.buffer, encryptedPackage.byteOffset, 8).setBigUint64(0, BigInt(pkg.length), true);
   let used = 8;
   for (let i = 0; i < segments; i++) {
     if (i % 64 === 0) {
@@ -278,10 +301,10 @@ export async function encryptDocx(pkg: Uint8Array, password: string, hooks: Cryp
     const padded = plain.length % BLOCK === 0 ? plain : concat(plain, new Uint8Array(BLOCK - (plain.length % BLOCK)));
     const segmentIv = fit(await sha512(keyDataSalt, u32(i)), BLOCK);
     const encrypted = await aesEncrypt(secretKey, segmentIv, padded);
-    body.set(encrypted, used);
+    encryptedPackage.set(encrypted, used);
     used += encrypted.length;
   }
-  const encryptedPackage = body.subarray(0, used);
+  if (used !== packageSize) throw new ProtectError("protect_failed");
 
   // 3. Integrity: HMAC-SHA512 over the whole EncryptedPackage stream, keyed by a random salt
   //    that is itself stored encrypted.
@@ -291,32 +314,36 @@ export async function encryptDocx(pkg: Uint8Array, password: string, hooks: Cryp
   const encryptedHmacKey = await aesEncrypt(secretKey, fit(await sha512(keyDataSalt, BK_HMAC_KEY), BLOCK), hmacSalt);
   const encryptedHmacValue = await aesEncrypt(secretKey, fit(await sha512(keyDataSalt, BK_HMAC_VALUE), BLOCK), hmac);
 
-  const info = encryptionInfoStream({
-    keyDataSalt,
-    encryptedHmacKey,
-    encryptedHmacValue,
-    spinCount: SPIN_COUNT,
-    passwordSalt,
-    encryptedVerifierHashInput,
-    encryptedVerifierHashValue,
-    encryptedKeyValue,
-  });
+  const info = encryptionInfoStream({ ...placeholder, encryptedHmacKey, encryptedHmacValue });
+  if (info.length !== infoSize) throw new ProtectError("protect_failed");
+  stream("EncryptionInfo").set(info);
+  stream("\u0006DataSpaces/Version").set(dataSpaceVersion());
+  stream("\u0006DataSpaces/DataSpaceMap").set(dataSpaceMap());
+  stream("\u0006DataSpaces/DataSpaceInfo/StrongEncryptionDataSpace").set(strongEncryptionDataSpace());
+  stream("\u0006DataSpaces/TransformInfo/StrongEncryptionTransform/\u0006Primary").set(primary());
+  hooks.onProgress?.(1);
+  return { data: file };
+}
 
-  const dataSpaces: CfbNode = {
-    name: "\u0006DataSpaces",
+// The container's shape, as Word writes it: the encryption descriptor, the encrypted package,
+// and the four fixed data-space streams.
+function containerLayout(infoSize: number, packageSize: number): CfbNode {
+  return {
+    name: "Root Entry",
     children: [
-      { name: "Version", data: dataSpaceVersion() },
-      { name: "DataSpaceMap", data: dataSpaceMap() },
-      { name: "DataSpaceInfo", children: [{ name: "StrongEncryptionDataSpace", data: strongEncryptionDataSpace() }] },
-      { name: "TransformInfo", children: [{ name: "StrongEncryptionTransform", children: [{ name: "\u0006Primary", data: primary() }] }] },
+      {
+        name: "\u0006DataSpaces",
+        children: [
+          { name: "Version", size: dataSpaceVersion().length },
+          { name: "DataSpaceMap", size: dataSpaceMap().length },
+          { name: "DataSpaceInfo", children: [{ name: "StrongEncryptionDataSpace", size: strongEncryptionDataSpace().length }] },
+          { name: "TransformInfo", children: [{ name: "StrongEncryptionTransform", children: [{ name: "\u0006Primary", size: primary().length }] }] },
+        ],
+      },
+      { name: "EncryptionInfo", size: infoSize },
+      { name: "EncryptedPackage", size: packageSize },
     ],
   };
-  const written = writeCfb({
-    name: "Root Entry",
-    children: [dataSpaces, { name: "EncryptionInfo", data: info }, { name: "EncryptedPackage", data: encryptedPackage }],
-  });
-  hooks.onProgress?.(1);
-  return { data: written };
 }
 
 // ---- verify (decrypt our own output and compare) ------------------------------------------------
@@ -335,15 +362,14 @@ export async function verifyEncryptedDocx(encrypted: Uint8Array, original: Uint8
     if (!looksLikeOfficeEncrypted(encrypted)) throw new ProtectError("protect_unverified");
     // A plain .docx starts with "PK": never acceptable output.
     if (encrypted[0] === 0x50 && encrypted[1] === 0x4b) throw new ProtectError("protect_unverified");
-    const cfb = CFB.read(encrypted as never, { type: "array" });
-    const infoEntry = CFB.find(cfb, "/EncryptionInfo");
-    const pkgEntry = CFB.find(cfb, "/EncryptedPackage");
-    for (const name of ["/\u0006DataSpaces/Version", "/\u0006DataSpaces/DataSpaceMap", "/\u0006DataSpaces/DataSpaceInfo/StrongEncryptionDataSpace", "/\u0006DataSpaces/TransformInfo/StrongEncryptionTransform/\u0006Primary"]) {
-      if (!CFB.find(cfb, name)) throw new ProtectError("protect_unverified");
+    const streams = readCfb(encrypted);
+    for (const name of ["\u0006DataSpaces/Version", "\u0006DataSpaces/DataSpaceMap", "\u0006DataSpaces/DataSpaceInfo/StrongEncryptionDataSpace", "\u0006DataSpaces/TransformInfo/StrongEncryptionTransform/\u0006Primary"]) {
+      if (!streams.has(name)) throw new ProtectError("protect_unverified");
     }
-    if (!infoEntry?.content || !pkgEntry?.content) throw new ProtectError("protect_unverified");
-    const d = parseDescriptor(Uint8Array.from(infoEntry.content as ArrayLike<number>));
-    const stream = Uint8Array.from(pkgEntry.content as ArrayLike<number>);
+    const infoStream = streams.get("EncryptionInfo");
+    const stream = streams.get("EncryptedPackage"); // a view into `encrypted`: no copy
+    if (!infoStream || !stream) throw new ProtectError("protect_unverified");
+    const d = parseDescriptor(infoStream);
 
     // Password -> keys -> verifier must match (this is what makes Word accept/reject a password).
     const iterated = await iteratedHash(password, d.passwordSalt, d.spinCount, hooks, 0, 0.5);

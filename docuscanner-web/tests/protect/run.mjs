@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import * as CFB from "cfb";
 import JSZip from "jszip";
-import { makeLargeDocx, makePdf, makeTestDocx, PASSWORD, retypeDocx } from "./fixtures.mjs";
+import { makeBasicDocx, makeLargeDocx, makePdf, makeTestDocx, makeUnicodeDocx, PASSWORD, PASSWORDS, retypeDocx } from "./fixtures.mjs";
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -30,7 +30,8 @@ const { encryptDocx, verifyEncryptedDocx, dataSpaceStructures, looksLikeOfficeEn
 const { validateDocxPackage } = await import("../../utils/protect/docx.ts");
 const { runProtection, toProtectError } = await import("../../utils/protect/operation.ts");
 const { protectErrorMessage } = await import("../../utils/protect/messages.ts");
-const { writeCfb } = await import("../../utils/protect/cfbWriter.ts");
+const { writeCfb, allocateCfb } = await import("../../utils/protect/cfbWriter.ts");
+const { readCfb } = await import("../../utils/protect/cfbReader.ts");
 const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 const createModule = require("@neslinesli93/qpdf-wasm");
 
@@ -261,6 +262,118 @@ if (soffice) {
     assert.match(lo(file), /OPEN_FAILED/);
   });
 } else console.log("skip LibreOffice checks (needs libreoffice-writer + python3-uno)");
+
+// ================================ Container reader / writer ================================
+
+await test("container: our reader agrees with the independent `cfb` package on every stream", () => {
+  const ours = readCfb(encrypted);
+  const theirs = CFB.read(encrypted, { type: "array" });
+  const names = theirs.FullPaths.filter((p) => !p.endsWith("/")).map((p) => p.replace("Root Entry/", ""));
+  assert.deepEqual([...ours.keys()].sort(), names.sort());
+  for (const [name, bytes] of ours) assert.deepEqual(Buffer.from(bytes), Buffer.from(CFB.find(theirs, "/" + name).content), name);
+});
+
+await test("container: reader refuses garbage, truncation and a plain .docx; big streams are views, not copies", () => {
+  assert.throws(() => readCfb(docx));
+  assert.throws(() => readCfb(new Uint8Array(2000)));
+  assert.throws(() => readCfb(encrypted.subarray(0, 1000)));
+  assert.throws(() => readCfb(encrypted.subarray(0, encrypted.length - 600)));
+  const broken = new Uint8Array(encrypted);
+  broken[30] = 13; // nonsense sector size
+  assert.throws(() => readCfb(broken));
+  const pkgView = readCfb(encrypted).get("EncryptedPackage");
+  assert.equal(pkgView.buffer, encrypted.buffer, "zero-copy view into the input");
+});
+
+await test("container: layouts with many FAT/DIFAT sectors and mini-stream edge sizes round-trip (cfb, olefile)", () => {
+  for (const big of [4095, 4096, 4097, 600_000, 9 * 1024 * 1024]) {
+    const data = crypto.randomBytes(big);
+    const small = crypto.randomBytes(300);
+    const { file, stream } = allocateCfb({ name: "Root Entry", children: [{ name: "Big", size: big }, { name: "Dir", children: [{ name: "Small", size: small.length }] }] });
+    stream("Big").set(data);
+    stream("Dir/Small").set(small);
+    const ours = readCfb(file);
+    assert.deepEqual(Buffer.from(ours.get("Big")), data);
+    assert.deepEqual(Buffer.from(ours.get("Dir/Small")), small);
+    const theirs = CFB.read(file, { type: "array" });
+    assert.deepEqual(Buffer.from(CFB.find(theirs, "/Big").content), data);
+    assert.deepEqual(Buffer.from(CFB.find(theirs, "/Dir/Small").content), small);
+  }
+});
+
+// ================================ Realistic documents and passwords ================================
+
+const loPath = path.join(here, "lo_open.py");
+const lo = (file, pw) => {
+  const out = spawnSync("python3", [loPath, file, ...(pw === undefined ? [] : [pw])], { encoding: "utf8", timeout: 180000 }).stdout;
+  const m = /^OPENED: (.*)$/m.exec(out);
+  return m ? JSON.parse(m[1]) : null;
+};
+const loAvailable = spawnSync("which", ["soffice"]).status === 0 && spawnSync("python3", ["-c", "import uno"]).status === 0 && fs.existsSync("/usr/lib/libreoffice/program/libswlo.so");
+
+const docs = { "A basic (headings, page breaks, pages)": await makeBasicDocx(), "B rich (table, image, link, lists, header/footer, sections)": docx, "C Unicode (Yoruba, Igbo, Hausa, symbols, scripts)": await makeUnicodeDocx() };
+for (const [label, original] of Object.entries(docs)) {
+  await test(`document ${label}: protect -> decrypts byte-identical; opens in LibreOffice with identical text, tables and images`, async () => {
+    const out = await runProtection(req("docx", original), engines);
+    assert.ok(looksLikeOfficeEncrypted(out.data));
+    const file = path.join(work, `doc-${sha(original).slice(0, 8)}.docx`);
+    fs.writeFileSync(file, out.data);
+    if (hasPython) {
+      const r = msoffcryptoDecrypt(file, PASSWORD);
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(sha(r.stdout.subarray(r.stdout.indexOf(10) + 1)), sha(original), "package identical to the original");
+    }
+    if (loAvailable) {
+      const plainFile = path.join(work, `plain-${sha(original).slice(0, 8)}.docx`);
+      fs.writeFileSync(plainFile, original);
+      const before = lo(plainFile);
+      const after = lo(file, PASSWORD);
+      assert.ok(before && after, "both open");
+      assert.deepEqual(after, before, "what LibreOffice shows is identical before and after protection");
+      assert.equal(lo(file, "wrong"), null);
+      assert.equal(lo(file), null);
+    }
+  });
+}
+
+await test("Unicode content is intact (every name and symbol survives the package)", async () => {
+  const zip = await JSZip.loadAsync(docs["C Unicode (Yoruba, Igbo, Hausa, symbols, scripts)"]);
+  const body = await zip.file("word/document.xml").async("string");
+  for (const s of ["Ọlájídé Adéọlá", "Chinwẹ Ọkọrọ", "Ɗan Bello", "₦ € £", "中文 日本語", "العربية"]) assert.ok(body.includes(s), s);
+});
+
+// What the Office specification says and what the implementations do with passwords: the
+// password is converted to UTF-16 little-endian ([MS-OFFCRYPTO] 2.3.4.11). No normalization.
+for (const [label, password] of Object.entries(PASSWORDS)) {
+  if (label === "nfd") continue;
+  await test(`password "${label}": works in our verifier, msoffcrypto-tool and LibreOffice`, async () => {
+    const { data } = await encryptDocx(docx, password);
+    await verifyEncryptedDocx(data, docx, password);
+    const file = path.join(work, `pw-${label}.docx`);
+    fs.writeFileSync(file, data);
+    if (hasPython) {
+      const r = msoffcryptoDecrypt(file, password);
+      assert.equal(r.status, 0, `${label}: ${r.stderr}`);
+      assert.equal(sha(r.stdout.subarray(r.stdout.indexOf(10) + 1)), docxHash);
+      assert.notEqual(msoffcryptoDecrypt(file, password + "x").status, 0);
+    }
+    if (loAvailable) assert.ok(lo(file, password), `${label}: LibreOffice opens it`);
+  });
+}
+
+await test("password Unicode normalization: precomposed and decomposed forms are DIFFERENT passwords everywhere (no normalization, as in Office)", async () => {
+  assert.notEqual(PASSWORDS.nfc, PASSWORDS.nfd);
+  assert.equal(PASSWORDS.nfc.normalize("NFD"), PASSWORDS.nfd);
+  const { data } = await encryptDocx(docx, PASSWORDS.nfc);
+  await verifyEncryptedDocx(data, docx, PASSWORDS.nfc);
+  assert.equal(await code(verifyEncryptedDocx(data, docx, PASSWORDS.nfd)), "protect_unverified");
+  if (hasPython) {
+    const file = path.join(work, "pw-nfc2.docx");
+    fs.writeFileSync(file, data);
+    assert.equal(msoffcryptoDecrypt(file, PASSWORDS.nfc).status, 0);
+    assert.notEqual(msoffcryptoDecrypt(file, PASSWORDS.nfd).status, 0, "msoffcrypto-tool does not normalize either");
+  }
+});
 
 // ================================ Input validation ================================
 

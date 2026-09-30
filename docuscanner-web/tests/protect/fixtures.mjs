@@ -71,3 +71,39 @@ export async function makePdf(text = "Hello protected world") {
   pdf.addPage([300, 200]).drawText(text, { x: 20, y: 100, size: 14, font });
   return new Uint8Array(await pdf.save());
 }
+
+// Document A: plain text, headings, page breaks, several pages.
+export async function makeBasicDocx() {
+  const children = [new Paragraph({ text: "Basic document", heading: HeadingLevel.TITLE })];
+  for (let page = 1; page <= 4; page++) {
+    children.push(new Paragraph({ text: `Chapter ${page}`, heading: HeadingLevel.HEADING_1 }));
+    for (let i = 0; i < 12; i++) children.push(new Paragraph(`Chapter ${page}, paragraph ${i + 1}: The quick brown fox jumps over the lazy dog.`));
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+  }
+  return new Uint8Array(await Packer.toBuffer(new Document({ sections: [{ children }] })));
+}
+
+// Document C: accented Latin, Unicode punctuation and symbols, non-ASCII names, several scripts.
+export async function makeUnicodeDocx() {
+  const lines = [
+    "Yorùbá: Ọlájídé Adéọlá, Ṣọlá Àjàyí, Ọmọ́ Babátúndé",
+    "Igbo: Chinwẹ Ọkọrọ, Ngozi Ezẹ, Ụzọ Ọma",
+    "Hausa: Ibrahim Yusuf, Ɗan Bello, Ƙarama Sa’idu",
+    "Français: « À bientôt, garçon ! » — déjà vu… œuvre, Zoë",
+    "Symbols: ₦ € £ ¥ © ® ™ § ¶ † ‡ • ½ ¼ ¾ ± × ÷ ≈ ≠ ≤ ≥ ∞ ✓ ✗ ★",
+    "Other scripts: 中文 日本語 한국어 العربية עברית Ελληνικά Русский",
+    "Quotes: “double” ‘single’ „low“ ‹angle› — en–dash, em—dash",
+  ];
+  return new Uint8Array(await Packer.toBuffer(new Document({ sections: [{ children: [new Paragraph({ text: "Unicode document", heading: HeadingLevel.HEADING_1 }), ...lines.map((t) => new Paragraph(t))] }] })));
+}
+
+// Passwords used for the compatibility checks. `nfc` / `nfd` are the same visible password
+// written as precomposed and as decomposed characters: Office does not normalize them.
+export const PASSWORDS = {
+  simple: PASSWORD,
+  longSymbols: "Correct-Horse_Battery.Staple/2024 #£€&@!%^*()[]{}<>?|~`'\"+=;:,",
+  nonAscii: "Ọlájídé-Adéọlá-ñü-Ωmega",
+  astral: "lock-\u{1F510}-key-\u{1D11E}",
+  nfc: "caf\u00e9-pass-\u00f1",
+  nfd: "cafe\u0301-pass-n\u0303",
+};
