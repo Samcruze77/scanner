@@ -13,7 +13,15 @@ Independent checks used (the code is never only checked against itself):
 `msoffcrypto-tool` and LibreOffice are optional: without them those checks are skipped with a message.
 `tests/protect/lo_open.py` is the LibreOffice helper.
 
-## What has NOT been tested: Microsoft Word itself
+## Microsoft Word result
+
+Reported by the project owner (not run by the automated tests): `tests/protect/out/sample-protected.docx`
+(the rich fixture: headings, table, picture, hyperlink, lists, header/footer, two sections, Unicode names) was opened in
+Microsoft Word. Word asked for the password, `TestPassword123!` opened it, and all four manual checks below passed.
+The Word version and operating system were not recorded. Still untested in Word: a file produced by the live page,
+a non-ASCII password, and the ~48 MB document.
+
+## Original note: Microsoft Word could not be run by the automated tests
 
 Word is not available in the automated environment, so **Word compatibility is not proven by these tests.**
 The file follows [MS-OFFCRYPTO] Agile Encryption and the same container layout Word writes, and every
