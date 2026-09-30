@@ -16,6 +16,11 @@ function selectionParams(request: ExportRequest): URLSearchParams {
   for (const [key, value] of Object.entries(request.filters ?? {})) {
     if (value) params.set(key, String(value));
   }
+  if (request.source && request.source !== "internal") {
+    params.set("source", request.source);
+    params.set("clarity_days", String(request.clarity?.days ?? 3));
+    params.set("clarity_dimensions", (request.clarity?.dimensions ?? ["Country/Region"]).join(","));
+  }
   return params;
 }
 

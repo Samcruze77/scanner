@@ -35,6 +35,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     if (TOOL_CANONICAL_OVERRIDE[tool.slug]) continue;
     entries.push(url(`/tools/${tool.slug}`, 0.7));
   }
+  entries.push(url("/privacy", 0.3));
   entries.push(url("/guides", 0.5));
   for (const guide of GUIDES) entries.push(url(`/guides/${guide.slug}`, 0.5));
   return entries;

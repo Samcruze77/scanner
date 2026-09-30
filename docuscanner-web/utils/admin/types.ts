@@ -143,9 +143,30 @@ export interface ExportRequest {
   reportType: string;
   dateRange: DateRange;
   filters?: ExportFilters;
+  // Report source. "internal" (default) = FreePDFScanner analytics.
+  source?: ReportSource;
+  // Microsoft Clarity settings (used when source is "clarity" or "combined").
+  clarity?: { days: 1 | 2 | 3; dimensions: string[] };
+}
+
+export type ReportSource = "internal" | "clarity" | "combined";
+
+export interface ClarityPreview {
+  configured: true;
+  window: { from: string; to: string; days: number };
+  dimensions: string[];
+  rows: number;
+  fetched_at: string;
+  // Clarity metric columns actually returned (e.g. "Traffic.totalSessionCount").
+  metrics: string[];
+  sessions: number | null;
+  users: number | null;
 }
 
 export interface ReportPreview {
+  source?: ReportSource;
+  clarity?: ClarityPreview | null;
+  clarity_error?: { code: string; message: string } | null;
   report_type: string;
   range: { from: string; to: string };
   filters: AnalyticsFilters;
@@ -155,6 +176,8 @@ export interface ReportPreview {
 }
 
 export interface ExportOptions {
+  // Whether CLARITY_API_TOKEN is set on the server (never the token itself).
+  clarity_configured?: boolean;
   campaigns: { id: string; name: string; status: string }[];
   creatives: { id: string; campaign_id: string; slot_code: string; title: string | null }[];
   slots: string[];

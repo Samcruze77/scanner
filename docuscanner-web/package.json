@@ -22,7 +22,7 @@
     "test:zoom": "node tests/zoom/verify.mjs",
     "test:auth": "node tests/auth/verify.mjs",
     "test:theme": "node tests/ui/theme.mjs",
-    "test:analytics": "node tests/analytics/geo.mjs && node tests/analytics/edge-function-geo.mjs && node tests/analytics/geo-hierarchy.mjs && node tests/analytics/geography-levels.mjs && node tests/analytics/geo-providers.mjs && node tests/analytics/admin-profile.mjs && node tests/analytics/export.mjs && node tests/analytics/authorization.mjs",
+    "test:analytics": "node tests/analytics/geo.mjs && node tests/analytics/edge-function-geo.mjs && node tests/analytics/geo-hierarchy.mjs && node tests/analytics/geography-levels.mjs && node tests/analytics/geo-providers.mjs && node tests/analytics/admin-profile.mjs && node tests/analytics/export.mjs && node tests/analytics/clarity.mjs && node tests/analytics/authorization.mjs",
     "test:theme:visual": "node tests/ui/theme-visual.mjs",
     "audit:ui": "node tests/ui/audit.mjs"
   },

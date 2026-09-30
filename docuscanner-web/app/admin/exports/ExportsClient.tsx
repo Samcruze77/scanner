@@ -13,7 +13,8 @@ import { getAdminAnalyticsBrowser } from "@/utils/admin/client.browser";
 import { EMPTY_SELECTION, countryLabel, type LevelNodes, type Selection } from "@/utils/admin/geoLevels";
 import { regionName } from "@/utils/admin/location";
 import type { AnalyticsFilters } from "../../../supabase/functions/_shared/analyticsFilters";
-import type { DateRange, DownloadExportFormat, ExportOptions, ExportRequest, ReportPreview } from "@/utils/admin/types";
+import type { DateRange, DownloadExportFormat, ExportOptions, ExportRequest, ReportPreview, ReportSource } from "@/utils/admin/types";
+import { CLARITY_DIMENSIONS, MAX_CLARITY_DIMENSIONS } from "@/utils/clarity/api";
 import { GeoSelectors, selectClass } from "@/components/admin/GeoSelectors";
 import { canManageExports, useAdminRole } from "../AdminRoleContext";
 
@@ -29,6 +30,12 @@ const REPORT_TYPES = [
 ];
 
 const DEVICES = ["desktop", "mobile", "tablet"];
+
+const SOURCES: { value: ReportSource; label: string; hint: string }[] = [
+  { value: "internal", label: "FreePDFScanner Analytics", hint: "Our own analytics database: visitors, sessions, page views, ads, geography down to neighborhood." },
+  { value: "clarity", label: "Microsoft Clarity", hint: "Clarity's behavioural analytics for the last 1-3 days, country level (its API has no state or city)." },
+  { value: "combined", label: "Combined", hint: "FreePDFScanner geography report plus Clarity rows in one file; every row says which source it came from." },
+];
 const FORMATS: { format: DownloadExportFormat; label: string }[] = [
   { format: "csv", label: "Download CSV" },
   { format: "xlsx", label: "Download XLSX" },
@@ -77,6 +84,10 @@ export function ExportsClient({
   const [creativeId, setCreativeId] = useState(initialFilters.creative_id ?? "");
   const [slotCode, setSlotCode] = useState(initialFilters.slot_code ?? "");
 
+  const [source, setSource] = useState<ReportSource>("internal");
+  const [clarityDays, setClarityDays] = useState<1 | 2 | 3>(3);
+  const [clarityDims, setClarityDims] = useState<string[]>(["Country/Region"]);
+
   const [levelNodes, setLevelNodes] = useState<LevelNodes | null>(null);
   const [options, setOptions] = useState<ExportOptions | null>(null);
   const [preview, setPreview] = useState<Preview>({ status: "idle" });
@@ -110,7 +121,9 @@ export function ExportsClient({
 
   const request: ExportRequest = useMemo(
     () => ({
-      reportType,
+      reportType: source === "internal" ? reportType : source === "combined" ? "geography" : "full",
+      source,
+      clarity: { days: clarityDays, dimensions: clarityDims },
       dateRange: range,
       filters: {
         country: selection.country,
@@ -125,7 +138,7 @@ export function ExportsClient({
         slot_code: slotCode || null,
       },
     }),
-    [reportType, range, selection, device, visitorType, campaignId, creativeId, slotCode],
+    [source, clarityDays, clarityDims, reportType, range, selection, device, visitorType, campaignId, creativeId, slotCode],
   );
   const currentKey = buildExportUrl(request, "summary");
 
@@ -180,17 +193,36 @@ export function ExportsClient({
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="min-w-0 space-y-4 rounded-lg border border-zinc-200 bg-surface p-4 dark:border-zinc-800">
-          <label className="block text-sm">
-            <span className="mb-1 block text-zinc-500 dark:text-zinc-400">Report</span>
-            <select value={reportType} onChange={(e) => setReportType(e.target.value)} className={inputClass}>
-              {REPORT_TYPES.map((rt) => (
-                <option key={rt.value} value={rt.value}>
-                  {rt.label}
-                </option>
+          <fieldset>
+            <legend className="mb-1 text-sm text-zinc-500 dark:text-zinc-400">Report source</legend>
+            <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Report source">
+              {SOURCES.map((sc) => (
+                <label
+                  key={sc.value}
+                  className={`cursor-pointer rounded-md border px-3 py-2 text-sm ${source === sc.value ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-900" : "border-zinc-200 dark:border-zinc-800"}`}
+                >
+                  <input type="radio" name="report-source" value={sc.value} checked={source === sc.value} onChange={() => setSource(sc.value)} className="sr-only" />
+                  <span className="block font-medium">{sc.label}</span>
+                </label>
               ))}
-            </select>
-          </label>
+            </div>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{SOURCES.find((x) => x.value === source)?.hint}</p>
+          </fieldset>
 
+          {source === "internal" && (
+          <label className="block text-sm">
+              <span className="mb-1 block text-zinc-500 dark:text-zinc-400">Report</span>
+              <select value={reportType} onChange={(e) => setReportType(e.target.value)} className={inputClass}>
+                {REPORT_TYPES.map((rt) => (
+                  <option key={rt.value} value={rt.value}>
+                    {rt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {source !== "clarity" && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="text-sm">
               <span className="mb-1 block text-zinc-500 dark:text-zinc-400">From</span>
@@ -201,7 +233,10 @@ export function ExportsClient({
               <input type="date" value={range.to} min={range.from} onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))} className={inputClass} />
             </label>
           </div>
+          )}
 
+          {source !== "clarity" && (
+            <>
           <fieldset className="space-y-2">
             <legend className="text-sm text-zinc-500 dark:text-zinc-400">Geography</legend>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -273,11 +308,56 @@ export function ExportsClient({
               Campaign, creative and slot filters apply to ad events only, so analytics events are left out of this report.
             </p>
           )}
+            </>
+          )}
+
+          {source !== "internal" && (
+            <fieldset className="space-y-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+              <legend className="px-1 text-sm text-zinc-500 dark:text-zinc-400">Microsoft Clarity</legend>
+              {options && options.clarity_configured === false && (
+                <p role="status" className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                  Clarity isn&apos;t connected on the server. Set <code>CLARITY_API_TOKEN</code> (Clarity project, Settings, Data Export)
+                  in the hosting environment and redeploy.
+                </p>
+              )}
+              <label className="block text-sm">
+                <span className="mb-1 block text-zinc-500 dark:text-zinc-400">Window</span>
+                <select value={clarityDays} onChange={(e) => setClarityDays(Number(e.target.value) as 1 | 2 | 3)} className={inputClass}>
+                  <option value={1}>Last 24 hours</option>
+                  <option value={2}>Last 48 hours</option>
+                  <option value={3}>Last 72 hours</option>
+                </select>
+              </label>
+              <div>
+                <p className="mb-1 text-sm text-zinc-500 dark:text-zinc-400">Break down by (up to {MAX_CLARITY_DIMENSIONS})</p>
+                <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                  {CLARITY_DIMENSIONS.map((d) => {
+                    const on = clarityDims.includes(d.value);
+                    return (
+                      <label key={d.value} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          disabled={!on && clarityDims.length >= MAX_CLARITY_DIMENSIONS}
+                          onChange={() => setClarityDims((prev) => (on ? prev.filter((x) => x !== d.value) : [...prev, d.value]))}
+                        />
+                        {d.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Clarity&apos;s export only covers the last 72 hours, allows 10 requests per day, and has no state, city, county or
+                neighborhood breakdown. Those levels come from FreePDFScanner&apos;s own analytics.
+              </p>
+            </fieldset>
+          )}
 
           <button
             type="button"
             onClick={() => generate(request)}
-            disabled={preview.status === "loading"}
+            disabled={preview.status === "loading" || (source !== "internal" && clarityDims.length === 0)}
             className="w-full rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-black sm:w-auto"
           >
             {preview.status === "loading" ? "Generating…" : "Generate report"}
@@ -311,23 +391,36 @@ function ReportPreviewCard({
 
   const { data, request } = preview;
   const f = data.filters;
+  const src: ReportSource = data.source ?? "internal";
+  const isClarity = src === "clarity";
   const lines: [string, string][] = [
-    ["Report", REPORT_TYPES.find((r) => r.value === data.report_type)?.label ?? data.report_type],
-    ["Date range", `${fmtDate(data.range.from)} – ${fmtDate(data.range.to)}`],
+    ["Source", SOURCES.find((x) => x.value === src)?.label ?? src],
+    ["Report", src === "clarity" ? "Microsoft Clarity" : src === "combined" ? "Combined (geography + Clarity)" : (REPORT_TYPES.find((r) => r.value === data.report_type)?.label ?? data.report_type)],
+    [isClarity ? "Window" : "Date range", `${fmtDate(data.range.from)} – ${fmtDate(data.range.to)}`],
   ];
-  if (f.country) lines.push(["Country", countryLabel(f.country)]);
-  if (f.state_province) lines.push(["State / Province", regionName(f.country, f.state_province) ?? f.state_province]);
-  if (f.city_town) lines.push(["City / Town", f.city_town]);
-  if (f.county_district_lga) lines.push(["County / District / LGA", f.county_district_lga]);
-  if (f.neighborhood_suburb) lines.push(["Neighborhood / Suburb", f.neighborhood_suburb]);
-  if (f.visitor_type) lines.push(["Visitors", f.visitor_type === "new" ? "New only" : "Returning only"]);
-  if (f.device) lines.push(["Device", f.device]);
-  if (f.campaign_id) lines.push(["Campaign", options?.campaigns.find((c) => c.id === f.campaign_id)?.name ?? f.campaign_id]);
-  if (f.creative_id) lines.push(["Creative", options?.creatives.find((c) => c.id === f.creative_id)?.title ?? f.creative_id]);
-  if (f.slot_code) lines.push(["Ad slot", f.slot_code]);
+  if (data.clarity) {
+    lines.push(["Clarity window", `${fmtDate(data.clarity.window.from)} – ${fmtDate(data.clarity.window.to)}`]);
+    lines.push(["Clarity breakdown", data.clarity.dimensions.join(", ")]);
+  }
+  if (!isClarity && f.country) lines.push(["Country", countryLabel(f.country)]);
+  if (!isClarity && f.state_province) lines.push(["State / Province", regionName(f.country, f.state_province) ?? f.state_province]);
+  if (!isClarity && f.city_town) lines.push(["City / Town", f.city_town]);
+  if (!isClarity && f.county_district_lga) lines.push(["County / District / LGA", f.county_district_lga]);
+  if (!isClarity && f.neighborhood_suburb) lines.push(["Neighborhood / Suburb", f.neighborhood_suburb]);
+  if (!isClarity && f.visitor_type) lines.push(["Visitors", f.visitor_type === "new" ? "New only" : "Returning only"]);
+  if (!isClarity && f.device) lines.push(["Device", f.device]);
+  if (!isClarity && f.campaign_id) lines.push(["Campaign", options?.campaigns.find((c) => c.id === f.campaign_id)?.name ?? f.campaign_id]);
+  if (!isClarity && f.creative_id) lines.push(["Creative", options?.creatives.find((c) => c.id === f.creative_id)?.title ?? f.creative_id]);
+  if (!isClarity && f.slot_code) lines.push(["Ad slot", f.slot_code]);
 
   const s = data.summary;
-  const metrics: [string, number | null][] = [
+  const metrics: [string, number | null][] = isClarity
+    ? [
+        ["Clarity rows", data.clarity?.rows ?? 0],
+        ["Sessions (Clarity)", s.sessions],
+        ["Clarity metrics", data.clarity?.metrics.length ?? 0],
+      ]
+    : [
     ["Records", s.records],
     ["Report rows", data.report_rows],
     ["Visitors", s.visitors],
@@ -336,7 +429,8 @@ function ReportPreviewCard({
     ["Conversions", s.conversions],
     ["Ad impressions", s.ad_impressions],
     ["Ad clicks", s.ad_clicks],
-  ];
+        ...(data.clarity ? ([["Clarity rows", data.clarity.rows]] as [string, number | null][]) : []),
+      ];
 
   return (
     <div className="min-w-0 space-y-4 rounded-lg border border-zinc-200 bg-surface p-4 dark:border-zinc-800">
@@ -354,7 +448,12 @@ function ReportPreviewCard({
           </div>
         ))}
       </dl>
-      {s.records === 0 ? (
+      {data.clarity_error && (
+        <p role="alert" className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+          Microsoft Clarity: {data.clarity_error.message}
+        </p>
+      )}
+      {isClarity && !data.clarity ? null : s.records === 0 && !data.clarity?.rows ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">No records match these filters.</p>
       ) : (
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -370,7 +469,7 @@ function ReportPreviewCard({
       )}
       <div className="flex flex-wrap gap-2">
         {FORMATS.map(({ format, label }) =>
-          stale || s.records === 0 ? (
+          stale || (s.records === 0 && !data.clarity?.rows) || (src !== "internal" && !data.clarity) ? (
             <span key={format} aria-disabled="true" className="cursor-not-allowed rounded-md border border-zinc-200 px-4 py-2 text-sm font-medium opacity-50 dark:border-zinc-800">
               {label}
             </span>

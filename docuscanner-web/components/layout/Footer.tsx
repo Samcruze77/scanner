@@ -62,7 +62,10 @@ export function Footer() {
         </div>
         <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="muted text-xs">
-            &copy; {new Date().getFullYear()} {SITE_NAME}. Free to use and supported by ads.
+            &copy; {new Date().getFullYear()} {SITE_NAME}. Free to use and supported by ads.{" "}
+            <Link href="/privacy" className="underline hover:no-underline">
+              Privacy Policy
+            </Link>
           </p>
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span className="muted">
