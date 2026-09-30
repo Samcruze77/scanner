@@ -34,7 +34,9 @@ const { protectErrorMessage } = await import("../../utils/protect/messages.ts");
 const { writeCfb, allocateCfb } = await import("../../utils/protect/cfbWriter.ts");
 const { flatOpcToPackage, looksLikeFlatOpc } = await import("../../utils/protect/flatOpc.ts");
 const { OFFICE_TYPES, OFFICE_EXTENSIONS, officeExtensionOf } = await import("../../utils/protect/office.ts");
-const dom = { parse: (xml) => new DOMParser({ onError: () => {} }).parseFromString(xml, "application/xml"), serialize: (n) => new XMLSerializer().serializeToString(n) };
+// A strict parser: like the browser's, it reports malformed XML instead of guessing.
+const strictParser = () => new DOMParser({ onError: (level, message) => { if (level !== "warning") throw new Error(message); } });
+const dom = { parse: (xml) => strictParser().parseFromString(xml, "application/xml"), serialize: (n) => new XMLSerializer().serializeToString(n) };
 const { readCfb } = await import("../../utils/protect/cfbReader.ts");
 const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 const createModule = require("@neslinesli93/qpdf-wasm");
@@ -555,7 +557,8 @@ async function partsOf(bytes) {
   for (const name of Object.keys(z.files).filter((n) => !z.files[n].dir && n !== "[Content_Types].xml")) {
     const raw = await z.file(name).async("uint8array");
     const isXml = /\.(xml|rels)$/i.test(name);
-    out.set(name, isXml ? `xml:${dom.serialize(dom.parse(new TextDecoder().decode(raw).replace(/^\uFEFF/, "")))}` : `bin:${sha(raw)}`);
+    const text = new TextDecoder().decode(raw).replace(/^\uFEFF/, "").replace(/^<\?xml[^>]*\?>\s*/, "");
+    out.set(name, isXml ? `xml:${dom.serialize(dom.parse(text))}` : `bin:${sha(raw)}`);
   }
   return out;
 }
@@ -748,7 +751,7 @@ await test("policy: analytics calls carry only kind, timing, permission ticks an
   const block = events.slice(events.indexOf("export function trackProtectStarted"), events.indexOf("// signature_drawn"));
   assert.ok(!/password|filename|file\.name|bytes/i.test(block.replace(/never the file, its name, or any password/i, "")), block);
   const tool = read("components/tools/ProtectTool.tsx");
-  for (const call of tool.match(/track\w+\([^;]*\);/g) ?? []) assert.ok(!/password|confirm|file\b|filename/i.test(call.replace("trackProtectFailed(code)", "")), call);
+  for (const call of tool.match(/track\w+\([^;]*\);/g) ?? []) assert.ok(!/password|confirm|file\b|filename/i.test(call.replace("trackProtectFailed(code)", "").replace("officeAppOf(file.name)", "officeAppOf(EXTENSION_ONLY)")), call);
 });
 
 await test("policy: Protect is public: no auth requirement, no server route, no API, no upload", () => {

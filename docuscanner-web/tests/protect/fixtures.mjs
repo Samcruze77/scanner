@@ -190,8 +190,10 @@ function assert(ok, message) {
 export async function toFlatOpc(bytes) {
   const zip = await JSZip.loadAsync(bytes);
   const types = await zip.file("[Content_Types].xml").async("string");
-  const overrides = new Map([...types.matchAll(/<Override\s+[^>]*?PartName="([^"]+)"[^>]*?ContentType="([^"]+)"/g)].map((m) => [m[1], m[2]]));
-  const defaults = new Map([...types.matchAll(/<Default\s+[^>]*?Extension="([^"]+)"[^>]*?ContentType="([^"]+)"/g)].map((m) => [m[1].toLowerCase(), m[2]]));
+  // Attributes can come in any order ([Content_Types].xml writers differ), so read them by name.
+  const attrs = (tag) => Object.fromEntries([...tag.matchAll(/([A-Za-z:]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
+  const overrides = new Map([...types.matchAll(/<Override\b[^>]*>/g)].map((m) => attrs(m[0])).map((a) => [a.PartName, a.ContentType]));
+  const defaults = new Map([...types.matchAll(/<Default\b[^>]*>/g)].map((m) => attrs(m[0])).map((a) => [a.Extension.toLowerCase(), a.ContentType]));
   let out = '<?xml version="1.0" standalone="yes"?>\n<?mso-application progid="Word.Document"?>\n<pkg:package xmlns:pkg="http://schemas.microsoft.com/office/2006/xmlPackage">';
   for (const name of Object.keys(zip.files).filter((n) => !zip.files[n].dir && n !== "[Content_Types].xml")) {
     const partName = `/${name}`;
