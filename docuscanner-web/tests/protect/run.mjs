@@ -257,7 +257,7 @@ if (soffice) {
   const lo = (file, pw) => spawnSync("python3", [path.join(here, "lo_open.py"), file, ...(pw === undefined ? [] : [pw])], { encoding: "utf8", timeout: 180000 }).stdout;
   await test("DOCX: LibreOffice (independent Office-crypto implementation) opens it with the password, refuses wrong/none", () => {
     const file = path.join(work, "protected.docx");
-    assert.match(lo(file, PASSWORD), /OPENED: Test document/);
+    assert.match(lo(file, PASSWORD), /OPENED: .*Test document/);
     assert.match(lo(file, "wrong"), /OPEN_FAILED/);
     assert.match(lo(file), /OPEN_FAILED/);
   });
