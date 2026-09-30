@@ -33,10 +33,26 @@ if (!CHROME) throw new Error("No Chromium found. Set CHROME to a browser executa
 const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
 const docx = await makeTestDocx();
 const pdf = await makePdf();
+// A Word package of the given kind: the real content types, and a stand-in macro project for the macro-enabled kinds.
+async function wordPackage(ext) {
+  const MAIN = "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml";
+  const types = { docm: "application/vnd.ms-word.document.macroEnabled.main+xml", dotx: "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml", dotm: "application/vnd.ms-word.template.macroEnabled.main+xml" };
+  const typed = await retypeDocx(docx, (ct) => ct.replace(MAIN, types[ext]));
+  if (ext === "dotx") return typed;
+  const zip = await JSZip.loadAsync(typed);
+  zip.file("word/vbaProject.bin", crypto.randomBytes(4096));
+  return new Uint8Array(await zip.generateAsync({ type: "uint8array" }));
+}
+
 const files = {
   "contract.docx": docx,
   "report.pdf": pdf,
-  "macros.docm": await retypeDocx(docx, (ct) => ct.replace("wordprocessingml.document.main+xml", "wordprocessingml.document.macroEnabled.main+xml")),
+  "macros.docm": await wordPackage("docm"),
+  "template.dotx": await wordPackage("dotx"),
+  "macro-template.dotm": await wordPackage("dotm"),
+  "macro-as-docx.docx": await wordPackage("docm"), // macro-enabled contents under a plain .docx name
+  "old.doc": new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, ...new Uint8Array(700)]),
+  "notes.xml": new TextEncoder().encode('<?xml version="1.0"?><w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml"/>'),
   "broken.docx": docx.slice(0, 2500),
   "notes.txt": new TextEncoder().encode("plain text"),
   "empty.docx": new Uint8Array(0),
@@ -302,11 +318,13 @@ await test("validation: missing password, missing confirmation, mismatch, short 
   await s.context.close();
 });
 
-await test("bad files: .docm, corrupt .docx, unsupported type and empty file are refused with clear messages", async () => {
+await test("bad files: mismatched type, old .doc, .xml, corrupt .docx, unsupported type and empty file are refused with clear messages", async () => {
   const s = await session();
   await open(s.page, "protect-word");
   for (const [name, message] of [
-    ["macros.docm", /Macro-enabled Word files \(\.docm\) aren't supported/],
+    ["macro-as-docx.docx", /contents don't match its file type/],
+    ["old.doc", /Old \.doc files aren't supported/],
+    ["notes.xml", /Word XML files \(\.xml\) can't be password-protected/],
     ["broken.docx", /couldn't be read/],
     ["notes.txt", /file type isn't supported/],
     ["empty.docx", /couldn't be read/],
@@ -318,6 +336,29 @@ await test("bad files: .docm, corrupt .docx, unsupported type and empty file are
   }
   await s.context.close();
 });
+
+// .docm, .dotx and .dotm are protected as they are, keep their extension, and macros are untouched.
+for (const name of ["macros.docm", "template.dotx", "macro-template.dotm"]) {
+  await test(`Word format ${name}: protects, keeps the extension, decrypts to the identical file`, async () => {
+    const s = await session();
+    await open(s.page, "protect-word");
+    await choose(s.page, name);
+    const macro = /docm|dotm/.test(name);
+    assert.equal(await s.page.getByText("This file can contain macros. They are not opened, changed or removed").count(), macro ? 1 : 0);
+    await fillPasswords(s.page, PASSWORD);
+    await s.page.getByRole("button", { name: "Protect Word document" }).click();
+    await s.page.getByText("Your Word document is protected").waitFor({ timeout: 120000 });
+    const got = await downloadOf(s.page, /Download protected Word document/);
+    const [base, ext] = name.split(".");
+    assert.equal(got.name, `${base}-protected.${ext}`);
+    if (hasPython) {
+      const ok = msoffDecrypt(got.target, PASSWORD);
+      assert.equal(ok.status, 0, String(ok.stderr));
+      assert.equal(sha(ok.stdout.subarray(ok.stdout.indexOf(10) + 1)), sha(files[name]), "package, including any macro project, identical");
+    }
+    await s.context.close();
+  });
+}
 
 await test("cancel, then retry: cancellation is never success; the next run is fresh and downloads its own result", async () => {
   const s = await session({ slowFirstHash: true });

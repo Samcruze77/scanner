@@ -1,6 +1,6 @@
 "use client";
 
-// Protect PDF / Protect Word document. Pick a PDF, a Word (.docx) file, or a JPG/PNG/WebP
+// Protect PDF / Protect Word document. Pick a PDF, a Word file (.docx, .docm, .dotx, .dotm), or a JPG/PNG/WebP
 // picture (which becomes a one-page PDF), choose a password, and download the locked copy.
 // No account is needed and nothing leaves the device: PDFs go into a WebAssembly PDF
 // engine in this tab, and Word documents are encrypted with the browser's own Web Crypto.
@@ -26,6 +26,7 @@ import { trackDocumentDownloaded, trackProtectCompleted, trackProtectFailed, tra
 import { downloadBlob } from "@/utils/convert/download";
 import { formatBytes } from "@/utils/compress/types";
 import { getUserPlan, isFeatureAvailable } from "@/utils/features/plans";
+import { wordExtensionOf } from "@/utils/protect/docx";
 import { protectErrorMessage } from "@/utils/protect/messages";
 import { DEFAULT_PROTECT_OPTIONS, MIN_PASSWORD_LENGTH, protectedFilename, validatePassword } from "@/utils/protect/protect";
 import { toProtectError, type ProtectPhase } from "@/utils/protect/operation";
@@ -55,7 +56,8 @@ const KIND_NOUN: Record<Kind, string> = { pdf: "PDF", image: "picture", docx: "W
 function outputFilename(file: File, kind: Kind): string {
   if (kind !== "docx") return protectedFilename(file.name);
   const base = file.name.replace(/\.[^.]+$/, "").replace(/[^\w\- .()]+/g, "_").trim();
-  return `${base || "document"}-protected.docx`;
+  // The protected copy keeps the file's own extension (.docx, .docm, .dotx or .dotm).
+  return `${base || "document"}-protected.${wordExtensionOf(file.name) ?? "docx"}`;
 }
 
 export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
@@ -218,13 +220,13 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
 
       {stage.name === "idle" && (
         <FileDropzone
-          accept={wordEnabled ? "application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" : "application/pdf,.pdf,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"}
+          accept={wordEnabled ? "application/pdf,.pdf,.docx,.docm,.dotx,.dotm,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-word.document.macroEnabled.12,application/vnd.openxmlformats-officedocument.wordprocessingml.template,application/vnd.ms-word.template.macroEnabled.12,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" : "application/pdf,.pdf,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"}
           title={wordFirst ? "Choose a Word document to protect" : "Choose a file to protect"}
           hint={
             wordEnabled
               ? wordFirst
-                ? "or drop it here. Only .docx files. You can also choose a PDF or a JPG, PNG or WebP picture."
-                : "or drop it here. A PDF, a Word document (.docx), or a JPG, PNG or WebP picture (turned into a one-page PDF first)."
+                ? "or drop it here. Word documents and templates: .docx, .docm, .dotx, .dotm. You can also choose a PDF or a JPG, PNG or WebP picture."
+                : "or drop it here. A PDF, a Word document or template (.docx, .docm, .dotx, .dotm), or a JPG, PNG or WebP picture (turned into a one-page PDF first)."
               : "or drop it here. You can also choose a JPG, PNG or WebP picture: it is turned into a one-page PDF first."
           }
           onFile={(file) => void choose(file)}
@@ -273,7 +275,15 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
             />
 
             {isWord ? (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">Your Word document will be encrypted and require this password to open in Microsoft Word.</p>
+              <div className="space-y-2">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">Your Word document will be encrypted and require this password to open in Microsoft Word.</p>
+                {/^(docm|dotm)$/.test(wordExtensionOf(stage.file.name) ?? "") && (
+                  <p className="notice notice-info !block">
+                    This file can contain macros. They are not opened, changed or removed: the file is only encrypted. After you enter the password in Word, Word decides whether to run them, as it would
+                    for the original.
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="card space-y-1 p-3">
                 <p className="text-sm font-medium">What people who open it may do</p>

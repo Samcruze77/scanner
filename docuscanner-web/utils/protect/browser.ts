@@ -6,7 +6,7 @@
 // PDF engine file itself; Word documents are encrypted with the browser's own Web Crypto.
 
 import { ProtectError, MAX_PROTECT_BYTES, type ProtectOptions, type QpdfInstance } from "./protect.ts";
-import { MAX_DOCX_BYTES } from "./docx.ts";
+import { MAX_DOCX_BYTES, wordExtensionOf } from "./docx.ts";
 import { runProtection, type ProtectHooks, type ProtectedOutput } from "./operation.ts";
 
 export const QPDF_WASM_URL = "/qpdf/qpdf.wasm";
@@ -35,21 +35,23 @@ function isImage(head: Uint8Array): boolean {
 
 // Checks the extension, size and real file signature before doing any work, so a
 // renamed or damaged file gets a clear message instead of a stalled spinner.
-// `.docm` (macros) is refused on purpose: it is never treated as an ordinary .docx.
+// Word packages (.docx, .docm, .dotx, .dotm) are encrypted as they are; whether a file's
+// contents really match its extension is checked in utils/protect/docx.ts.
 export function classifyProtectFile(file: File, head: Uint8Array, wordEnabled = true): ProtectSourceKind {
   const name = file.name.toLowerCase();
-  if (name.endsWith(".docm")) throw new ProtectError("protect_macro_unsupported");
+  if (wordEnabled && name.endsWith(".doc")) throw new ProtectError("protect_legacy_doc");
+  if (wordEnabled && name.endsWith(".xml")) throw new ProtectError("protect_xml_unsupported");
   const isPdfName = name.endsWith(".pdf");
-  const isDocxName = wordEnabled && name.endsWith(".docx");
+  const isWordName = wordEnabled && wordExtensionOf(name) !== null;
   const isImageName = /\.(jpe?g|png|webp)$/.test(name);
-  if (!isPdfName && !isDocxName && !isImageName) throw new ProtectError("protect_unsupported_type");
+  if (!isPdfName && !isWordName && !isImageName) throw new ProtectError("protect_unsupported_type");
   if (file.size === 0) throw new ProtectError("protect_invalid");
-  if (file.size > (isDocxName ? MAX_DOCX_BYTES : MAX_PROTECT_BYTES)) throw new ProtectError("protect_too_large");
+  if (file.size > (isWordName ? MAX_DOCX_BYTES : MAX_PROTECT_BYTES)) throw new ProtectError("protect_too_large");
   if (isPdfName) {
     if (!new TextDecoder("latin1").decode(head).includes("%PDF-")) throw new ProtectError("protect_invalid");
     return "pdf";
   }
-  if (isDocxName) return "docx";
+  if (isWordName) return "docx";
   if (!isImage(head)) throw new ProtectError("protect_invalid");
   return "image";
 }
@@ -87,7 +89,11 @@ export async function protectFile(request: ProtectFileRequest, hooks: ProtectHoo
   const head = new Uint8Array(await file.slice(0, 1024).arrayBuffer());
   const source = classifyProtectFile(file, head, request.wordEnabled);
   const bytes = source === "image" ? await imageToPdf(file) : new Uint8Array(await file.arrayBuffer());
-  const output = await runProtection({ kind: source === "docx" ? "docx" : "pdf", bytes, password: request.password, options: request.options }, { createQpdf }, hooks);
+  const output = await runProtection(
+    { kind: source === "docx" ? "docx" : "pdf", wordExtension: source === "docx" ? (wordExtensionOf(file.name) ?? "docx") : undefined, bytes, password: request.password, options: request.options },
+    { createQpdf },
+    hooks,
+  );
   return { ...output, source };
 }
 
@@ -97,7 +103,7 @@ export async function checkProtectFile(file: File, wordEnabled = true): Promise<
   const kind = classifyProtectFile(file, head, wordEnabled);
   if (kind === "docx") {
     const { validateDocxPackage } = await import("./docx.ts");
-    await validateDocxPackage(new Uint8Array(await file.arrayBuffer()));
+    await validateDocxPackage(new Uint8Array(await file.arrayBuffer()), wordExtensionOf(file.name) ?? "docx");
   } else if (kind === "pdf") {
     // A quick look for an existing password in the ends of the file, where the trailer lives;
     // the PDF is not parsed (that costs several times its size in memory) unless something is

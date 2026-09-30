@@ -5,8 +5,10 @@
 import { MIN_PASSWORD_LENGTH } from "./protect.ts";
 
 const MESSAGES: Record<string, string> = {
-  protect_unsupported_type: "That file type isn't supported. Choose a PDF, a Word document (.docx), or a JPG, PNG or WebP picture.",
-  protect_macro_unsupported: "Macro-enabled Word files (.docm) aren't supported. Only regular .docx documents can be protected here.",
+  protect_unsupported_type: "That file type isn't supported. Choose a PDF, a Word document or template (.docx, .docm, .dotx, .dotm), or a JPG, PNG or WebP picture.",
+  protect_legacy_doc: "Old .doc files aren't supported. Open it in Word, choose Save As, save it as a .docx document, then protect that file.",
+  protect_xml_unsupported: "Word XML files (.xml) can't be password-protected the way Word does it. Open the file in Word, choose Save As, save it as a .docx document, then protect that file.",
+  protect_type_mismatch: "That file's contents don't match its file type (for example, a macro-enabled document saved with a .docx name). Open it in Word, save it again in the format you want, then try again.",
   protect_too_large: "That file is too large to protect in the browser. PDFs and pictures can be up to 100 MB, Word documents up to 50 MB.",
   protect_invalid: "That file couldn't be read. It may be damaged or not a real PDF or picture.",
   protect_already_protected:

@@ -419,25 +419,81 @@ await test("password Unicode normalization: precomposed and decomposed forms are
 
 // ================================ Input validation ================================
 
-await test("DOCX: input validation accepts .docx; rejects corrupt, empty, .docm, templates, legacy and already-encrypted", async () => {
-  await validateDocxPackage(docx);
+await test("Word input validation: four package types accepted under their own extension; mismatches, corrupt, legacy and encrypted refused", async () => {
+  const retype = (from, to) => retypeDocx(docx, (ct) => ct.replace(from, to));
+  const MAIN = "wordprocessingml.document.main+xml";
+  const variants = {
+    docx: docx,
+    docm: await retype(MAIN, "wordprocessingml.document.macroEnabled.main+xml"),
+    dotx: await retype(MAIN, "wordprocessingml.template.main+xml"),
+    dotm: await retype(MAIN, "wordprocessingml.template.macroEnabled.main+xml"),
+  };
+  // The macro-enabled content types live under a different vendor prefix in real files.
+  for (const [ext, bytes] of Object.entries(variants)) {
+    if (ext === "docm" || ext === "dotm") {
+      const fixed = await retypeDocx(bytes, (ct) => ct.replace(/application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.(document|template)\.macroEnabled\.main\+xml/, `application/vnd.ms-word.$1.macroEnabled.main+xml`));
+      variants[ext] = fixed;
+    }
+  }
+  for (const [ext, bytes] of Object.entries(variants)) await validateDocxPackage(bytes, ext);
+  // The extension must match the contents, in every direction.
+  for (const [actual, bytes] of Object.entries(variants)) {
+    for (const claimed of Object.keys(variants)) {
+      if (claimed === actual) continue;
+      assert.equal(await code(validateDocxPackage(bytes, claimed)), "protect_type_mismatch", `${actual} contents named .${claimed}`);
+    }
+  }
+  // Macro code may only travel in macro-enabled types.
+  const withVba = await JSZip.loadAsync(docx);
+  withVba.file("word/vbaProject.bin", new Uint8Array([1, 2, 3]));
+  const plainWithVba = new Uint8Array(await withVba.generateAsync({ type: "uint8array" }));
+  assert.equal(await code(validateDocxPackage(plainWithVba, "docx")), "protect_type_mismatch");
+  assert.equal(await code(validateDocxPackage(plainWithVba, "dotx")), "protect_type_mismatch");
+  const docmWithVba = await JSZip.loadAsync(variants.docm);
+  docmWithVba.file("word/vbaProject.bin", new Uint8Array([1, 2, 3]));
+  await validateDocxPackage(new Uint8Array(await docmWithVba.generateAsync({ type: "uint8array" })), "docm");
+  // Not Word packages at all.
   assert.equal(await code(validateDocxPackage(new Uint8Array(0))), "protect_invalid");
   assert.equal(await code(validateDocxPackage(new TextEncoder().encode("hello"))), "protect_invalid");
   assert.equal(await code(validateDocxPackage(docx.subarray(0, Math.floor(docx.length / 2)))), "protect_invalid", "truncated zip");
   const noDoc = new JSZip();
   noDoc.file("[Content_Types].xml", "<Types/>");
   assert.equal(await code(validateDocxPackage(new Uint8Array(await noDoc.generateAsync({ type: "uint8array" })))), "protect_invalid");
-  const docm = await retypeDocx(docx, (ct) => ct.replace("wordprocessingml.document.main+xml", "wordprocessingml.document.macroEnabled.main+xml"));
-  assert.equal(await code(validateDocxPackage(docm)), "protect_macro_unsupported");
-  const dotx = await retypeDocx(docx, (ct) => ct.replace("wordprocessingml.document.main+xml", "wordprocessingml.template.main+xml"));
-  assert.equal(await code(validateDocxPackage(dotx)), "protect_unsupported_type");
-  const withVba = await JSZip.loadAsync(docx);
-  withVba.file("word/vbaProject.bin", new Uint8Array([1, 2, 3]));
-  assert.equal(await code(validateDocxPackage(new Uint8Array(await withVba.generateAsync({ type: "uint8array" })))), "protect_macro_unsupported");
   assert.equal(await code(validateDocxPackage(encrypted)), "protect_already_protected");
   const legacy = writeCfb({ name: "Root Entry", children: [{ name: "WordDocument", data: new Uint8Array(5000) }] });
-  assert.equal(await code(validateDocxPackage(legacy)), "protect_unsupported_type");
+  assert.equal(await code(validateDocxPackage(legacy)), "protect_legacy_doc");
   assert.equal(await code(validateDocxPackage(new Uint8Array(51 * 1024 * 1024))), "protect_too_large");
+});
+
+await test("Word formats: each type protects to the same extension, decrypts to the identical file, macros untouched (msoffcrypto-tool)", async () => {
+  const MAIN = "wordprocessingml.document.main+xml";
+  const make = async (to) => retypeDocx(docx, (ct) => ct.replace(MAIN, to));
+  const files = {
+    docm: await make("wordprocessingml.document.macroEnabled.main+xml"),
+    dotx: await make("wordprocessingml.template.main+xml"),
+    dotm: await make("wordprocessingml.template.macroEnabled.main+xml"),
+  };
+  for (const ext of ["docm", "dotm"]) {
+    files[ext] = await retypeDocx(files[ext], (ct) => ct.replace(/application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.(document|template)\.macroEnabled\.main\+xml/, "application/vnd.ms-word.$1.macroEnabled.main+xml"));
+    const z = await JSZip.loadAsync(files[ext]);
+    z.file("word/vbaProject.bin", crypto.randomBytes(2048)); // stand-in macro project
+    files[ext] = new Uint8Array(await z.generateAsync({ type: "uint8array" }));
+  }
+  for (const [ext, original] of Object.entries(files)) {
+    const out = await runProtection({ ...req("docx", original), wordExtension: ext }, engines);
+    assert.equal(out.extension, ext);
+    assert.ok(looksLikeOfficeEncrypted(out.data));
+    assert.notEqual(out.mime, "application/pdf");
+    if (hasPython) {
+      const file = path.join(work, `fmt-${ext}.bin`);
+      fs.writeFileSync(file, out.data);
+      const r = msoffcryptoDecrypt(file, PASSWORD);
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(sha(r.stdout.subarray(r.stdout.indexOf(10) + 1)), sha(original), `${ext}: package (including any macro project) identical`);
+    }
+    // Claiming the wrong type is refused before anything is encrypted.
+    assert.equal(await code(runProtection({ ...req("docx", original), wordExtension: ext === "dotx" ? "docx" : "dotx" }, engines)), "protect_type_mismatch");
+  }
 });
 
 // ================================ The transaction ================================
