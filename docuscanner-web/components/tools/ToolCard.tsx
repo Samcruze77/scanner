@@ -20,6 +20,8 @@ const TOOL_ICONS: Record<string, IconName> = {
   "compress-excel": "compress",
   "protect-pdf": "lock",
   "protect-word": "lock",
+  "protect-excel": "lock",
+  "protect-powerpoint": "lock",
 };
 
 // One entry in the Tools hub. Tools that ask guests for a (free) account say so

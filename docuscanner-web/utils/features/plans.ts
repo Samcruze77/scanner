@@ -63,8 +63,11 @@ export const FEATURES: Record<FeatureId, FeatureDefinition> = {
   "compress.excel": { minPlan: "free", implemented: true },
   // Protect PDF locks the file in the browser (AES-256), free and with no account.
   "protect.pdf": { minPlan: "free", implemented: true },
-  // Password-protect a Word (.docx) with Office's own encryption (AES-256 Agile), in the
-  // browser. This is the release switch for the Word option. It is OFF unless the build sets
+  // Password-protect Word, Excel and PowerPoint files (.docx, .xlsx, .pptx and the macro-enabled,
+  // template and slide-show versions, plus Office "XML Document" files, which are converted to
+  // the package they describe) with Office's own encryption (AES-256 Agile), in the browser.
+  // This is the release switch for ALL the Office options (the feature id predates Excel and
+  // PowerPoint and is kept so the existing environment variable keeps working). It is OFF unless the build sets
   // NEXT_PUBLIC_DOCX_PROTECTION_ENABLED=true, so it ships dark until someone has opened a
   // protected sample in real Microsoft Word (see tests/protect/README.md). Turning it off
   // again (unset the variable and redeploy) removes the Word option, the Word page, its

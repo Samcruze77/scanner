@@ -16,7 +16,13 @@ const TOOLS = [
   { href: "/tools/compress-pdf", label: "Compress PDF" },
   { href: "/tools/compress-image", label: "Compress image" },
   { href: "/tools/protect-pdf", label: "Protect PDF" },
-  ...(FEATURES["protect.docx"].implemented ? [{ href: "/tools/protect-word", label: "Protect Word document" }] : []),
+  ...(FEATURES["protect.docx"].implemented
+    ? [
+        { href: "/tools/protect-word", label: "Protect Word document" },
+        { href: "/tools/protect-excel", label: "Protect Excel workbook" },
+        { href: "/tools/protect-powerpoint", label: "Protect PowerPoint" },
+      ]
+    : []),
 ];
 
 const CONVERT = [

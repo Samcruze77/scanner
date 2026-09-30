@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import JSZip from "jszip";
 import sharp from "sharp";
-import { makePdf, makeTestDocx, PASSWORD, retypeDocx } from "./fixtures.mjs";
+import { asOfficeType, makePdf, makePptx, makeTestDocx, makeXlsx, PASSWORD, toFlatOpc } from "./fixtures.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const BASE = (process.argv[2] ?? "http://localhost:3100").replace(/\/$/, "");
@@ -33,25 +33,28 @@ if (!CHROME) throw new Error("No Chromium found. Set CHROME to a browser executa
 const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
 const docx = await makeTestDocx();
 const pdf = await makePdf();
-// A Word package of the given kind: the real content types, and a stand-in macro project for the macro-enabled kinds.
-async function wordPackage(ext) {
-  const MAIN = "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml";
-  const types = { docm: "application/vnd.ms-word.document.macroEnabled.main+xml", dotx: "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml", dotm: "application/vnd.ms-word.template.macroEnabled.main+xml" };
-  const typed = await retypeDocx(docx, (ct) => ct.replace(MAIN, types[ext]));
-  if (ext === "dotx") return typed;
-  const zip = await JSZip.loadAsync(typed);
-  zip.file("word/vbaProject.bin", crypto.randomBytes(4096));
-  return new Uint8Array(await zip.generateAsync({ type: "uint8array" }));
-}
+const xlsxFile = await makeXlsx();
+const pptxFile = await makePptx();
+// A package of the given Office type (a stand-in macro project is added for the macro-enabled types).
+const BASES = { docx, xlsx: xlsxFile, pptx: pptxFile };
+const officePackage = (ext) => asOfficeType(BASES[{ d: "docx", x: "xlsx", p: "pptx" }[ext[0]]], { d: "docx", x: "xlsx", p: "pptx" }[ext[0]], ext);
 
 const files = {
   "contract.docx": docx,
   "report.pdf": pdf,
-  "macros.docm": await wordPackage("docm"),
-  "template.dotx": await wordPackage("dotx"),
-  "macro-template.dotm": await wordPackage("dotm"),
-  "macro-as-docx.docx": await wordPackage("docm"), // macro-enabled contents under a plain .docx name
+  "macros.docm": await officePackage("docm"),
+  "template.dotx": await officePackage("dotx"),
+  "macro-template.dotm": await officePackage("dotm"),
+  "macro-as-docx.docx": await officePackage("docm"), // macro-enabled contents under a plain .docx name
   "old.doc": new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, ...new Uint8Array(700)]),
+  "old.xls": new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, ...new Uint8Array(700)]),
+  "budget.xlsx": xlsxFile,
+  "macro-budget.xlsm": await officePackage("xlsm"),
+  "deck.pptx": pptxFile,
+  "slides.ppsx": await officePackage("ppsx"),
+  "flat-word.xml": new TextEncoder().encode(await toFlatOpc(docx)),
+  "flat-excel.xml": new TextEncoder().encode(await toFlatOpc(xlsxFile)),
+  "flat-powerpoint.xml": new TextEncoder().encode(await toFlatOpc(pptxFile)),
   "notes.xml": new TextEncoder().encode('<?xml version="1.0"?><w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml"/>'),
   "broken.docx": docx.slice(0, 2500),
   "notes.txt": new TextEncoder().encode("plain text"),
@@ -323,8 +326,9 @@ await test("bad files: mismatched type, old .doc, .xml, corrupt .docx, unsupport
   await open(s.page, "protect-word");
   for (const [name, message] of [
     ["macro-as-docx.docx", /contents don't match its file type/],
-    ["old.doc", /Old \.doc files aren't supported/],
-    ["notes.xml", /Word XML files \(\.xml\) can't be password-protected/],
+    ["old.doc", /Old Office files \(\.doc, \.xls, \.ppt\) aren't supported/],
+    ["old.xls", /Old Office files \(\.doc, \.xls, \.ppt\) aren't supported/],
+    ["notes.xml", /Only Office "XML Document" files can be converted/],
     ["broken.docx", /couldn't be read/],
     ["notes.txt", /file type isn't supported/],
     ["empty.docx", /couldn't be read/],
@@ -360,6 +364,69 @@ for (const name of ["macros.docm", "template.dotx", "macro-template.dotm"]) {
     await s.context.close();
   });
 }
+
+// Excel and PowerPoint files (every page takes every Office file; the heading follows the file).
+const APPS = { xlsx: ["Excel workbook", "Protect Excel workbook"], xlsm: ["Excel workbook", "Protect Excel workbook"], pptx: ["PowerPoint presentation", "Protect PowerPoint presentation"], ppsx: ["PowerPoint presentation", "Protect PowerPoint presentation"] };
+for (const name of ["budget.xlsx", "macro-budget.xlsm", "deck.pptx", "slides.ppsx"]) {
+  await test(`Office file ${name}: protects, keeps the extension, decrypts to the identical file`, async () => {
+    const ext = name.split(".")[1];
+    const [noun, cta] = APPS[ext];
+    const s = await session();
+    await open(s.page, noun.startsWith("Excel") ? "protect-excel" : "protect-powerpoint");
+    await choose(s.page, name);
+    await s.page.getByLabel(/^Password to open/).waitFor();
+    await s.page.getByText(`Your ${noun} will be encrypted and require this password to open in Microsoft ${noun.split(" ")[0]}.`).waitFor();
+    await fillPasswords(s.page, PASSWORD);
+    await s.page.getByRole("button", { name: cta }).click();
+    await s.page.getByText(`Your ${noun} is protected`).waitFor({ timeout: 120000 });
+    const got = await downloadOf(s.page, new RegExp(`Download protected ${noun}`));
+    const [base] = name.split(".");
+    assert.equal(got.name, `${base}-protected.${ext}`);
+    if (hasPython) {
+      const ok = msoffDecrypt(got.target, PASSWORD);
+      assert.equal(ok.status, 0, String(ok.stderr));
+      assert.equal(sha(ok.stdout.subarray(ok.stdout.indexOf(10) + 1)), sha(files[name]), "package identical");
+      assert.notEqual(msoffDecrypt(got.target, "wrong password").status, 0);
+    }
+    await s.context.close();
+  });
+}
+
+// An Office "XML Document" is converted to the package it describes, then protected; the result is that package.
+for (const [name, noun, ext, marker] of [["flat-word.xml", "Word document", "docx", "word/document.xml"], ["flat-excel.xml", "Excel workbook", "xlsx", "xl/workbook.xml"], ["flat-powerpoint.xml", "PowerPoint presentation", "pptx", "ppt/presentation.xml"]]) {
+  await test(`XML Document ${name}: converted to .${ext}, protected, downloaded as .${ext}`, async () => {
+    const s = await session();
+    await open(s.page, "protect-word");
+    await choose(s.page, name);
+    await s.page.getByLabel(/^Password to open/).waitFor();
+    await s.page.getByText("This XML file will be converted to the regular Office file it describes").waitFor();
+    await fillPasswords(s.page, PASSWORD);
+    await s.page.getByRole("button", { name: "Protect document" }).click();
+    await s.page.getByText(`Your ${noun} is protected`).waitFor({ timeout: 120000 });
+    const got = await downloadOf(s.page, new RegExp(`Download protected ${noun}`));
+    assert.equal(got.name, `${name.split(".")[0]}-protected.${ext}`);
+    if (hasPython) {
+      const ok = msoffDecrypt(got.target, PASSWORD);
+      assert.equal(ok.status, 0, String(ok.stderr));
+      const zip = await JSZip.loadAsync(ok.stdout.subarray(ok.stdout.indexOf(10) + 1));
+      assert.ok(zip.file(marker), `the decrypted download is a real .${ext} package (${marker})`);
+      assert.ok((await zip.file("[Content_Types].xml").async("string")).length > 100);
+    }
+    await s.context.close();
+  });
+}
+
+await test("Excel and PowerPoint pages: load anonymously with their own heading, title and canonical URL", async () => {
+  const s = await session();
+  for (const [slug, h1, title] of [["protect-excel", /Excel workbook/i, /Password protect an Excel workbook/i], ["protect-powerpoint", /PowerPoint presentation/i, /Password protect a PowerPoint presentation/i]]) {
+    await open(s.page, slug);
+    assert.match(await s.page.locator("h1").innerText(), h1);
+    assert.match(await s.page.title(), title);
+    assert.match(await s.page.locator('link[rel="canonical"]').getAttribute("href"), new RegExp(`/tools/${slug}$`));
+    assert.equal(await s.page.getByRole("dialog").count(), 0, "no sign-in wall");
+  }
+  await s.context.close();
+});
 
 await test("cancel, then retry: cancellation is never success; the next run is fresh and downloads its own result", async () => {
   const s = await session({ slowFirstHash: true });
@@ -467,6 +534,8 @@ await test("discoverable: sitemap lists the Protect pages; robots allows them; p
   const sitemap = await (await s.context.request.get(`${BASE}/sitemap.xml`)).text();
   assert.match(sitemap, /\/tools\/protect-pdf/);
   assert.match(sitemap, /\/tools\/protect-word/);
+  assert.match(sitemap, /\/tools\/protect-excel/);
+  assert.match(sitemap, /\/tools\/protect-powerpoint/);
   const robots = await (await s.context.request.get(`${BASE}/robots.txt`)).text();
   assert.ok(!/Disallow:\s*\/tools/.test(robots));
   await s.page.goto(`${BASE}/tools`, { waitUntil: "networkidle" });

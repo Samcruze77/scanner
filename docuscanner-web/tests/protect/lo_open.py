@@ -19,8 +19,31 @@ try:
     if doc is None: print("OPEN_FAILED"); 
     else:
         import json
-        text = doc.getText().getString()
-        summary = {"text": text, "tables": doc.getTextTables().getCount(), "images": doc.getGraphicObjects().getCount(), "sections": doc.getTextSections().getCount()}
+        if doc.supportsService("com.sun.star.sheet.SpreadsheetDocument"):
+            sheets = doc.getSheets()
+            data = {}
+            for i in range(sheets.getCount()):
+                sh = sheets.getByIndex(i)
+                cur = sh.createCursor(); cur.gotoEndOfUsedArea(False)
+                addr = cur.getRangeAddress()
+                rng = sh.getCellRangeByPosition(0, 0, addr.EndColumn, addr.EndRow)
+                data[sh.getName()] = [list(r) for r in rng.getDataArray()]
+            summary = {"kind": "calc", "sheets": data}
+        elif doc.supportsService("com.sun.star.presentation.PresentationDocument"):
+            pages = doc.getDrawPages()
+            slides = []
+            for i in range(pages.getCount()):
+                pg = pages.getByIndex(i)
+                texts = []
+                for j in range(pg.getCount()):
+                    shape = pg.getByIndex(j)
+                    if hasattr(shape, "getString"):
+                        texts.append(shape.getString())
+                slides.append({"shapes": pg.getCount(), "text": texts})
+            summary = {"kind": "impress", "slides": slides}
+        else:
+            text = doc.getText().getString()
+            summary = {"text": text, "tables": doc.getTextTables().getCount(), "images": doc.getGraphicObjects().getCount(), "sections": doc.getTextSections().getCount()}
         print("OPENED:", json.dumps(summary, ensure_ascii=False)); doc.close(True)
 except Exception as e:
     import traceback; print("OPEN_FAILED", type(e).__name__, str(e)[:200])

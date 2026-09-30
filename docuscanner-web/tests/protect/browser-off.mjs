@@ -36,14 +36,14 @@ const newPage = async () => {
 
 await test("Word page, redirects and sitemap entry are gone", async () => {
   const { context, page } = await newPage();
-  for (const url of ["/tools/protect-word", "/protect-word-document", "/password-protect-word-document"]) {
+  for (const url of ["/tools/protect-word", "/tools/protect-excel", "/tools/protect-powerpoint", "/protect-word-document", "/password-protect-word-document", "/protect-excel", "/protect-powerpoint"]) {
     assert.equal((await context.request.get(BASE + url, { maxRedirects: 0 })).status(), 404, url);
   }
   const sitemap = await (await context.request.get(`${BASE}/sitemap.xml`)).text();
-  assert.ok(!/protect-word/.test(sitemap) && /protect-pdf/.test(sitemap));
+  assert.ok(!/protect-(word|excel|powerpoint)/.test(sitemap) && /protect-pdf/.test(sitemap));
   await page.goto(`${BASE}/tools`, { waitUntil: "networkidle" });
   assert.equal(await page.getByRole("link", { name: /Protect Word/ }).count(), 0);
-  assert.ok(!(await page.content()).includes("protect-word"), "no link to the disabled page on the hub or in the footer");
+  assert.ok(!/protect-(word|excel|powerpoint)/.test(await page.content()), "no link to the disabled page on the hub or in the footer");
   await context.close();
 });
 

@@ -44,7 +44,7 @@ export interface CompressTool extends ToolBase {
 export interface ProtectTool extends ToolBase {
   kind: "protect";
   // Which document type the page leads with; the tool itself accepts both.
-  focus: "pdf" | "word";
+  focus: "pdf" | "word" | "excel" | "powerpoint";
 }
 
 export type ToolDef = EditorTool | CompressTool | ProtectTool;
@@ -89,7 +89,7 @@ const compress = (slug: string, title: string, body: string, kind: CompressKind,
   requiresAuth: false,
 });
 
-const protect = (slug: string, title: string, body: string, focus: "pdf" | "word", feature: FeatureId = "protect.pdf"): ProtectTool => ({
+const protect = (slug: string, title: string, body: string, focus: "pdf" | "word" | "excel" | "powerpoint", feature: FeatureId = "protect.pdf"): ProtectTool => ({
   id: slug.replace(/-/g, "_"),
   slug,
   title,
@@ -131,9 +131,13 @@ export const TOOLS: ToolDef[] = [
   compress("compress-image", "Compress Image", "Reduce a photo's file size with a quality-to-size slider.", "image", "compress.image"),
   compress("compress-word", "Compress Word", "Shrink the pictures inside a Word document without touching its layout.", "word", "compress.word"),
   protect("protect-pdf", "Protect PDF", "Lock a PDF with a password. Free, no account, and the file never leaves your device.", "pdf"),
-  // Only listed while the Word option is switched on (utils/features/plans.ts).
+  // Only listed while the Office options (Word, Excel, PowerPoint) are switched on (utils/features/plans.ts).
   ...(FEATURES["protect.docx"].implemented
-    ? [protect("protect-word", "Protect Word Document", "Password protect a .docx so Microsoft Word asks for the password. Free, no account, and the file never leaves your device.", "word", "protect.docx")]
+    ? [
+        protect("protect-word", "Protect Word Document", "Password protect a Word file (.docx, .docm, .dotx, .dotm) so Microsoft Word asks for the password. Free, no account, and the file never leaves your device.", "word", "protect.docx"),
+        protect("protect-excel", "Protect Excel Workbook", "Password protect an Excel file (.xlsx, .xlsm, .xltx, .xltm, .xlsb) so Microsoft Excel asks for the password. Free, no account, and the file never leaves your device.", "excel", "protect.docx"),
+        protect("protect-powerpoint", "Protect PowerPoint Presentation", "Password protect a PowerPoint file (.pptx, .pptm, .potx, .potm, .ppsx, .ppsm) so Microsoft PowerPoint asks for the password. Free, no account, and the file never leaves your device.", "powerpoint", "protect.docx"),
+      ]
     : []),
   compress("compress-excel", "Compress Excel", "Shrink the pictures inside a workbook. Formulas, sheets and formatting stay as they are.", "excel", "compress.excel"),
 ];

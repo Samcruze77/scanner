@@ -13,19 +13,44 @@ Independent checks used (the code is never only checked against itself):
 `msoffcrypto-tool` and LibreOffice are optional: without them those checks are skipped with a message.
 `tests/protect/lo_open.py` is the LibreOffice helper.
 
-## Word formats
+## Office formats (Word, Excel, PowerPoint)
 
-Protect Word accepts `.docx`, `.docm` (macro-enabled), `.dotx` (template) and `.dotm` (macro-enabled template). All four are
-the same kind of package, so the same Office encryption (AES-256 Agile) applies, and the package is encrypted exactly as it is:
-macros are never run, changed or removed, and the protected copy keeps the original extension.
+The same Office encryption (AES-256 Agile) protects every current Office package, because they are all the same kind
+of ZIP package with a different main part. The package is encrypted exactly as it is: macros are never run, changed or
+removed, and the protected copy keeps the original extension.
 
-A file's real contents must match its extension (the main part's content type is checked), so a macro-enabled document saved
-under a `.docx` name, or macro code inside a plain `.docx`/`.dotx`, is refused with `protect_type_mismatch`. Not supported and
-refused with a specific message: old `.doc` (needs weak RC4 encryption and rewriting the file), Word `.xml` files, `.rtf`,
-`.odt`, and files that already have a password.
+| Application | Extensions |
+|---|---|
+| Word | `.docx` `.docm` `.dotx` `.dotm` |
+| Excel | `.xlsx` `.xlsm` `.xltx` `.xltm` `.xlsb` |
+| PowerPoint | `.pptx` `.pptm` `.potx` `.potm` `.ppsx` `.ppsm` |
 
-Only `.docx` has been opened in real Microsoft Word (see below). `.docm`, `.dotx` and `.dotm` are covered by the automated tests
-(byte-identical decryption with msoffcrypto-tool, extension kept, macro project untouched) but **not yet opened in Word**.
+A file's real contents must match its extension (the main part's content type is checked), so a macro-enabled file
+saved under a plain name, or macro code (`vbaProject.bin`) inside a non-macro type, is refused with `protect_type_mismatch`.
+
+**Office "XML Document" files** (Flat OPC: Word/Excel/PowerPoint "Save As > ... XML Document (*.xml)") are the same package
+written out as one XML file. They are converted, losslessly, back into the ZIP package they describe (`flatOpc.ts`) and
+then protected, and the result is that package (`.docx`, `.xlsx`, `.pptx`, ...), not XML. DOCTYPE and entities are refused.
+Word 2003 XML, Excel 2003 XML Spreadsheet and any other XML are refused: they are different formats, not packages, and
+converting them would be a lossy rewrite.
+
+Not supported, refused with a specific message: old binary `.doc` / `.xls` / `.ppt` (they need weak RC4 encryption and a
+rewrite of the file), `.rtf`, OpenDocument (`.odt` `.ods` `.odp`, which have their own incompatible encryption), `.csv`,
+`.txt`, and files that already have a password.
+
+### What has and has not been tested
+
+- Real files from real libraries (Word from `docx`, Excel from `exceljs`, PowerPoint from `pptxgenjs`) protect, decrypt to
+  the byte-identical original with msoffcrypto-tool, and open in LibreOffice Writer / Calc / Impress with identical content
+  before and after protection; wrong and missing passwords are refused. Every macro-enabled, template and slide-show
+  extension keeps its extension and its macro project byte-for-byte (the macro project is a stand-in; real macro files come
+  from Office). XML Documents round-trip with every part identical.
+- **Only `.docx` has been opened in real Microsoft Office** (see below). Excel, PowerPoint and every other extension, and
+  XML Documents written by real Office, have NOT been opened in real Excel, PowerPoint or Word. The content-type strings for
+  the less common types (`.xlsb`, `.xltm`, `.potm`, `.ppsm`) follow Microsoft's documented names but were not checked against
+  real files; a wrong string would only cause a valid file to be refused, never a wrong file to be accepted.
+- The XML Document test files are written by `tests/protect/fixtures.mjs` following the documented format; real Office
+  output has not been tried.
 
 ## Microsoft Word result
 

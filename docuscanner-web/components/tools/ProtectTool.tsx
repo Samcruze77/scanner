@@ -1,9 +1,10 @@
 "use client";
 
-// Protect PDF / Protect Word document. Pick a PDF, a Word file (.docx, .docm, .dotx, .dotm), or a JPG/PNG/WebP
+// Protect PDF / Word / Excel / PowerPoint. Pick a PDF, an Office file (Word, Excel or PowerPoint, including the
+// macro-enabled and template versions), an Office "XML Document" (converted to the package it describes), or a JPG/PNG/WebP
 // picture (which becomes a one-page PDF), choose a password, and download the locked copy.
 // No account is needed and nothing leaves the device: PDFs go into a WebAssembly PDF
-// engine in this tab, and Word documents are encrypted with the browser's own Web Crypto.
+// engine in this tab, and Office files are encrypted with the browser's own Web Crypto.
 //
 // Safety rules this component keeps:
 //  - The chosen File is only ever read. It stays selected and untouched through every
@@ -26,18 +27,19 @@ import { trackDocumentDownloaded, trackProtectCompleted, trackProtectFailed, tra
 import { downloadBlob } from "@/utils/convert/download";
 import { formatBytes } from "@/utils/compress/types";
 import { getUserPlan, isFeatureAvailable } from "@/utils/features/plans";
-import { wordExtensionOf } from "@/utils/protect/docx";
+import { OFFICE_APP_NOUN, OFFICE_EXTENSIONS, OFFICE_TYPES, officeAppOf, officeExtensionOf, type OfficeApp, type OfficeExtension } from "@/utils/protect/office";
 import { protectErrorMessage } from "@/utils/protect/messages";
 import { DEFAULT_PROTECT_OPTIONS, MIN_PASSWORD_LENGTH, protectedFilename, validatePassword } from "@/utils/protect/protect";
 import { toProtectError, type ProtectPhase } from "@/utils/protect/operation";
 
-type Kind = "pdf" | "docx" | "image";
+type Kind = "pdf" | "office" | "image";
+type Focus = "pdf" | OfficeApp;
 
 type Stage =
   | { name: "idle" }
   | { name: "ready"; file: File; kind: Kind }
   | { name: "working"; file: File; kind: Kind; phase: ProtectPhase; progress: number }
-  | { name: "done"; file: File; kind: Kind; blob: Blob; filename: string };
+  | { name: "done"; file: File; kind: Kind; blob: Blob; filename: string; noun: string; app: OfficeApp | null };
 
 interface FieldErrors {
   password?: string;
@@ -51,19 +53,23 @@ const PHASE_LABEL: Record<ProtectPhase, string> = {
   completed: "Done",
 };
 
-const KIND_NOUN: Record<Kind, string> = { pdf: "PDF", image: "picture", docx: "Word document" };
+const APP_NAME: Record<OfficeApp, string> = { word: "Word", excel: "Excel", powerpoint: "PowerPoint" };
 
-function outputFilename(file: File, kind: Kind): string {
-  if (kind !== "docx") return protectedFilename(file.name);
+// Every file type the page accepts when the Office options are on.
+const OFFICE_ACCEPT = [...OFFICE_EXTENSIONS.map((e) => `.${e}`), ...OFFICE_EXTENSIONS.map((e) => OFFICE_TYPES[e].mime), ".xml"].join(",");
+
+function outputFilename(file: File, kind: Kind, extension: string): string {
+  if (kind !== "office") return protectedFilename(file.name);
   const base = file.name.replace(/\.[^.]+$/, "").replace(/[^\w\- .()]+/g, "_").trim();
-  // The protected copy keeps the file's own extension (.docx, .docm, .dotx or .dotm).
-  return `${base || "document"}-protected.${wordExtensionOf(file.name) ?? "docx"}`;
+  // The protected copy keeps the file's own type (.docx, .xlsx, .pptx, .docm, ...); an XML Document
+  // becomes the Office file it describes.
+  return `${base || "document"}-protected.${extension}`;
 }
 
-export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
+export function ProtectTool({ focus = "pdf" }: { focus?: Focus }) {
   const { user } = useAuth();
-  // Whether the Word option is switched on (utils/features/plans.ts).
-  const wordEnabled = isFeatureAvailable("protect.docx", getUserPlan(user));
+  // Whether the Office options (Word, Excel, PowerPoint) are switched on (utils/features/plans.ts).
+  const officeEnabled = isFeatureAvailable("protect.docx", getUserPlan(user));
 
   const [stage, setStage] = useState<Stage>({ name: "idle" });
   const [error, setError] = useState<string | null>(null);
@@ -102,8 +108,8 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
     setNotice(null);
     try {
       const { checkProtectFile } = await import("@/utils/protect/browser");
-      const kind = await checkProtectFile(file, wordEnabled);
-      setStage({ name: "ready", file, kind });
+      const source = await checkProtectFile(file, officeEnabled);
+      setStage({ name: "ready", file, kind: source === "pdf" || source === "image" ? source : "office" });
     } catch (err) {
       const code = toProtectError(err).code;
       void trackProtectFailed(code);
@@ -136,11 +142,11 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
     setNotice(null);
     setStage({ name: "working", file, kind, phase: "validating", progress: 0 }); // also discards any earlier result
     const started = performance.now();
-    void trackProtectStarted(kind);
+    void trackProtectStarted(kind === "office" ? (officeAppOf(file.name) ?? "office") : kind);
     try {
       const { protectFile } = await import("@/utils/protect/browser");
       const result = await protectFile(
-        { file, password, options: { allowPrint, allowCopy, allowEdit }, wordEnabled },
+        { file, password, options: { allowPrint, allowCopy, allowEdit }, officeEnabled },
         {
           signal: abort.signal,
           onPhase: (phase) => stillCurrent() && setStage((s) => (s.name === "working" ? { ...s, phase, progress: 0 } : s)),
@@ -148,11 +154,13 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
         },
       );
       if (!stillCurrent()) return; // superseded, cancelled or unmounted: discard the output
-      void trackProtectCompleted(kind, Math.round(performance.now() - started), kind === "docx" ? undefined : { allowPrint, allowCopy, allowEdit });
+      const resultApp = result.extension === "pdf" ? null : OFFICE_TYPES[result.extension].app;
+      void trackProtectCompleted(resultApp ?? kind, Math.round(performance.now() - started), kind === "office" ? undefined : { allowPrint, allowCopy, allowEdit });
       // Keep only a Blob (the browser can hold it outside the JavaScript heap); the verified bytes
       // are then dropped, so a large result is not held twice.
       const blob = new Blob([result.data as BlobPart], { type: result.mime });
-      setStage({ name: "done", file, kind, blob, filename: outputFilename(file, kind) });
+      const noun = resultApp ? OFFICE_APP_NOUN[resultApp] : kind === "image" ? "picture" : "PDF";
+      setStage({ name: "done", file, kind, blob, filename: outputFilename(file, kind, result.extension), noun, app: resultApp });
     } catch (err) {
       if (!stillCurrent()) return;
       const code = toProtectError(err).code;
@@ -181,7 +189,7 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
     setError(null);
     try {
       downloadBlob(done.blob, done.filename);
-      void trackDocumentDownloaded(done.kind === "docx" ? "docx" : "pdf");
+      void trackDocumentDownloaded(done.app ?? "pdf");
     } catch {
       // The verified result is kept, so this can simply be tried again.
       setError("We couldn't start the download. Please try again.");
@@ -198,9 +206,14 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
 
   const busy = stage.name === "working";
   const activeKind: Kind | null = stage.name === "idle" ? null : stage.kind;
-  const isWord = activeKind === "docx";
-  const cta = isWord ? "Protect Word document" : "Protect PDF";
-  const wordFirst = wordEnabled && focus === "word";
+  const isOffice = activeKind === "office";
+  const activeFile = stage.name === "idle" || stage.name === "done" ? null : stage.file;
+  const activeApp = activeFile ? officeAppOf(activeFile.name) : null; // null for an XML Document until it is converted
+  const activeExtension: OfficeExtension | null = activeFile ? officeExtensionOf(activeFile.name) : null;
+  const isXml = Boolean(activeFile?.name.toLowerCase().endsWith(".xml"));
+  const noun = activeApp ? OFFICE_APP_NOUN[activeApp] : "document";
+  const cta = isOffice ? `Protect ${activeApp ? noun : "document"}` : "Protect PDF";
+  const leadApp = officeEnabled && focus !== "pdf" ? focus : null;
 
   return (
     <div className="space-y-4" data-clarity-mask="true">
@@ -220,13 +233,13 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
 
       {stage.name === "idle" && (
         <FileDropzone
-          accept={wordEnabled ? "application/pdf,.pdf,.docx,.docm,.dotx,.dotm,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-word.document.macroEnabled.12,application/vnd.openxmlformats-officedocument.wordprocessingml.template,application/vnd.ms-word.template.macroEnabled.12,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" : "application/pdf,.pdf,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"}
-          title={wordFirst ? "Choose a Word document to protect" : "Choose a file to protect"}
+          accept={officeEnabled ? `application/pdf,.pdf,${OFFICE_ACCEPT},image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp` : "application/pdf,.pdf,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"}
+          title={leadApp ? `Choose a ${OFFICE_APP_NOUN[leadApp]} to protect` : "Choose a file to protect"}
           hint={
-            wordEnabled
-              ? wordFirst
-                ? "or drop it here. Word documents and templates: .docx, .docm, .dotx, .dotm. You can also choose a PDF or a JPG, PNG or WebP picture."
-                : "or drop it here. A PDF, a Word document or template (.docx, .docm, .dotx, .dotm), or a JPG, PNG or WebP picture (turned into a one-page PDF first)."
+            officeEnabled
+              ? leadApp
+                ? `or drop it here. ${APP_NAME[leadApp]} files${leadApp === "word" ? " (.docx, .docm, .dotx, .dotm)" : leadApp === "excel" ? " (.xlsx, .xlsm, .xltx, .xltm, .xlsb)" : " (.pptx, .pptm, .potx, .potm, .ppsx, .ppsm)"}, or an Office XML Document (.xml). You can also choose a PDF or a picture.`
+                : "or drop it here. A PDF, a Word, Excel or PowerPoint file (.docx, .xlsx, .pptx and the macro-enabled and template versions), an Office XML Document (.xml), or a JPG, PNG or WebP picture (turned into a one-page PDF first)."
               : "or drop it here. You can also choose a JPG, PNG or WebP picture: it is turned into a one-page PDF first."
           }
           onFile={(file) => void choose(file)}
@@ -253,7 +266,7 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
           <fieldset disabled={busy} className="space-y-4">
             <legend className="sr-only">Password and options</legend>
             <PasswordField
-              label={isWord ? "Password to open the document" : "Password to open the PDF"}
+              label={isOffice ? "Password to open the document" : "Password to open the PDF"}
               value={password}
               onChange={(v) => {
                 setPassword(v);
@@ -274,13 +287,23 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
               error={fieldErrors.confirm}
             />
 
-            {isWord ? (
+            {isOffice ? (
               <div className="space-y-2">
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">Your Word document will be encrypted and require this password to open in Microsoft Word.</p>
-                {/^(docm|dotm)$/.test(wordExtensionOf(stage.file.name) ?? "") && (
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {activeApp
+                    ? `Your ${noun} will be encrypted and require this password to open in Microsoft ${APP_NAME[activeApp]}.`
+                    : "Your file will be converted to a regular Office file, then encrypted and require this password to open in Microsoft Office."}
+                </p>
+                {isXml && (
                   <p className="notice notice-info !block">
-                    This file can contain macros. They are not opened, changed or removed: the file is only encrypted. After you enter the password in Word, Word decides whether to run them, as it would
-                    for the original.
+                    This XML file will be converted to the regular Office file it describes (.docx, .xlsx or .pptx, depending on its content) before it is protected. Nothing in it is changed, but the
+                    protected copy is that Office file, not an XML file.
+                  </p>
+                )}
+                {activeExtension && OFFICE_TYPES[activeExtension].macro && (
+                  <p className="notice notice-info !block">
+                    This file can contain macros. They are not opened, changed or removed: the file is only encrypted. After you enter the password in {activeApp ? APP_NAME[activeApp] : "Office"}, it decides whether to
+                    run them, as it would for the original.
                   </p>
                 )}
               </div>
@@ -299,7 +322,7 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
           </fieldset>
 
           <div className="notice notice-warning !block">
-            <strong>Don&apos;t forget this password.</strong> PDFScanner never sees it and cannot recover it. Keep it somewhere safe: if it is lost, the {isWord ? "document" : "PDF"} cannot be opened.
+            <strong>Don&apos;t forget this password.</strong> PDFScanner never sees it and cannot recover it. Keep it somewhere safe: if it is lost, the {isOffice ? "document" : "PDF"} cannot be opened.
           </div>
 
           {stage.name === "ready" ? (
@@ -324,10 +347,10 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
       {stage.name === "done" && (
         <div className="space-y-3">
           <div role="status" className="notice notice-success !block space-y-2 p-4">
-            <p className="text-base font-semibold">Your {KIND_NOUN[stage.kind]} is protected</p>
-            {stage.kind === "docx" ? (
+            <p className="text-base font-semibold">Your {stage.noun} is protected</p>
+            {stage.kind === "office" ? (
               <p>
-                It is now an encrypted Word document ({stage.filename}, {formatBytes(stage.blob.size)}) that asks for your password when you open it in Microsoft Word. We
+                It is now an encrypted {stage.noun} ({stage.filename}, {formatBytes(stage.blob.size)}) that asks for your password when you open it in Microsoft {stage.app ? APP_NAME[stage.app] : "Office"}. We
                 checked here that only your password opens it. Open it once to confirm, and keep the password somewhere safe.
               </p>
             ) : (
@@ -339,7 +362,7 @@ export function ProtectTool({ focus = "pdf" }: { focus?: "pdf" | "word" }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => download(stage)} className="btn btn-primary btn-lg">
-              <Icon name="download" size={18} /> Download protected {stage.kind === "docx" ? "Word document" : "PDF"}
+              <Icon name="download" size={18} /> Download protected {stage.kind === "office" ? stage.noun : "PDF"}
             </button>
             <button type="button" onClick={reset} className="btn btn-secondary btn-lg">
               Protect another file

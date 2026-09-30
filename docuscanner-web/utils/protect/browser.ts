@@ -6,7 +6,8 @@
 // PDF engine file itself; Word documents are encrypted with the browser's own Web Crypto.
 
 import { ProtectError, MAX_PROTECT_BYTES, type ProtectOptions, type QpdfInstance } from "./protect.ts";
-import { MAX_DOCX_BYTES, wordExtensionOf } from "./docx.ts";
+import { MAX_OFFICE_BYTES, officeExtensionOf, type OfficeExtension } from "./office.ts";
+import { flatOpcToPackage, looksLikeFlatOpc, MAX_XML_BYTES } from "./flatOpc.ts";
 import { runProtection, type ProtectHooks, type ProtectedOutput } from "./operation.ts";
 
 export const QPDF_WASM_URL = "/qpdf/qpdf.wasm";
@@ -19,7 +20,8 @@ async function createQpdf(): Promise<QpdfInstance> {
   return (await createModule({ locateFile: () => QPDF_WASM_URL, noInitialRun: true, print: silent, printErr: silent } as never)) as unknown as QpdfInstance;
 }
 
-export type ProtectSourceKind = "pdf" | "docx" | "image";
+// "xml" is an Office XML Document that is converted to the package it describes before protection.
+export type ProtectSourceKind = "pdf" | "office" | "xml" | "image";
 
 function startsWith(bytes: Uint8Array, signature: number[]): boolean {
   return signature.every((byte, i) => bytes[i] === byte);
@@ -35,23 +37,28 @@ function isImage(head: Uint8Array): boolean {
 
 // Checks the extension, size and real file signature before doing any work, so a
 // renamed or damaged file gets a clear message instead of a stalled spinner.
-// Word packages (.docx, .docm, .dotx, .dotm) are encrypted as they are; whether a file's
-// contents really match its extension is checked in utils/protect/docx.ts.
-export function classifyProtectFile(file: File, head: Uint8Array, wordEnabled = true): ProtectSourceKind {
+// Office packages (Word, Excel, PowerPoint) are encrypted as they are; whether a file's
+// contents really match its extension is checked in utils/protect/office.ts.
+export function classifyProtectFile(file: File, head: Uint8Array, officeEnabled = true): ProtectSourceKind {
   const name = file.name.toLowerCase();
-  if (wordEnabled && name.endsWith(".doc")) throw new ProtectError("protect_legacy_doc");
-  if (wordEnabled && name.endsWith(".xml")) throw new ProtectError("protect_xml_unsupported");
+  if (officeEnabled && /\.(doc|xls|ppt)$/.test(name)) throw new ProtectError("protect_legacy_doc");
   const isPdfName = name.endsWith(".pdf");
-  const isWordName = wordEnabled && wordExtensionOf(name) !== null;
+  const isXmlName = officeEnabled && name.endsWith(".xml");
+  const isOfficeName = officeEnabled && officeExtensionOf(name) !== null;
   const isImageName = /\.(jpe?g|png|webp)$/.test(name);
-  if (!isPdfName && !isWordName && !isImageName) throw new ProtectError("protect_unsupported_type");
+  if (!isPdfName && !isOfficeName && !isXmlName && !isImageName) throw new ProtectError("protect_unsupported_type");
   if (file.size === 0) throw new ProtectError("protect_invalid");
-  if (file.size > (isWordName ? MAX_DOCX_BYTES : MAX_PROTECT_BYTES)) throw new ProtectError("protect_too_large");
+  if (file.size > (isXmlName ? MAX_XML_BYTES : isOfficeName ? MAX_OFFICE_BYTES : MAX_PROTECT_BYTES)) throw new ProtectError("protect_too_large");
   if (isPdfName) {
     if (!new TextDecoder("latin1").decode(head).includes("%PDF-")) throw new ProtectError("protect_invalid");
     return "pdf";
   }
-  if (isWordName) return "docx";
+  if (isOfficeName) return "office";
+  if (isXmlName) {
+    // Only an Office "XML Document" (Flat OPC) can be converted; the start of the file says which it is.
+    if (!looksLikeFlatOpc(new TextDecoder("utf-8").decode(head))) throw new ProtectError("protect_xml_unsupported");
+    return "xml";
+  }
   if (!isImage(head)) throw new ProtectError("protect_invalid");
   return "image";
 }
@@ -80,30 +87,42 @@ export interface ProtectFileRequest {
   file: File;
   password: string;
   options: Omit<ProtectOptions, "password">;
-  wordEnabled: boolean;
+  // Whether the Office options (feature flag) are switched on.
+  officeEnabled: boolean;
 }
 
 // The file is only ever read (File objects are immutable); the protected copy is new bytes.
 export async function protectFile(request: ProtectFileRequest, hooks: ProtectHooks = {}): Promise<ProtectedOutput & { source: ProtectSourceKind }> {
   const { file } = request;
-  const head = new Uint8Array(await file.slice(0, 1024).arrayBuffer());
-  const source = classifyProtectFile(file, head, request.wordEnabled);
-  const bytes = source === "image" ? await imageToPdf(file) : new Uint8Array(await file.arrayBuffer());
-  const output = await runProtection(
-    { kind: source === "docx" ? "docx" : "pdf", wordExtension: source === "docx" ? (wordExtensionOf(file.name) ?? "docx") : undefined, bytes, password: request.password, options: request.options },
-    { createQpdf },
-    hooks,
-  );
+  const head = new Uint8Array(await file.slice(0, 8192).arrayBuffer());
+  const source = classifyProtectFile(file, head, request.officeEnabled);
+  let bytes: Uint8Array;
+  let officeExtension: OfficeExtension | undefined;
+  if (source === "xml") {
+    // Rebuild the package the XML describes (lossless), then protect that.
+    try {
+      ({ bytes, extension: officeExtension } = await flatOpcToPackage(await file.text()));
+    } catch (error) {
+      if (error instanceof ProtectError) throw error;
+      throw new ProtectError("protect_invalid");
+    }
+  } else if (source === "office") {
+    bytes = new Uint8Array(await file.arrayBuffer());
+    officeExtension = officeExtensionOf(file.name) ?? "docx";
+  } else {
+    bytes = source === "image" ? await imageToPdf(file) : new Uint8Array(await file.arrayBuffer());
+  }
+  const output = await runProtection({ kind: officeExtension ? "office" : "pdf", officeExtension, bytes, password: request.password, options: request.options }, { createQpdf }, hooks);
   return { ...output, source };
 }
 
 // Reads just enough of a chosen file to refuse a wrong or damaged one straight away.
-export async function checkProtectFile(file: File, wordEnabled = true): Promise<ProtectSourceKind> {
-  const head = new Uint8Array(await file.slice(0, 1024).arrayBuffer());
-  const kind = classifyProtectFile(file, head, wordEnabled);
-  if (kind === "docx") {
-    const { validateDocxPackage } = await import("./docx.ts");
-    await validateDocxPackage(new Uint8Array(await file.arrayBuffer()), wordExtensionOf(file.name) ?? "docx");
+export async function checkProtectFile(file: File, officeEnabled = true): Promise<ProtectSourceKind> {
+  const head = new Uint8Array(await file.slice(0, 8192).arrayBuffer());
+  const kind = classifyProtectFile(file, head, officeEnabled);
+  if (kind === "office") {
+    const { validateOfficePackage } = await import("./office.ts");
+    await validateOfficePackage(new Uint8Array(await file.arrayBuffer()), officeExtensionOf(file.name) ?? "docx");
   } else if (kind === "pdf") {
     // A quick look for an existing password in the ends of the file, where the trailer lives;
     // the PDF is not parsed (that costs several times its size in memory) unless something is

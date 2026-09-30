@@ -124,13 +124,15 @@ export function trackCompressionFailed(kind: string, code: string) {
   return trackError(`compress_${kind}`, code);
 }
 
-// Protect PDF / Word: only the fact it ran, how long it took, which permission boxes were
+export type ProtectAnalyticsKind = "pdf" | "image" | "office" | "word" | "excel" | "powerpoint";
+
+// Protect PDF / Office: only the fact it ran, how long it took, which permission boxes were
 // ticked, and a failure code. Never the file, its name, or any password.
-export function trackProtectStarted(kind: "pdf" | "docx" | "image") {
+export function trackProtectStarted(kind: ProtectAnalyticsKind) {
   return trackEvent("conversion_started", { conversionType: "protect_pdf", properties: { kind } });
 }
 
-export function trackProtectCompleted(kind: "pdf" | "docx" | "image", durationMs: number, permissions?: { allowPrint: boolean; allowCopy: boolean; allowEdit: boolean }) {
+export function trackProtectCompleted(kind: ProtectAnalyticsKind, durationMs: number, permissions?: { allowPrint: boolean; allowCopy: boolean; allowEdit: boolean }) {
   return trackEvent("conversion_completed", { conversionType: "protect_pdf", properties: { kind, durationMs, ...permissions } });
 }
 
