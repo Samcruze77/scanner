@@ -3,13 +3,15 @@
 // (VmHWM from /proc), which includes the JavaScript heap, ArrayBuffers and the Blob.
 //
 //   (server running a build with NEXT_PUBLIC_DOCX_PROTECTION_ENABLED=true on :3100)
-//   node tests/protect/profile-browser.mjs [baseUrl] [sizeMB ...]
+//   node tests/protect/profile-browser.mjs [baseUrl] [sizeMB ...]        (PROFILE=pdf for Protect PDF)
 
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { chromium } from "playwright-core";
-import { makeLargeDocx, makeTestDocx, PASSWORD } from "./fixtures.mjs";
+import { makeLargeDocx, makeLargePdf, makeTestDocx, PASSWORD } from "./fixtures.mjs";
+
+const PDF = process.env.PROFILE === "pdf";
 
 const BASE = (process.argv[2] ?? "http://localhost:3100").replace(/\/$/, "");
 const sizes = process.argv.slice(3).map(Number).filter(Boolean);
@@ -28,8 +30,8 @@ const status = (pid) => {
 
 console.log("| docx size | select -> ready | encrypt | verify | total | base renderer RSS | peak renderer RSS | extra | peak JS heap | result |\n|---|---:|---:|---:|---:|---:|---:|---:|---:|---|");
 for (const mb of sizes.length ? sizes : [1, 10, 25, 48]) {
-  const file = path.join(dir, `d${mb}.docx`);
-  fs.writeFileSync(file, mb <= 1 ? await makeTestDocx({ imageSize: 600 }) : await makeLargeDocx(mb - 0.2));
+  const file = path.join(dir, PDF ? `d${mb}.pdf` : `d${mb}.docx`);
+  fs.writeFileSync(file, PDF ? await makeLargePdf(mb - 1) : mb <= 1 ? await makeTestDocx({ imageSize: 600 }) : await makeLargeDocx(mb - 0.2));
   const size = fs.statSync(file).size;
   const browser = await chromium.launch({ executablePath: CHROME, args: ["--no-sandbox"] });
   try {
@@ -41,13 +43,13 @@ for (const mb of sizes.length ? sizes : [1, 10, 25, 48]) {
       setInterval(() => { const m = performance.memory; if (m) window.__heapPeak = Math.max(window.__heapPeak, m.usedJSHeapSize); }, 25);
       new MutationObserver(() => {
         const text = document.body?.innerText ?? "";
-        for (const [key, needle] of [["encrypting", "Protecting your document on this device"], ["verifying", "Checking the protected copy"], ["done", "Your Word document is protected"], ["failed", "couldn't protect"], ["failed2", "too large for your browser"]]) {
+        for (const [key, needle] of [["encrypting", "Protecting your document on this device"], ["verifying", "Checking the protected copy"], ["done", PDF ? "Your PDF is protected" : "Your Word document is protected"], ["failed", "couldn't protect"], ["failed2", "too large for your browser"]]) {
           if (!(key in window.__marks) && text.includes(needle)) window.__marks[key] = performance.now();
         }
       }).observe(document, { childList: true, subtree: true, characterData: true });
     });
     const page = await context.newPage();
-    await page.goto(`${BASE}/tools/protect-word`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/tools/${PDF ? "protect-pdf" : "protect-word"}`, { waitUntil: "networkidle" });
     const cdp = await browser.newBrowserCDPSession();
     const procs = async () => (await cdp.send("SystemInfo.getProcessInfo")).processInfo.filter((p) => p.type === "renderer").map((p) => p.id);
     const peak = async () => Math.max(0, ...(await procs()).map((pid) => status(pid).hwm));
@@ -61,7 +63,7 @@ for (const mb of sizes.length ? sizes : [1, 10, 25, 48]) {
     await page.getByLabel("Confirm password", { exact: true }).fill(PASSWORD);
     await page.evaluate(() => { window.__marks = {}; });
     const clicked = await page.evaluate(() => performance.now());
-    await page.getByRole("button", { name: "Protect Word document" }).click();
+    await page.getByRole("button", { name: PDF ? "Protect PDF" : "Protect Word document" }).click();
     await page.waitForFunction(() => window.__marks.done || window.__marks.failed || window.__marks.failed2, null, { timeout: 600000 });
     const m = await page.evaluate(() => ({ ...window.__marks, heap: window.__heapPeak }));
     const hwm = await peak();

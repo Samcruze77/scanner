@@ -120,9 +120,28 @@ function cleanup(qpdf: QpdfInstance, paths: string[]) {
   }
 }
 
-// True when the PDF already has any encryption (a password to open it, or only
-// restrictions on what can be done with it).
-async function isEncrypted(data: Uint8Array): Promise<boolean> {
+// A cheap look for the word /Encrypt in the first and last megabyte of a PDF, where the
+// trailer (or the xref stream dictionary, or a linearized file's first-page trailer) that
+// carries it lives. Much cheaper than parsing the whole file: a 100 MB PDF parsed by pdf-lib
+// costs several times its size in memory.
+export const SCAN_BYTES = 1024 * 1024;
+const ENCRYPT = new TextEncoder().encode("/Encrypt");
+export function mentionsEncrypt(data: Uint8Array): boolean {
+  const scan = (from: number, to: number) => {
+    const last = to - ENCRYPT.length;
+    outer: for (let i = from; i <= last; i++) {
+      if (data[i] !== ENCRYPT[0]) continue;
+      for (let j = 1; j < ENCRYPT.length; j++) if (data[i + j] !== ENCRYPT[j]) continue outer;
+      return true;
+    }
+    return false;
+  };
+  return scan(0, Math.min(data.length, SCAN_BYTES)) || scan(Math.max(0, data.length - SCAN_BYTES), data.length);
+}
+
+// Whether the PDF parser itself says the file is encrypted (slow and memory-hungry on big
+// files, so only used to confirm a hit or to explain a failure).
+async function parserSaysEncrypted(data: Uint8Array): Promise<boolean> {
   try {
     await PDFDocument.load(data, { ignoreEncryption: false, updateMetadata: false });
     return false;
@@ -131,6 +150,13 @@ async function isEncrypted(data: Uint8Array): Promise<boolean> {
     const message = (error as { message?: string } | null)?.message ?? "";
     return name === "EncryptedPDFError" || /encrypt/i.test(message);
   }
+}
+
+// True when the PDF already has any encryption (a password to open it, or only restrictions
+// on what can be done with it). Files that never mention /Encrypt near their ends are not
+// parsed at all.
+export async function isEncryptedPdf(data: Uint8Array): Promise<boolean> {
+  return mentionsEncrypt(data) && (await parserSaysEncrypted(data));
 }
 
 function startsWithPdfHeader(data: Uint8Array): boolean {
@@ -150,7 +176,7 @@ export async function protectPdf(input: Uint8Array, options: ProtectOptions, cre
   if (passwordError) throw new ProtectError(passwordError);
   if (input.byteLength === 0 || !startsWithPdfHeader(input)) throw new ProtectError("protect_invalid");
   if (input.byteLength > MAX_PROTECT_BYTES) throw new ProtectError("protect_too_large");
-  if (await isEncrypted(input)) throw new ProtectError("protect_already_protected");
+  if (await isEncryptedPdf(input)) throw new ProtectError("protect_already_protected");
 
   let qpdf: QpdfInstance;
   try {
@@ -164,17 +190,21 @@ export async function protectPdf(input: Uint8Array, options: ProtectOptions, cre
     qpdf.FS.writeFile("/in.pdf", input);
     // 0 = fine, 3 = written with warnings (a damaged file that QPDF repaired).
     const rc = run(qpdf, [...encryptArgs(options, randomOwnerPassword()), "/in.pdf", "/out.pdf"]);
-    if (rc !== 0 && rc !== 3) throw new ProtectError("protect_invalid");
+    if (rc !== 0 && rc !== 3) {
+      // Unreadable, or protected with an open password that the quick scan above missed:
+      // the slow parser is only used here, to give the right explanation.
+      throw new ProtectError((await parserSaysEncrypted(input)) ? "protect_already_protected" : "protect_invalid");
+    }
+    // The engine's copy of the input is no longer needed: free it before the checks.
+    cleanup(qpdf, ["/in.pdf"]);
 
-    const output = qpdf.FS.readFile("/out.pdf");
     // Never hand back a file we have not proven is locked: it must open with the
     // password, and must NOT open without one.
     const opensWithPassword = [0, 3].includes(run(qpdf, ["--check", `--password=${options.password}`, "/out.pdf"]));
     const opensWithoutPassword = run(qpdf, ["--show-encryption", "/out.pdf"]) === 0;
-    if (!opensWithPassword || opensWithoutPassword || !(await isEncrypted(output))) throw new ProtectError("protect_failed");
-
-    // Copy out of the WebAssembly memory before it is released.
-    const data = new Uint8Array(output);
+    // readFile returns a copy that stays valid after the engine's file is deleted.
+    const data = qpdf.FS.readFile("/out.pdf");
+    if (!opensWithPassword || opensWithoutPassword || data.byteLength === 0 || !mentionsEncrypt(data)) throw new ProtectError("protect_failed");
     return { data, originalBytes: input.byteLength, protectedBytes: data.byteLength };
   } catch (error) {
     if (error instanceof ProtectError) throw error;

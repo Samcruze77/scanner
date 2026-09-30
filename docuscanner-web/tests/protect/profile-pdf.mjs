@@ -28,12 +28,15 @@ if (process.argv[2] === "child") {
   const bytes = new Uint8Array(fs.readFileSync(file));
   const base = process.memoryUsage().rss;
   const out = {};
-  // 1. what choosing the file does in the browser (checkProtectFile): load it with pdf-lib
+  // 1. what choosing the file does in the browser (checkProtectFile): a scan of the file's two ends
   {
-    const { PDFDocument } = await import("pdf-lib");
+    const { mentionsEncrypt, SCAN_BYTES } = await import("../../utils/protect/protect.ts");
     const s = peaks();
     const t = performance.now();
-    try { await PDFDocument.load(bytes, { ignoreEncryption: false, updateMetadata: false }); } catch {}
+    const ends = new Uint8Array(Math.min(bytes.length, 2 * SCAN_BYTES));
+    ends.set(bytes.subarray(0, Math.min(bytes.length, SCAN_BYTES)));
+    if (bytes.length > SCAN_BYTES) ends.set(bytes.subarray(bytes.length - SCAN_BYTES), bytes.length > 2 * SCAN_BYTES ? SCAN_BYTES : 0);
+    mentionsEncrypt(ends);
     out.selectMs = Math.round(performance.now() - t);
     out.select = s.stop();
     global.gc?.();

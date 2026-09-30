@@ -99,16 +99,15 @@ export async function checkProtectFile(file: File, wordEnabled = true): Promise<
     const { validateDocxPackage } = await import("./docx.ts");
     await validateDocxPackage(new Uint8Array(await file.arrayBuffer()));
   } else if (kind === "pdf") {
-    const { PDFDocument } = await import("pdf-lib");
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    try {
-      await PDFDocument.load(bytes, { ignoreEncryption: false, updateMetadata: false });
-    } catch (error) {
-      const name = (error as { name?: string } | null)?.name;
-      const message = (error as { message?: string } | null)?.message ?? "";
-      if (name === "EncryptedPDFError" || /encrypt/i.test(message)) throw new ProtectError("protect_already_protected");
-      // pdf-lib is stricter than QPDF, which repairs many damaged files: let protectPdf decide.
-    }
+    // A quick look for an existing password in the ends of the file, where the trailer lives;
+    // the PDF is not parsed (that costs several times its size in memory) unless something is
+    // found. Damaged files are left for the protect step to report.
+    const { isEncryptedPdf, mentionsEncrypt, SCAN_BYTES } = await import("./protect.ts");
+    const ends =
+      file.size <= 2 * SCAN_BYTES
+        ? new Uint8Array(await file.arrayBuffer())
+        : new Uint8Array(await new Blob([file.slice(0, SCAN_BYTES), file.slice(file.size - SCAN_BYTES)]).arrayBuffer());
+    if (mentionsEncrypt(ends) && (await isEncryptedPdf(new Uint8Array(await file.arrayBuffer())))) throw new ProtectError("protect_already_protected");
   }
   return kind;
 }

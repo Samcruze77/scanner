@@ -25,7 +25,7 @@ const root = path.join(here, "..", "..");
 const work = fs.mkdtempSync(path.join(os.tmpdir(), "protect-"));
 process.on("exit", () => fs.rmSync(work, { recursive: true, force: true }));
 
-const { protectPdf, encryptArgs, validatePassword, protectedFilename, ProtectError, MIN_PASSWORD_LENGTH } = await import("../../utils/protect/protect.ts");
+const { protectPdf, encryptArgs, validatePassword, protectedFilename, ProtectError, MIN_PASSWORD_LENGTH, mentionsEncrypt, isEncryptedPdf } = await import("../../utils/protect/protect.ts");
 const { encryptDocx, verifyEncryptedDocx, dataSpaceStructures, looksLikeOfficeEncrypted } = await import("../../utils/protect/ooxml.ts");
 const { validateDocxPackage } = await import("../../utils/protect/docx.ts");
 const { runProtection, toProtectError } = await import("../../utils/protect/operation.ts");
@@ -127,6 +127,31 @@ await test("PDF: corrupt, empty and already-protected files are refused with no 
   assert.equal(await code(protectPdf(new TextEncoder().encode("%PDF-1.4\ngarbage"), opts, createQpdf)), "protect_invalid");
   const { data } = await protectPdf(pdf, opts, createQpdf);
   assert.equal(await code(protectPdf(data, opts, createQpdf)), "protect_already_protected");
+});
+
+await test("PDF: already-protected detection without parsing: user-password, owner-only, false positive, and no-copy output", async () => {
+  const opts = { password: PASSWORD, allowPrint: true, allowCopy: true, allowEdit: false };
+  const q = await createQpdf();
+  q.FS.writeFile("/in.pdf", pdf);
+  q.callMain(["--encrypt", "", "ownerpass-ownerpass", "256", "--", "/in.pdf", "/owner-only.pdf"]); // restrictions only, no open password
+  const ownerOnly = new Uint8Array(q.FS.readFile("/owner-only.pdf"));
+  assert.equal(mentionsEncrypt(ownerOnly), true);
+  assert.equal(await code(protectPdf(ownerOnly, opts, createQpdf)), "protect_already_protected", "owner-only restrictions are not silently stripped");
+  const { data: locked } = await protectPdf(pdf, opts, createQpdf);
+  assert.equal(await isEncryptedPdf(locked), true);
+  assert.equal(await isEncryptedPdf(pdf), false);
+  // A PDF that merely MENTIONS /Encrypt in its content (near the start) is not encrypted: the parser overrules the scan.
+  const { PDFDocument, StandardFonts } = await import("pdf-lib");
+  const doc = await PDFDocument.create();
+  doc.addPage([300, 200]).drawText("the /Encrypt word", { x: 10, y: 100, size: 12, font: await doc.embedFont(StandardFonts.Helvetica) });
+  doc.setTitle("/Encrypt");
+  const mentions = new Uint8Array(await doc.save({ useObjectStreams: false }));
+  assert.equal(mentionsEncrypt(mentions), true, "the scan alone would be fooled");
+  assert.equal(await isEncryptedPdf(mentions), false, "the parser confirms it is not encrypted");
+  await protectPdf(mentions, opts, createQpdf);
+  // The returned bytes stay valid after the engine's files are deleted (no hidden view into freed memory).
+  const again = await protectPdf(pdf, opts, createQpdf);
+  await pdfjs.getDocument({ data: new Uint8Array(again.data), password: PASSWORD, verbosity: 0 }).promise;
 });
 
 await test("PDF: symbols/Unicode passwords round-trip", async () => {
