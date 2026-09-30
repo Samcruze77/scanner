@@ -78,3 +78,19 @@ Verified against msoffcrypto-tool and LibreOffice: plain ASCII, long passwords w
 as precomposed (NFC) and as decomposed (NFD) characters is a DIFFERENT password in every implementation tested, so a
 password with accents typed on a keyboard that produces the other form will not open the file. Word's own behaviour
 here is unverified.
+
+## Automated live-page checks (2026-09-30; these are NOT Microsoft Word or phone results)
+
+Run by the test suite, not by a person: headless Chromium from playwright-core 1.56 (exact browser build not recorded) on
+Linux, against a production build with the Word flag on, serving the real page (`tests/protect/browser.mjs`). The
+downloaded file was decrypted with msoffcrypto-tool (Python) and compared byte-for-byte with the original.
+
+| Source of protected file | Password typed into the page | Correct | Wrong | Empty | Result |
+|---|---|---|---|---|---|
+| live page, 0.05 MB rich document | `TestPassword123!` (ASCII) | decrypts to identical original | rejected | rejected | pass |
+| live page, 0.05 MB rich document | `Pässwörd-Ọlájídé-ñ-2024` (accented) | decrypts to identical original | rejected | rejected | pass |
+| live page, 0.05 MB rich document | `密码-пароль-🔐-Ωmega-𝄞` (beyond Latin-1) | decrypts to identical original | rejected | rejected | pass |
+| live page, 47.5 MB document | `TestPassword123!` | decrypts to identical original | not run | not run | pass; 3.4 s from selecting the file to download-ready |
+
+Not yet recorded by anyone: Microsoft Word opening a file produced by the live page, any non-ASCII password in Word,
+the 47.5 MB file in Word, and any phone or tablet. See `MANUAL-VALIDATION.md` for the procedure and result tables.
