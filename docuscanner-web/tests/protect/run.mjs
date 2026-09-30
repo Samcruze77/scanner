@@ -58,6 +58,7 @@ async function code(promise) {
 
 let failed = 0;
 async function test(name, fn) {
+  if (process.env.ONLY && !name.includes(process.env.ONLY)) return;
   const t = Date.now();
   try {
     await fn();

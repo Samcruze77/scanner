@@ -178,7 +178,12 @@ export async function asOfficeType(bytes, from, to) {
   assert(ct.includes(CONTENT_TYPE[from]), `${from} fixture has the expected main content type`);
   ct = ct.replace(CONTENT_TYPE[from], CONTENT_TYPE[to]);
   zip.file("[Content_Types].xml", ct);
-  if (/m$/.test(to)) zip.file(`${{ word: "word", excel: "xl", powerpoint: "ppt" }[APP_OF(to)]}/vbaProject.bin`, crypto.randomBytes(3072));
+  if (/m$/.test(to)) {
+    const dir = { word: "word", excel: "xl", powerpoint: "ppt" }[APP_OF(to)];
+    zip.file(`${dir}/vbaProject.bin`, crypto.randomBytes(3072));
+    // A real macro-enabled file declares its macro project's content type.
+    zip.file("[Content_Types].xml", ct.replace("</Types>", `<Override PartName="/${dir}/vbaProject.bin" ContentType="application/vnd.ms-office.vbaProject"/></Types>`));
+  }
   return new Uint8Array(await zip.generateAsync({ type: "uint8array" }));
 }
 function assert(ok, message) {
