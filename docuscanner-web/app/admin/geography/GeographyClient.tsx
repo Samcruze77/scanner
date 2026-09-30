@@ -11,22 +11,32 @@
 // response the rest of the admin uses. A level the location provider doesn't
 // supply shows an explicit "not available" state instead of made-up values.
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { getAdminAnalyticsBrowser } from "@/utils/admin/client.browser";
 import { defaultDateRange, todayRange } from "@/utils/admin/dateRange";
-import { buildExportUrl } from "@/utils/admin/exportClient";
-import { countryName, regionName } from "@/utils/admin/location";
+import { buildExportPageUrl } from "@/utils/admin/exportClient";
+import {
+  CHILD_LEVELS,
+  EMPTY_SELECTION,
+  LEVELS,
+  NOT_AVAILABLE,
+  buildTree,
+  countryLabel,
+  isSelectedNode,
+  nodeLabel,
+  nodesUnder as nodesUnderFor,
+  selectNode,
+  valueAt,
+  type LevelNodes,
+  type Selection,
+  type TreeNode,
+} from "@/utils/admin/geoLevels";
+import { regionName } from "@/utils/admin/location";
 import { normalizeOverview } from "@/utils/admin/format";
-import type {
-  AdminAnalyticsResponse,
-  AdminGeoChildField,
-  AdminGeoField,
-  AdminGeoRow,
-  AdminLocationRow,
-  DateRange,
-  DownloadExportFormat,
-} from "@/utils/admin/types";
+import type { AdminAnalyticsResponse, AdminGeoChildField, AdminGeoField, AdminGeoRow, AdminLocationRow, DateRange } from "@/utils/admin/types";
 import { MetricCard } from "@/components/admin/MetricCard";
+import { GeoSelectors, selectClass } from "@/components/admin/GeoSelectors";
 
 const PRESETS: { label: string; range: () => DateRange }[] = [
   { label: "Today", range: todayRange },
@@ -36,25 +46,6 @@ const PRESETS: { label: string; range: () => DateRange }[] = [
 ];
 
 const DEVICES = ["desktop", "mobile", "tablet"];
-
-// Administrator-facing labels; the keys are the canonical field names.
-const LEVELS: { field: AdminGeoField; label: string; plural: string }[] = [
-  { field: "country", label: "Country", plural: "countries" },
-  { field: "state_province", label: "State / Province", plural: "states / provinces" },
-  { field: "city_town", label: "City / Town", plural: "cities / towns" },
-  { field: "county_district_lga", label: "County / District / LGA", plural: "counties / districts / LGAs" },
-  { field: "neighborhood_suburb", label: "Neighborhood / Suburb", plural: "neighborhoods / suburbs" },
-];
-const CHILD_LEVELS = LEVELS.slice(1) as { field: AdminGeoChildField; label: string; plural: string }[];
-
-type Selection = Record<AdminGeoField, string | null>;
-const EMPTY_SELECTION: Selection = {
-  country: null,
-  state_province: null,
-  city_town: null,
-  county_district_lga: null,
-  neighborhood_suburb: null,
-};
 
 type SortKey = "users" | "sessions" | "ad_impressions" | "ad_clicks" | "ctr" | AdminGeoChildField;
 
@@ -69,19 +60,6 @@ function fmtPct(value: number | null | undefined): string {
   return value == null ? "—" : `${value}%`;
 }
 
-// Human label for a country-table row's key ("Unknown" stays as-is).
-function countryLabel(code: string): string {
-  return code === "Unknown" ? "Unknown" : (countryName(code) ?? code);
-}
-
-// Display name for a node at a level: country and state get their real names
-// (ISO data, worldwide); every other level shows the stored value as-is.
-function nodeLabel(field: AdminGeoField, row: AdminGeoRow): string {
-  if (field === "country") return countryLabel(row.key);
-  if (field === "state_province") return regionName(row.path.country, row.key) ?? row.key;
-  return row.key;
-}
-
 function sortValue(row: AdminGeoRow, key: SortKey): number {
   if (key === "users" || key === "sessions" || key === "ad_impressions" || key === "ad_clicks" || key === "ctr") {
     return row[key] ?? -Infinity;
@@ -89,19 +67,70 @@ function sortValue(row: AdminGeoRow, key: SortKey): number {
   return row.child_counts?.[key] ?? 0;
 }
 
-const inputClass = "rounded-md border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-800 dark:bg-black disabled:opacity-50";
+const inputClass = selectClass;
+
+// A level the location provider did not supply is "Not available" -- distinct
+// from "Unknown", which means an event with no country at all.
+function Level({ value }: { value: string | null }) {
+  return value ? <>{value}</> : <span className="text-xs italic text-zinc-400">{NOT_AVAILABLE}</span>;
+}
+
+function TreeList({ nodes, depth = 0 }: { nodes: TreeNode[]; depth?: number }) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? nodes : nodes.slice(0, 10);
+  return (
+    <ul className={depth === 0 ? "space-y-1" : "ml-4 space-y-1 border-l border-zinc-200 pl-3 dark:border-zinc-800"}>
+      {visible.map((n) => {
+        const label = LEVELS.find((l) => l.field === n.field)!.label;
+        const line = (
+          <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+            <span className="font-medium">{nodeLabel(n.field, n.row)}</span>
+            <span className="tabular-nums text-zinc-500 dark:text-zinc-400">{fmt(n.row.users)} users</span>
+            <span className="text-xs text-zinc-400">{label}</span>
+          </span>
+        );
+        return (
+          <li key={[n.field, n.row.path.country, n.row.path.state_province, n.row.path.city_town, n.row.path.county_district_lga, n.row.path.neighborhood_suburb].join("\u0001")} className="text-sm">
+            {n.children.length > 0 ? (
+              <details open={depth === 0 && nodes.length === 1}>
+                <summary className="cursor-pointer select-none py-0.5">{line}</summary>
+                <TreeList nodes={n.children} depth={depth + 1} />
+              </details>
+            ) : (
+              <div className="py-0.5 pl-4">{line}</div>
+            )}
+          </li>
+        );
+      })}
+      {nodes.length > 10 && (
+        <li>
+          <button type="button" onClick={() => setShowAll((v) => !v)} className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">
+            {showAll ? "Show top 10" : `Show all ${nodes.length}`}
+          </button>
+        </li>
+      )}
+    </ul>
+  );
+}
 const thClass = "cursor-pointer select-none whitespace-nowrap px-4 py-2 text-right font-medium hover:text-zinc-900 dark:hover:text-zinc-100";
 
 export function GeographyClient({
   initialRange,
   initialData,
+  initialSelection = EMPTY_SELECTION,
+  initialDevice = "",
+  initialVisitorType = "",
 }: {
   initialRange: DateRange;
   initialData: AdminAnalyticsResponse | null;
+  // From a shared URL, e.g. /admin/geography?country=..&state=..&city=..&lga=..
+  initialSelection?: Selection;
+  initialDevice?: string;
+  initialVisitorType?: string;
 }) {
   const [range, setRange] = useState(initialRange);
-  const [device, setDevice] = useState<string>("");
-  const [visitorType, setVisitorType] = useState<string>("");
+  const [device, setDevice] = useState<string>(initialDevice);
+  const [visitorType, setVisitorType] = useState<string>(initialVisitorType);
   const [data, setData] = useState<AdminAnalyticsResponse | null>(initialData);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -113,7 +142,7 @@ export function GeographyClient({
 
   // The one drill-down/filter state the page revolves around: set by
   // clicking a table row OR by the selectors -- both are the same action.
-  const [selection, setSelection] = useState<Selection>(EMPTY_SELECTION);
+  const [selection, setSelection] = useState<Selection>(initialSelection);
 
   const [advertiserLevel, setAdvertiserLevel] = useState<AdminGeoField>("country");
 
@@ -155,46 +184,9 @@ export function GeographyClient({
   );
   const locationRows: AdminLocationRow[] = useMemo(() => data?.locations ?? [], [data]);
 
-  // Selecting a node at a level pins every ancestor from its own path and
-  // clears everything deeper, so the selectors and tables can never disagree.
-  function select(field: AdminGeoField, row: AdminGeoRow | null) {
-    if (!row) {
-      const index = LEVELS.findIndex((l) => l.field === field);
-      setSelection((prev) => {
-        const next = { ...prev };
-        for (const level of LEVELS.slice(index)) next[level.field] = null;
-        return next;
-      });
-      return;
-    }
-    const index = LEVELS.findIndex((l) => l.field === field);
-    const next: Selection = { ...EMPTY_SELECTION };
-    for (const level of LEVELS.slice(0, index + 1)) {
-      next[level.field] = level.field === "country" ? row.path.country : row.path[level.field];
-    }
-    setSelection(next);
-  }
-
-  // Nodes at a level that sit under every currently-selected ancestor.
-  function nodesUnder(field: AdminGeoField): AdminGeoRow[] {
-    const index = LEVELS.findIndex((l) => l.field === field);
-    return levelNodes[field].filter((row) =>
-      LEVELS.slice(0, index).every((ancestor) => {
-        const chosen = selection[ancestor.field];
-        if (!chosen) return true;
-        return (ancestor.field === "country" ? row.path.country : row.path[ancestor.field]) === chosen;
-      }),
-    );
-  }
-
-  const isSelected = (field: AdminGeoField, row: AdminGeoRow) => selection[field] === row.key && nodeOnPath(field, row);
-  function nodeOnPath(field: AdminGeoField, row: AdminGeoRow): boolean {
-    const index = LEVELS.findIndex((l) => l.field === field);
-    return LEVELS.slice(0, index).every((a) => {
-      const chosen = selection[a.field];
-      return !chosen || (a.field === "country" ? row.path.country : row.path[a.field]) === chosen;
-    });
-  }
+  const select = (field: AdminGeoField, row: AdminGeoRow | null) => setSelection((prev) => selectNode(prev, field, row));
+  const nodesUnder = (field: AdminGeoField) => nodesUnderFor(levelNodes as LevelNodes, selection, field);
+  const isSelected = (field: AdminGeoField, row: AdminGeoRow) => isSelectedNode(selection, field, row);
 
   const filteredCountries = useMemo(() => {
     const q = countrySearch.trim().toLowerCase();
@@ -228,10 +220,7 @@ export function GeographyClient({
     const index = LEVELS.findIndex((l) => l.field === advertiserLevel);
     return levelNodes[advertiserLevel]
       .filter((row) =>
-        LEVELS.slice(0, index).every((a) => {
-          const chosen = selection[a.field];
-          return !chosen || (a.field === "country" ? row.path.country : row.path[a.field]) === chosen;
-        }),
+        LEVELS.slice(0, index).every((a) => !selection[a.field] || valueAt(row, a.field) === selection[a.field]),
       )
       .map((row) => ({
         // Deepest selected level first, up to the country: "Ikeja GRA, Ikeja, Lagos, Nigeria".
@@ -266,24 +255,24 @@ export function GeographyClient({
   const visitorTypeLabel: Record<string, string> = { new: "New", returning: "Returning", unknown: "Unknown", ads: "Ad activity" };
   const anySelected = LEVELS.some((l) => selection[l.field]);
 
-  // Export of exactly what's selected on this page: same range, device,
-  // visitor type and location selection.
-  function exportUrl(format: DownloadExportFormat) {
-    return buildExportUrl({
-      reportType: "full",
-      format,
-      dateRange: range,
-      filters: {
-        country: selection.country ?? undefined,
-        state_province: selection.state_province ?? undefined,
-        city_town: selection.city_town ?? undefined,
-        county_district_lga: selection.county_district_lga ?? undefined,
-        neighborhood_suburb: selection.neighborhood_suburb ?? undefined,
-        device: device || undefined,
-        visitorType: visitorType === "new" || visitorType === "returning" ? visitorType : undefined,
-      },
-    });
-  }
+  // "Export this view" hands the exact current selection (range, device,
+  // visitor type and every geography level) to /admin/exports, which shows a
+  // preview and generates the report through the one shared export backend.
+  const exportHref = buildExportPageUrl({
+    reportType: "geography",
+    dateRange: range,
+    filters: {
+      country: selection.country,
+      state_province: selection.state_province,
+      city_town: selection.city_town,
+      county_district_lga: selection.county_district_lga,
+      neighborhood_suburb: selection.neighborhood_suburb,
+      device: device || undefined,
+      visitor_type: visitorType === "new" || visitorType === "returning" ? visitorType : undefined,
+    },
+  });
+
+  const tree = useMemo(() => buildTree(levelNodes as LevelNodes), [levelNodes]);
 
   return (
     <div className="space-y-6">
@@ -327,36 +316,7 @@ export function GeographyClient({
 
       {/* --- Location filters: one dependent selector per level, built only from real data --- */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-surface p-3 dark:border-zinc-800">
-        {LEVELS.map((level) => {
-          const options = nodesUnder(level.field)
-            .filter((row) => !(level.field === "country" && row.key === "Unknown"))
-            // Same value can appear under different parents; the parent path
-            // is already constrained above, so de-duplicate by value.
-            .filter((row, i, all) => all.findIndex((r) => r.key === row.key) === i)
-            .sort((a, b) => nodeLabel(level.field, a).localeCompare(nodeLabel(level.field, b)));
-          return (
-            <select
-              key={level.field}
-              aria-label={level.label}
-              value={selection[level.field] ?? ""}
-              onChange={(e) => {
-                const row = options.find((r) => r.key === e.target.value) ?? null;
-                select(level.field, row);
-              }}
-              disabled={options.length === 0}
-              className={inputClass}
-            >
-              <option value="">
-                {options.length === 0 ? `${level.label}: no data` : `All ${level.plural}`}
-              </option>
-              {options.map((row) => (
-                <option key={row.key} value={row.key}>
-                  {nodeLabel(level.field, row)}
-                </option>
-              ))}
-            </select>
-          );
-        })}
+        <GeoSelectors nodes={levelNodes as LevelNodes} selection={selection} onChange={setSelection} />
         <select value={device} onChange={(e) => refetch({ device: e.target.value })} className={inputClass}>
           <option value="">All devices</option>
           {DEVICES.map((d) => (
@@ -375,14 +335,12 @@ export function GeographyClient({
             Clear location filters
           </button>
         )}
-        <span className="ml-auto flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-          Export this view:
-          {(["csv", "xlsx", "json"] as DownloadExportFormat[]).map((format) => (
-            <a key={format} href={exportUrl(format)} download className="font-medium text-blue-600 hover:underline dark:text-blue-400">
-              {format === "xlsx" ? "Excel" : format.toUpperCase()}
-            </a>
-          ))}
-        </span>
+        <Link
+          href={exportHref}
+          className="ml-auto rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-black"
+        >
+          Export this view
+        </Link>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -400,6 +358,28 @@ export function GeographyClient({
           <MetricCard label="Neighborhoods" value={overviewValue("neighborhoods") ?? levelNodes.neighborhood_suburb.length} />
           <MetricCard label="Ad impressions" value={overviewValue("ad_impressions")} />
         </div>
+      </section>
+
+      {/* --- Hierarchy: users at every level that has real data, and which levels the provider supplies --- */}
+      <section className="rounded-lg border border-zinc-200 bg-surface p-4 dark:border-zinc-800">
+        <p className="text-sm font-medium">Hierarchy</p>
+        <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+          Users at every level for this range. Only levels with data are listed.
+        </p>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {LEVELS.map((l) => {
+            const count = levelNodes[l.field].filter((r) => !(l.field === "country" && r.key === "Unknown")).length;
+            return (
+              <span
+                key={l.field}
+                className={`rounded-full border px-2.5 py-0.5 text-xs ${count > 0 ? "border-zinc-300 dark:border-zinc-700" : "border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700"}`}
+              >
+                {l.label}: {count > 0 ? fmt(count) : NOT_AVAILABLE}
+              </span>
+            );
+          })}
+        </div>
+        {tree.length === 0 ? <p className="text-sm text-zinc-400">No geographic data yet</p> : <TreeList nodes={tree} />}
       </section>
 
       {/* --- Country table (always visible: the top of the hierarchy) --- */}
@@ -581,10 +561,10 @@ export function GeographyClient({
                   <tr key={i} className="border-b border-zinc-100 last:border-0 dark:border-zinc-900">
                     <td className="px-4 py-2 tabular-nums">{r.date}</td>
                     <td className="px-4 py-2">{countryLabel(r.country)}</td>
-                    <td className="px-4 py-2">{regionName(r.country, r.state_province) ?? "—"}</td>
-                    <td className="px-4 py-2">{r.city_town ?? "—"}</td>
-                    <td className="px-4 py-2">{r.county_district_lga ?? "—"}</td>
-                    <td className="px-4 py-2">{r.neighborhood_suburb ?? "—"}</td>
+                    <td className="px-4 py-2"><Level value={r.state_province ? (regionName(r.country, r.state_province) ?? r.state_province) : null} /></td>
+                    <td className="px-4 py-2"><Level value={r.city_town} /></td>
+                    <td className="px-4 py-2"><Level value={r.county_district_lga} /></td>
+                    <td className="px-4 py-2"><Level value={r.neighborhood_suburb} /></td>
                     <td className="px-4 py-2">{r.device ?? "—"}</td>
                     <td className="px-4 py-2">{visitorTypeLabel[r.visitor_type] ?? r.visitor_type}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{fmt(r.sessions)}</td>

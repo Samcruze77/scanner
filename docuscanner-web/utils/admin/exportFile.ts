@@ -1,40 +1,57 @@
-// Serialization for the admin analytics download: column set, headers and
-// cell formatting shared by CSV, XLSX and JSON. Pure (no I/O), so it is unit
-// tested directly (tests/analytics/export.mjs).
+// Serialization for the admin analytics download: column sets, headers and
+// cell formatting shared by CSV, XLSX and JSON, for both the raw record
+// export and the aggregated Geography report. Pure (no I/O), unit tested in
+// tests/analytics/export.mjs.
 //
-// The column set is derived from the shared export schema
-// (supabase/functions/_shared/exportRows.ts) -- the one place that maps real
-// database columns to export fields -- plus two display columns computed
-// from the stored codes: `country` (name) and `state_province_name`.
+// Column sets are derived, not hand-listed: the admin-profile columns are
+// whatever the exporting admin's real profile rows contain (see
+// supabase/functions/_shared/adminProfile.ts), and the record columns come
+// from the shared export schema (supabase/functions/_shared/exportRows.ts).
 // Headers ARE the canonical field names, so the same name appears in the
-// database mapping, the API, the UI filters and the file.
+// database mapping, the API, the UI filters and the file. `country` (name)
+// and `state_province_name` are display columns computed from stored codes.
 
-import { PROFILE_FIELDS, RECORD_FIELDS, type AdminProfile, type ExportRecord } from "../../supabase/functions/_shared/exportRows.ts";
+import { RECORD_FIELDS, type ExportRecord } from "../../supabase/functions/_shared/exportRows.ts";
+import { profileColumns, type AdminProfileRecord } from "../../supabase/functions/_shared/adminProfile.ts";
 import { countryName, regionName } from "./location.ts";
+import { GEO_REPORT_FIELDS, type GeoReportRow } from "./geoReport.ts";
 
 export type Cell = string | number | boolean | null;
+export type FlatRow = Record<string, Cell>;
 
-const EXPANDED_RECORD_FIELDS = RECORD_FIELDS.flatMap((field) => {
+export const RECORD_COLUMNS: readonly string[] = RECORD_FIELDS.flatMap((field) => {
   if (field === "country_code") return ["country_code", "country"];
   if (field === "state_province") return ["state_province", "state_province_name"];
   return [field];
 });
 
-export const EXPORT_COLUMNS: readonly string[] = [...PROFILE_FIELDS, ...EXPANDED_RECORD_FIELDS];
+export const GEO_REPORT_COLUMNS: readonly string[] = GEO_REPORT_FIELDS;
 
-export type FlatRow = Record<string, Cell>;
+// Profile columns first (in the deterministic order the profile was built
+// in), then the report's own columns.
+export function exportColumns(profile: AdminProfileRecord, kind: "records" | "geography"): string[] {
+  return [...profileColumns(profile), ...(kind === "records" ? RECORD_COLUMNS : GEO_REPORT_COLUMNS)];
+}
 
-// One flat row: exporting admin's profile + the record + derived names.
-// Absent values stay null (empty cell) -- nothing is defaulted or invented.
-export function flattenRecord(record: ExportRecord, profile: AdminProfile): FlatRow {
-  const code = record.country_code as string | null;
-  const state = record.state_province as string | null;
+function names(code: string | null, state: string | null) {
   return {
-    ...profile,
-    ...record,
     country: code ? countryName(code) : null,
     state_province_name: state ? regionName(code, state) : null,
   };
+}
+
+// One flat raw row: exporting admin's profile + the record + derived names.
+// Absent values stay null (empty cell) -- nothing is defaulted or invented.
+export function flattenRecord(record: ExportRecord, profile: AdminProfileRecord): FlatRow {
+  return {
+    ...profile,
+    ...record,
+    ...names(record.country_code as string | null, record.state_province as string | null),
+  };
+}
+
+export function flattenGeoRow(row: GeoReportRow, profile: AdminProfileRecord): FlatRow {
+  return { ...profile, ...row, ...names(row.country_code as string | null, row.state_province as string | null) };
 }
 
 // Spreadsheet apps execute cells beginning with = + - @ (or tab/CR) as
@@ -50,24 +67,27 @@ export function csvCell(value: Cell | undefined): string {
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-export function csvLine(row: FlatRow): string {
-  return EXPORT_COLUMNS.map((c) => csvCell(row[c])).join(",") + "\r\n";
+export function csvHeader(columns: readonly string[]): string {
+  return columns.join(",") + "\r\n";
 }
 
-export const CSV_HEADER = EXPORT_COLUMNS.join(",") + "\r\n";
+export function csvLine(row: FlatRow, columns: readonly string[]): string {
+  return columns.map((c) => csvCell(row[c])).join(",") + "\r\n";
+}
 
 // UTF-8 BOM so Excel opens non-ASCII place names correctly.
 export const CSV_BOM = "﻿";
 
-export function jsonRecord(row: FlatRow): FlatRow {
-  // The admin profile is emitted once at the top level in JSON.
+// JSON emits the admin profile once at the top level, so per-record objects
+// omit the profile columns.
+export function jsonRecord(row: FlatRow, columns: readonly string[], profile: AdminProfileRecord): FlatRow {
   const rest: FlatRow = {};
-  for (const c of EXPORT_COLUMNS) if (!(PROFILE_FIELDS as readonly string[]).includes(c)) rest[c] = row[c] ?? null;
+  for (const c of columns) if (!(c in profile)) rest[c] = row[c] ?? null;
   return rest;
 }
 
-export function xlsxRow(row: FlatRow): Cell[] {
-  return EXPORT_COLUMNS.map((c) => row[c] ?? null);
+export function xlsxRow(row: FlatRow, columns: readonly string[]): Cell[] {
+  return columns.map((c) => row[c] ?? null);
 }
 
 export function exportFilename(format: string, reportType: string, from: string, to: string): string {

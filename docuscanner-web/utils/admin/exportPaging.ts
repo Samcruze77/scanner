@@ -4,7 +4,7 @@
 // unit tested against a fake paged source (tests/analytics/export.mjs).
 
 import type { ExportDataset, ExportPage, ExportRecord } from "../../supabase/functions/_shared/exportRows.ts";
-import type { AdminProfile } from "../../supabase/functions/_shared/exportRows.ts";
+import type { AdminProfileRecord as AdminProfile } from "../../supabase/functions/_shared/adminProfile.ts";
 
 export type FetchPage = (dataset: ExportDataset, after: number) => Promise<ExportPage>;
 

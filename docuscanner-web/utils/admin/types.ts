@@ -127,17 +127,35 @@ export interface DateRange {
 
 // --- Exports ---
 //
-// CSV / XLSX / JSON are served by GET /api/admin/analytics-export (see
-// app/api/admin/analytics-export/route.ts), a plain file download that
-// carries the whole selection in its query string. PDF and email delivery
-// are not implemented.
+// One backend serves every report and download: GET
+// /api/admin/analytics-export (see app/api/admin/analytics-export/route.ts).
+// The whole selection travels in the query string, so a report is a plain
+// authenticated GET and every entry point (Export page, Geography, Analytics)
+// shares the same implementation. PDF and email delivery are not implemented.
 
-export type ExportFormat = "csv" | "xlsx" | "json" | "pdf" | "email";
+import type { AnalyticsFilters } from "../../supabase/functions/_shared/analyticsFilters.ts";
+import type { ReportSummary } from "./geoReport.ts";
+
 export type DownloadExportFormat = "csv" | "xlsx" | "json";
+export type ExportFilters = Partial<Record<keyof AnalyticsFilters, string | null | undefined>>;
 
 export interface ExportRequest {
   reportType: string;
-  format: DownloadExportFormat;
   dateRange: DateRange;
-  filters?: Omit<AdminAnalyticsRange, "from" | "to" | "days">;
+  filters?: ExportFilters;
+}
+
+export interface ReportPreview {
+  report_type: string;
+  range: { from: string; to: string };
+  filters: AnalyticsFilters;
+  datasets: ("events" | "ads")[];
+  summary: ReportSummary;
+  report_rows: number | null;
+}
+
+export interface ExportOptions {
+  campaigns: { id: string; name: string; status: string }[];
+  creatives: { id: string; campaign_id: string; slot_code: string; title: string | null }[];
+  slots: string[];
 }

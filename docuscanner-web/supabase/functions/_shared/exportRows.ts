@@ -6,7 +6,9 @@
 // Every value is copied from a real database column. A null/absent value is
 // exported as an empty cell -- never a placeholder, never invented.
 
-export const EXPORT_REPORT_TYPES = ["visitors", "sessions", "scans", "conversions", "downloads", "advertising", "full"] as const;
+import type { AdminProfileRecord } from "./adminProfile.ts";
+
+export const EXPORT_REPORT_TYPES = ["visitors", "sessions", "scans", "conversions", "downloads", "advertising", "geography", "full"] as const;
 export type ExportReportType = (typeof EXPORT_REPORT_TYPES)[number];
 
 export type ExportDataset = "events" | "ads";
@@ -17,7 +19,16 @@ export interface ReportPlan {
   eventNames: string[] | null;
 }
 
-export function planFor(report: ExportReportType): ReportPlan {
+// `adFiltersActive`: campaign/creative/slot filters exist only on ad events,
+// so with any of them set analytics events can't be part of the report.
+// Returns no datasets for a report that is analytics-events only (the caller
+// turns that into a clear error rather than an empty file).
+export function planFor(report: ExportReportType, adFiltersActive = false): ReportPlan {
+  const plan = basePlan(report);
+  return adFiltersActive ? { datasets: plan.datasets.filter((d) => d === "ads"), eventNames: null } : plan;
+}
+
+function basePlan(report: ExportReportType): ReportPlan {
   switch (report) {
     case "visitors":
       return { datasets: ["events"], eventNames: ["page_view", "app_open"] };
@@ -31,6 +42,7 @@ export function planFor(report: ExportReportType): ReportPlan {
       return { datasets: ["events"], eventNames: ["document_downloaded"] };
     case "advertising":
       return { datasets: ["ads"], eventNames: null };
+    case "geography":
     case "full":
       return { datasets: ["events", "ads"], eventNames: null };
   }
@@ -40,28 +52,11 @@ export function parseReportType(value: string | null): ExportReportType | null {
   return (EXPORT_REPORT_TYPES as readonly string[]).includes(value ?? "") ? (value as ExportReportType) : null;
 }
 
-// Admin profile of the exporting admin: every real column of
-// public.admin_users plus the account email from auth. Present on every
-// record so a file read on its own still says who produced it.
-export const PROFILE_FIELDS = [
-  "admin_user_id",
-  "admin_email",
-  "admin_display_name",
-  "admin_role",
-  "admin_is_active",
-  "admin_created_at",
-  "admin_updated_at",
-] as const;
-
-export interface AdminProfile {
-  admin_user_id: string;
-  admin_email: string | null;
-  admin_display_name: string | null;
-  admin_role: string | null;
-  admin_is_active: boolean | null;
-  admin_created_at: string | null;
-  admin_updated_at: string | null;
-}
+// Admin profile of the exporting admin: derived from the real rows by
+// ./adminProfile.ts (every non-secret column, prefixed admin_/profile_/
+// account_). It is attached to every record so a file read on its own still
+// says who produced it.
+export type AdminProfile = AdminProfileRecord;
 
 // Stable column order. `country` (name), `state_province_name` and the
 // human labels are added by the download route from the raw codes.

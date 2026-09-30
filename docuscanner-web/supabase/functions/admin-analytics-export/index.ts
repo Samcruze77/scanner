@@ -12,8 +12,9 @@
 // value: only the columns listed in ../_shared/exportRows.ts.
 
 import { withSupabase } from "npm:@supabase/server"
-import { matchesFilters, parseFilters, resolveRange } from "../_shared/analyticsFilters.ts"
+import { hasAdFilters, matchesAdFilters, matchesFilters, parseFilters, resolveRange } from "../_shared/analyticsFilters.ts"
 import { chunk } from "../_shared/paginate.ts"
+import { buildAdminProfile } from "../_shared/adminProfile.ts"
 import {
   AD_SELECT,
   EVENT_SELECT,
@@ -22,7 +23,6 @@ import {
   parseReportType,
   planFor,
   type AdSourceRow,
-  type AdminProfile,
   type EventSourceRow,
   type ExportDataset,
 } from "../_shared/exportRows.ts"
@@ -54,7 +54,7 @@ export default {
 
     const { data: adminRow, error: adminError } = await ctx.supabaseAdmin
       .from("admin_users")
-      .select("user_id,role,display_name,is_active,created_at,updated_at")
+      .select("*")
       .eq("user_id", userId)
       .maybeSingle()
 
@@ -64,11 +64,23 @@ export default {
     }
 
     const url = new URL(req.url)
+
+    // Option lists for the export page's campaign / creative / slot filters.
+    if (url.searchParams.get("mode") === "options") {
+      const [{ data: campaigns }, { data: creatives }] = await Promise.all([
+        ctx.supabaseAdmin.from("ad_campaigns").select("id,name,status").order("name", { ascending: true }),
+        ctx.supabaseAdmin.from("ad_creatives").select("id,campaign_id,slot_code,title").order("created_at", { ascending: true }),
+      ])
+      const slots = [...new Set((creatives ?? []).map((c: { slot_code: string }) => c.slot_code).filter(Boolean))].sort()
+      return response({ campaigns: campaigns ?? [], creatives: creatives ?? [], slots })
+    }
+
     const report = parseReportType(url.searchParams.get("report_type") ?? "full")
     if (!report) return response({ error: "Invalid report_type" }, 400)
     const dataset = url.searchParams.get("dataset") as ExportDataset | null
     if (dataset !== "events" && dataset !== "ads") return response({ error: "Invalid dataset" }, 400)
-    const plan = planFor(report)
+    const filters = parseFilters(url.searchParams)
+    const plan = planFor(report, hasAdFilters(filters))
     if (!plan.datasets.includes(dataset)) return response({ error: "Dataset not part of this report" }, 400)
 
     const range = resolveRange(url.searchParams)
@@ -76,18 +88,18 @@ export default {
 
     const after = Math.max(Number(url.searchParams.get("after") ?? "0") || 0, 0)
     const pageSize = Math.min(Math.max(Number(url.searchParams.get("limit") ?? DEFAULT_PAGE) || DEFAULT_PAGE, 1), MAX_PAGE)
-    const filters = parseFilters(url.searchParams)
 
-    const { data: authUser } = await ctx.supabaseAdmin.auth.admin.getUserById(userId)
-    const profile: AdminProfile = {
-      admin_user_id: adminRow.user_id,
-      admin_email: authUser?.user?.email ?? null,
-      admin_display_name: adminRow.display_name ?? null,
-      admin_role: adminRow.role ?? null,
-      admin_is_active: adminRow.is_active ?? null,
-      admin_created_at: adminRow.created_at ?? null,
-      admin_updated_at: adminRow.updated_at ?? null,
-    }
+    // Derived from the real rows (every non-secret column) -- see
+    // ../_shared/adminProfile.ts for what is excluded and why.
+    const [{ data: authUser }, { data: userProfileRow }] = await Promise.all([
+      ctx.supabaseAdmin.auth.admin.getUserById(userId),
+      ctx.supabaseAdmin.from("user_profiles").select("*").eq("user_id", userId).maybeSingle(),
+    ])
+    const profile = buildAdminProfile({
+      adminRow,
+      userProfileRow,
+      authUser: (authUser?.user ?? null) as Record<string, unknown> | null,
+    })
 
     // Plain-equality filters are also pushed into SQL so a narrow selection
     // over a large table doesn't scan every row; the same predicate is
@@ -101,6 +113,14 @@ export default {
       if (filters.county_district_lga) q = q.eq("county_district_lga", filters.county_district_lga)
       if (filters.neighborhood_suburb) q = q.eq("neighborhood_suburb", filters.neighborhood_suburb)
       if (filters.device) q = q.eq("device_type", filters.device)
+      return q
+    }
+    // deno-lint-ignore no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pushDownAds = (q: any) => {
+      if (filters.campaign_id) q = q.eq("campaign_id", filters.campaign_id)
+      if (filters.creative_id) q = q.eq("creative_id", filters.creative_id)
+      if (filters.slot_code) q = q.eq("slot_code", filters.slot_code)
       return q
     }
 
@@ -164,20 +184,20 @@ export default {
 
     // dataset === "ads". visitor_type is not applied: ad_events carry no
     // visitor id (same as the dashboard).
-    const { data, error } = await pushDown(
+    const { data, error } = await pushDownAds(pushDown(
       ctx.supabaseAdmin
         .from("ad_events")
         .select(AD_SELECT)
         .gte("created_at", range.from.toISOString())
         .lt("created_at", range.toExclusive.toISOString())
         .gt("id", after),
-    )
+    ))
       .order("id", { ascending: true })
       .limit(pageSize)
     if (error) return response({ error: "Unable to load ad analytics" }, 500)
 
     const scanned = (data ?? []) as AdSourceRow[]
-    const visible = scanned.filter((r) => matchesFilters(r, filters))
+    const visible = scanned.filter((r) => matchesFilters(r, filters) && matchesAdFilters(r, filters))
 
     // Campaign names come from a single id -> name lookup (never a join), so
     // an ad event can't be duplicated by its campaign.

@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { UNKNOWN, buildGeoHierarchy, buildLocationRows } from "../../supabase/functions/_shared/geoHierarchy.ts";
 import { GEO_LEVELS, normalizeGeoLevels } from "../../supabase/functions/_shared/geoFields.ts";
+import { EMPTY_SELECTION, buildTree, isSelectedNode, nodesUnder, selectNode } from "../../utils/admin/geoLevels.ts";
 import { matchesFilters, parseFilters, resolveRange } from "../../supabase/functions/_shared/analyticsFilters.ts";
 
 let pass = 0;
@@ -157,6 +158,66 @@ console.log("8. No hard-coded countries/regions/cities in the geography code");
     const src = fs.readFileSync(path.join(here, f), "utf8").replace(/\/\/.*$/gm, "");
     check(`no hard-coded place names in ${path.basename(f)}`, !banned.test(src));
   }
+}
+
+console.log("9. Same city name under different parents is never merged (full-path keys)");
+{
+  const rows = [
+    ev({ visitor_id: "u1", session_id: "s1", country_code: "AA", region: "State-1", city: "Town-A" }),
+    ev({ visitor_id: "u2", session_id: "s2", country_code: "AA", region: "State-2", city: "Town-A" }),
+    ev({ visitor_id: "u3", session_id: "s3", country_code: "AA", region: "State-2", city: "Town-A" }),
+    ev({ visitor_id: "u4", session_id: "s4", country_code: "AA", region: "State-2", city: "Town-A", county_district_lga: "D-1" }),
+    ev({ visitor_id: "u5", session_id: "s5", country_code: "AA", region: "State-2", city: "Town-A", county_district_lga: "D-2" }),
+  ];
+  const h = buildGeoHierarchy(rows, [], 5, 5);
+  const towns = h.levels.city_town.filter((c) => c.key === "Town-A");
+  check("two Town-A nodes, one per state", towns.length === 2);
+  check("State-1 / Town-A has 1 user; State-2 / Town-A has 4", towns.find((t) => t.path.state_province === "State-1").users === 1 && towns.find((t) => t.path.state_province === "State-2").users === 4);
+  check("legacy cities_by_country view keeps both", h.citiesByCountry.AA.filter((c) => c.key === "Town-A").length === 2);
+  const s2 = h.levels.state_province.find((s) => s.key === "State-2");
+  check("state rolls up its own city + districts only", s2.child_counts.city_town === 1 && s2.child_counts.county_district_lga === 2);
+  const d = h.levels.county_district_lga;
+  check("districts keyed under their own state/city path", d.length === 2 && d.every((n) => n.path.state_province === "State-2" && n.path.city_town === "Town-A"));
+  // Full-path keys also separate counties/neighborhoods with identical names.
+  const dup = buildGeoHierarchy(
+    [
+      ev({ session_id: "a", visitor_id: "a", country_code: "AA", region: "S1", city: "T1", county_district_lga: "Central", neighborhood_suburb: "North" }),
+      ev({ session_id: "b", visitor_id: "b", country_code: "AA", region: "S1", city: "T2", county_district_lga: "Central", neighborhood_suburb: "North" }),
+    ],
+    [],
+    2,
+    2,
+  );
+  check("identical district + neighborhood under different cities stay separate", dup.levels.county_district_lga.length === 2 && dup.levels.neighborhood_suburb.length === 2);
+}
+
+console.log("10. Drill-down helpers and the hierarchy tree");
+{
+  const rows = [
+    ev({ visitor_id: "u1", session_id: "s1", ...A }),
+    ev({ visitor_id: "u2", session_id: "s2", ...A, neighborhood_suburb: "Suburb-2" }),
+    ev({ visitor_id: "u3", session_id: "s3", country_code: "AA", region: "State-1", city: null, county_district_lga: "Orphan-District" }), // no city supplied
+    ev({ visitor_id: "u4", session_id: "s4", ...B }),
+  ];
+  const h = buildGeoHierarchy(rows, [], 4, 4);
+  const nodes = { country: h.countries, ...h.levels };
+  let sel = selectNode(EMPTY_SELECTION, "city_town", h.levels.city_town.find((c) => c.path.country === "AA"));
+  check("selecting a city pins its ancestors", sel.country === "AA" && sel.state_province === "State-1" && sel.city_town === "Town-1" && sel.county_district_lga === null);
+  check("districts under the selection", nodesUnder(nodes, sel, "county_district_lga").map((n) => n.key).join() === "District-1");
+  check("other country's districts are not offered", !nodesUnder(nodes, sel, "county_district_lga").some((n) => n.path.country === "BB"));
+  sel = selectNode(sel, "state_province", null);
+  check("clearing a level clears everything below it", sel.country === "AA" && sel.state_province === null && sel.city_town === null);
+  check("isSelectedNode", isSelectedNode(selectNode(EMPTY_SELECTION, "country", h.countries[0]), "country", h.countries[0]));
+
+  const tree = buildTree(nodes);
+  const aa = tree.find((n) => n.row.key === "AA");
+  check("country root with 4 users total in AA=3", aa.row.users === 3 && tree.length === 2);
+  const state = aa.children[0];
+  check("state child", state.field === "state_province" && state.row.key === "State-1");
+  const town = state.children.find((n) => n.field === "city_town");
+  check("city under state, districts under city, neighborhoods under district", town.children[0].field === "county_district_lga" && town.children[0].children.map((n) => n.row.key).sort().join() === "Suburb-1,Suburb-2");
+  check("a district with no city attaches to its state, not to an invented city", state.children.some((n) => n.field === "county_district_lga" && n.row.key === "Orphan-District"));
+  check("tree only contains nodes that exist", JSON.stringify(tree).includes("Orphan-District") && !JSON.stringify(tree).includes("Unknown"));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

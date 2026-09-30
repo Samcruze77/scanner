@@ -12,6 +12,11 @@ export interface AnalyticsFilters {
   neighborhood_suburb: string | null;
   device: string | null;
   visitor_type: "new" | "returning" | null;
+  // Advertising filters. They only exist on ad events, so when any is set the
+  // analytics-event dataset is excluded from a report (see planFor).
+  campaign_id: string | null;
+  creative_id: string | null;
+  slot_code: string | null;
 }
 
 export interface FilterableRow {
@@ -23,8 +28,17 @@ export interface FilterableRow {
   device_type: string | null;
 }
 
-// `region` / `city` are accepted as legacy aliases of state_province /
-// city_town so an older cached client keeps working during a rollout.
+// Accepted spellings per canonical filter. Canonical names come first;
+// `region`/`city` are the legacy database-style names, the rest are the short
+// forms used in shareable page URLs (e.g. /admin/geography?state=..&lga=..).
+const ALIASES = {
+  state_province: ["state_province", "state", "province", "region"],
+  city_town: ["city_town", "city", "town"],
+  county_district_lga: ["county_district_lga", "lga", "county", "district"],
+  neighborhood_suburb: ["neighborhood_suburb", "neighborhood", "neighbourhood", "suburb"],
+} as const;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function parseFilters(params: URLSearchParams): AnalyticsFilters {
   const text = (...names: string[]): string | null => {
     for (const name of names) {
@@ -36,13 +50,37 @@ export function parseFilters(params: URLSearchParams): AnalyticsFilters {
   const visitorType = params.get("visitor_type");
   return {
     country: text("country")?.toUpperCase() ?? null,
-    state_province: text("state_province", "region"),
-    city_town: text("city_town", "city"),
-    county_district_lga: text("county_district_lga"),
-    neighborhood_suburb: text("neighborhood_suburb"),
+    state_province: text(...ALIASES.state_province),
+    city_town: text(...ALIASES.city_town),
+    county_district_lga: text(...ALIASES.county_district_lga),
+    neighborhood_suburb: text(...ALIASES.neighborhood_suburb),
     device: text("device"),
     visitor_type: visitorType === "new" || visitorType === "returning" ? visitorType : null,
+    campaign_id: uuidOrNull(text("campaign_id", "campaign")),
+    creative_id: uuidOrNull(text("creative_id", "creative")),
+    slot_code: text("slot_code", "slot")?.slice(0, 80) ?? null,
   };
+}
+
+function uuidOrNull(value: string | null): string | null {
+  return value && UUID_RE.test(value) ? value : null;
+}
+
+export function hasAdFilters(f: AnalyticsFilters): boolean {
+  return !!(f.campaign_id || f.creative_id || f.slot_code);
+}
+
+export interface AdFilterableRow {
+  campaign_id: string | null;
+  creative_id: string | null;
+  slot_code: string | null;
+}
+
+export function matchesAdFilters(row: AdFilterableRow, f: AnalyticsFilters): boolean {
+  if (f.campaign_id && row.campaign_id !== f.campaign_id) return false;
+  if (f.creative_id && row.creative_id !== f.creative_id) return false;
+  if (f.slot_code && row.slot_code !== f.slot_code) return false;
+  return true;
 }
 
 // Location + device filters (visitor_type needs history and is applied
@@ -74,4 +112,13 @@ export function resolveRange(params: URLSearchParams, now: Date = new Date()): D
     return { ok: false, error: "Invalid date range" };
   }
   return { ok: true, from, to, toExclusive: new Date(to.getTime() + 24 * 60 * 60 * 1000) };
+}
+
+// Canonical query-string form of a parsed selection: what pages put in
+// shareable URLs and what the export route forwards to the Edge Function.
+// Null filters are omitted.
+export function filtersToParams(f: AnalyticsFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(f)) if (value) params.set(key, value);
+  return params;
 }

@@ -14,9 +14,15 @@ import type { AdminAnalyticsResponse } from "./types";
 // keys on primitive argument equality, hence separate string params rather
 // than a range object.
 export const getAdminAnalytics = cache(
-  async (from?: string, to?: string, days?: number): Promise<AdminAnalyticsResponse> => {
+  async (from?: string, to?: string, days?: number, device?: string, visitorType?: string): Promise<AdminAnalyticsResponse> => {
     const cookieStore = await cookies();
     const supabase = createServerSupabaseClient(cookieStore);
-    return fetchAdminAnalytics(supabase, { from, to, days });
+    return fetchAdminAnalytics(supabase, {
+      from,
+      to,
+      days,
+      device: device || undefined,
+      visitorType: visitorType === "new" || visitorType === "returning" ? visitorType : undefined,
+    });
   },
 );

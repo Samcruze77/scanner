@@ -1,0 +1,14 @@
+{
+  "_comment": "Snapshot of the LIVE column lists the Admin Profile export is derived from (project zdegimgixjpirtivrrgc, captured 2026-09-30 from information_schema). Refresh with: select table_schema, table_name, column_name from information_schema.columns where (table_schema='public' and table_name in ('admin_users','user_profiles')) or (table_schema='auth' and table_name='users') order by 1,2,ordinal_position; tests/analytics/admin-profile.mjs fails when a column here is neither exported nor explicitly excluded with a reason.",
+  "public.admin_users": ["user_id", "role", "display_name", "is_active", "created_at", "updated_at"],
+  "public.user_profiles": ["user_id", "display_name", "country_code", "created_at", "updated_at"],
+  "auth.users": [
+    "instance_id", "id", "aud", "role", "email", "encrypted_password", "email_confirmed_at", "invited_at",
+    "confirmation_token", "confirmation_sent_at", "recovery_token", "recovery_sent_at", "email_change_token_new",
+    "email_change", "email_change_sent_at", "last_sign_in_at", "raw_app_meta_data", "raw_user_meta_data",
+    "is_super_admin", "created_at", "updated_at", "phone", "phone_confirmed_at", "phone_change",
+    "phone_change_token", "phone_change_sent_at", "confirmed_at", "email_change_token_current",
+    "email_change_confirm_status", "banned_until", "reauthentication_token", "reauthentication_sent_at",
+    "is_sso_user", "deleted_at", "is_anonymous"
+  ]
+}

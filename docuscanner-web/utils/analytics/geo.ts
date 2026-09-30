@@ -17,7 +17,7 @@
 
 import { geolocation, ipAddress, type Geo } from "@vercel/functions";
 
-export type LocationSource = "vercel" | "cloudflare" | "unknown";
+export type LocationSource = "vercel" | "cloudflare" | "unknown" | (string & {});
 
 export interface NormalizedGeo {
   countryCode: string | null;
@@ -29,7 +29,14 @@ export interface NormalizedGeo {
   countyDistrictLga: string | null;
   neighborhoodSuburb: string | null;
   postalCode: string | null;
+  // Where the values came from: "vercel", "cloudflare", "unknown", or
+  // "vercel+<provider>" when an IP provider filled in missing levels.
   source: LocationSource;
+  // Transient provider extras -- carried for consistency checks only, NEVER
+  // stored (analytics keeps just the normalized hierarchy above).
+  countryName?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 const UNKNOWN_GEO: NormalizedGeo = {

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { getAdminAnalyticsBrowser } from "@/utils/admin/client.browser";
 import { defaultDateRange } from "@/utils/admin/dateRange";
+import { buildExportPageUrl } from "@/utils/admin/exportClient";
 import type { AdminAnalyticsResponse, DateRange } from "@/utils/admin/types";
 import { humanizeKey, normalizeBreakdown, normalizeOverview, tryDailySeries } from "@/utils/admin/format";
 import { MetricCard } from "@/components/admin/MetricCard";
@@ -85,6 +86,12 @@ export function DashboardClient({
             onChange={(e) => applyRange({ ...range, to: e.target.value })}
             className="rounded-md border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-800 dark:bg-black"
           />
+          <Link
+            href={buildExportPageUrl({ reportType: "full", dateRange: range })}
+            className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-black"
+          >
+            Export
+          </Link>
         </div>
       </div>
 

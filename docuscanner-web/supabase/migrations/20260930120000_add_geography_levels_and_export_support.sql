@@ -31,6 +31,9 @@ comment on column public.analytics_events.county_district_lga is
 comment on column public.analytics_events.neighborhood_suburb is
   'Neighborhood / suburb, normalized from the location provider. Null when the provider does not supply it.';
 
+comment on column public.analytics_events.location_source is
+  'How country/state/city/district were derived: vercel (platform geolocation), cloudflare (country-only fallback), or vercel+<provider> when an optional IP provider filled in levels Vercel does not supply. Null for rows recorded before this column existed.';
+
 -- Geography drill-down filters (country -> state -> city) over a date range.
 create index if not exists analytics_events_geo_created_at_idx
   on public.analytics_events (country_code, region, city, created_at);

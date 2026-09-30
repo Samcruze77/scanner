@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { resolveRequestGeo } from "@/utils/analytics/geo";
+import { enrichRequestGeo } from "@/utils/analytics/geoProviders";
 import { readJsonBody, rateLimited, resolveUserId, callEdgeFunction } from "@/utils/analytics/proxy.server";
 
 export const runtime = "nodejs";
@@ -14,8 +15,8 @@ const MAX_EVENTS_PER_WINDOW = 30;
 
 export async function POST(request: Request) {
   try {
-    const geo = resolveRequestGeo(request);
-    const rateKey = geo.clientIp ?? "unknown";
+    const baseGeo = resolveRequestGeo(request);
+    const rateKey = baseGeo.clientIp ?? "unknown";
     if (rateLimited(`track:${rateKey}`, RATE_WINDOW_MS, MAX_EVENTS_PER_WINDOW)) {
       return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
     }
@@ -24,6 +25,8 @@ export async function POST(request: Request) {
     if (!body) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
     const userId = await resolveUserId();
+    // Optional IP enrichment (off unless GEO_PROVIDER is configured).
+    const geo = await enrichRequestGeo(baseGeo);
 
     const result = await callEdgeFunction("track-analytics", {
       event_name: body.event_name,

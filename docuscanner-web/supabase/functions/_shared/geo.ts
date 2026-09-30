@@ -29,7 +29,9 @@ export interface TrustedGeo {
   countyDistrictLga: string | null;
   neighborhoodSuburb: string | null;
   postalCode: string | null;
-  source: "vercel" | "cloudflare" | "unknown";
+  // "vercel", "cloudflare", "unknown", or "vercel+<provider>" when an IP
+  // provider filled in levels Vercel did not supply.
+  source: string;
 }
 
 const UNKNOWN_GEO: TrustedGeo = {
@@ -50,7 +52,7 @@ export function extractTrustedGeo(req: Request, body: Record<string, unknown>): 
   const geo = body.geo && typeof body.geo === "object" ? (body.geo as Record<string, unknown>) : null;
   const countryCode = normalizeCountryCode(geo?.country_code);
   if (countryCode) {
-    const source = geo?.source === "vercel" || geo?.source === "cloudflare" ? geo.source : "vercel";
+    const source = typeof geo?.source === "string" && /^[a-z0-9_+.-]{1,40}$/.test(geo.source) ? geo.source : "vercel";
     // Provider terminology (state/province, town, county/district/LGA,
     // suburb/neighbourhood, ...) is normalized onto the canonical levels.
     const levels = normalizeGeoLevels(geo)
