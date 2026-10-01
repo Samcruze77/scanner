@@ -44,7 +44,7 @@ async function run(viewport) {
   assert.equal(summary.length, 1, `one summary request after Apply (got ${summary.length})`);
   assert.match(summary[0], /from=2026-09-01/);
   assert.match(summary[0], /to=2026-09-07/);
-  await page.getByText("No records match these filters.").waitFor();
+  await page.getByText("2,800").first().waitFor();
 
   await from.fill("2026-09-15");
   await to.fill("2026-09-15");

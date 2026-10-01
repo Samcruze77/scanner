@@ -18,7 +18,8 @@ export async function* walkExport(
   for (const [index, dataset] of datasets.entries()) {
     let current = index === 0 ? first : await fetchPage(dataset, 0);
     for (;;) {
-      for (const record of current.rows) yield { record, profile: current.profile };
+      // Later pages may omit the profile (it only needs to be read once).
+      for (const record of current.rows) yield { record, profile: current.profile ?? first.profile };
       if (current.next_after === null) break;
       current = await fetchPage(dataset, current.next_after);
     }

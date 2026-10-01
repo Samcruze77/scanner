@@ -41,6 +41,12 @@ function response(body: unknown, status = 200) {
 }
 
 const MAX_PAGE = 2000
+// With `page=large` and the SQL page function installed (migration
+// 20260930150000) one call returns up to this many rows: the function returns a
+// single jsonb value, so PostgREST's 1000-row max-rows does not apply. Callers
+// that do not send `page=large` (older deployments of the route) keep the
+// previous behaviour exactly.
+const MAX_LARGE_PAGE = 5000
 const DEFAULT_PAGE = 1000
 const RETURNING_CHUNK = 500
 
@@ -87,19 +93,28 @@ export default {
     if (range.ok === false) return response({ error: range.error }, 400)
 
     const after = Math.max(Number(url.searchParams.get("after") ?? "0") || 0, 0)
-    const pageSize = Math.min(Math.max(Number(url.searchParams.get("limit") ?? DEFAULT_PAGE) || DEFAULT_PAGE, 1), MAX_PAGE)
+    const large = url.searchParams.get("page") === "large"
+    const requested = Math.max(Number(url.searchParams.get("limit") ?? DEFAULT_PAGE) || DEFAULT_PAGE, 1)
+    // `page=large` asks for the biggest page; `limit` is then ignored. The route always
+    // also sends limit=1000, which an older deployed function honours as before.
+    let pageSize = large ? MAX_LARGE_PAGE : Math.min(requested, MAX_PAGE)
 
     // Derived from the real rows (every non-secret column) -- see
-    // ../_shared/adminProfile.ts for what is excluded and why.
-    const [{ data: authUser }, { data: userProfileRow }] = await Promise.all([
-      ctx.supabaseAdmin.auth.admin.getUserById(userId),
-      ctx.supabaseAdmin.from("user_profiles").select("*").eq("user_id", userId).maybeSingle(),
-    ])
-    const profile = buildAdminProfile({
-      adminRow,
-      userProfileRow,
-      authUser: (authUser?.user ?? null) as Record<string, unknown> | null,
-    })
+    // ../_shared/adminProfile.ts for what is excluded and why. A `page=large`
+    // caller only needs it once (first page of each dataset), so later pages skip
+    // two database round trips.
+    let profile: ReturnType<typeof buildAdminProfile> | null = null
+    if (!large || after === 0) {
+      const [{ data: authUser }, { data: userProfileRow }] = await Promise.all([
+        ctx.supabaseAdmin.auth.admin.getUserById(userId),
+        ctx.supabaseAdmin.from("user_profiles").select("*").eq("user_id", userId).maybeSingle(),
+      ])
+      profile = buildAdminProfile({
+        adminRow,
+        userProfileRow,
+        authUser: (authUser?.user ?? null) as Record<string, unknown> | null,
+      })
+    }
 
     // Plain-equality filters are also pushed into SQL so a narrow selection
     // over a large table doesn't scan every row; the same predicate is
@@ -142,6 +157,44 @@ export default {
     }
 
     if (dataset === "events") {
+      const typeOfFactory = (returning: Set<string>) => (r: EventSourceRow) => (!r.visitor_id ? "unknown" : returning.has(r.visitor_id) ? "returning" : "new")
+
+      // One call: the page, filtered in SQL, with new-vs-returning resolved.
+      const rpc = await ctx.supabaseAdmin.rpc("admin_export_events_page", {
+        p_from: range.from.toISOString(),
+        p_to: range.toExclusive.toISOString(),
+        p_after: after,
+        p_limit: pageSize,
+        p_event_names: plan.eventNames ?? null,
+        p_country: filters.country && filters.country !== "UNKNOWN" ? filters.country : null,
+        p_region: filters.state_province,
+        p_city: filters.city_town,
+        p_district: filters.county_district_lga,
+        p_neighborhood: filters.neighborhood_suburb,
+        p_device: filters.device,
+      })
+      if (!rpc.error && rpc.data && Array.isArray(rpc.data.rows)) {
+        const scanned = rpc.data.rows as (EventSourceRow & { is_returning?: boolean })[]
+        const returning = new Set(scanned.filter((r) => r.is_returning && r.visitor_id).map((r) => r.visitor_id as string))
+        const typeOf = typeOfFactory(returning)
+        const rows = scanned
+          .filter((r) => matchesFilters(r, filters))
+          .filter((r) => !filters.visitor_type || typeOf(r) === filters.visitor_type)
+          .map((r) => eventToRecord(r, typeOf(r)))
+        const effective = Math.min(pageSize, MAX_LARGE_PAGE)
+        return response({
+          profile,
+          dataset,
+          rows,
+          next_after: scanned.length >= effective ? scanned[scanned.length - 1].id : null,
+          scanned: scanned.length,
+        })
+      }
+
+      // SQL function not installed (migration pending): previous paged read.
+      // PostgREST returns at most 1000 rows per request whatever was asked, so
+      // never treat a larger page size as "full".
+      pageSize = Math.min(pageSize, 1000)
       let query = ctx.supabaseAdmin
         .from("analytics_events")
         .select(EVENT_SELECT)
@@ -167,7 +220,7 @@ export default {
         if (priorError) return response({ error: "Unable to resolve visitor history" }, 500)
         for (const r of (prior ?? []) as { visitor_id: string }[]) returning.add(r.visitor_id)
       }
-      const typeOf = (r: EventSourceRow) => (!r.visitor_id ? "unknown" : returning.has(r.visitor_id) ? "returning" : "new")
+      const typeOf = typeOfFactory(returning)
 
       const rows = visible
         .filter((r) => !filters.visitor_type || typeOf(r) === filters.visitor_type)
@@ -182,6 +235,8 @@ export default {
       })
     }
 
+    // dataset === "ads" (read through PostgREST, which returns at most 1000 rows per request).
+    pageSize = Math.min(pageSize, 1000)
     // dataset === "ads". visitor_type is not applied: ad_events carry no
     // visitor id (same as the dashboard).
     const { data, error } = await pushDownAds(pushDown(

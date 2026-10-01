@@ -38,7 +38,7 @@ for (const [name, opts] of Object.entries(profiles)) {
     await page.locator("main h1, h1").first().waitFor({ timeout: 15000 });
     const ms = Date.now() - start;
     times.push(ms);
-    console.log(`[${name}] -> ${path}: ${ms}ms  requests: ${[...new Set(reqs)].filter((r) => !/_next\/static/.test(r)).slice(0, 8).join(" | ")}`);
+    console.log(`[${name}] -> ${path}: ${ms}ms  analytics: track x${reqs.filter((r) => r === "POST /api/analytics/track").length}, heartbeat x${reqs.filter((r) => r === "POST /api/analytics/heartbeat").length}, ads-eligible x${reqs.filter((r) => /ads-eligible/.test(r)).length}`);
     await page.waitForTimeout(600);
   }
   const s = Date.now();

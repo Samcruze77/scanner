@@ -162,5 +162,17 @@ const dates = (parsed, col) => parsed.slice(1).map((r) => r[parsed[0].indexOf(co
   check("60,000 rows walked page by page, none lost", n === 60_000, String(n));
 }
 
+{
+  // Later pages omit the profile (read once, on the first page): every record still carries it.
+  const pages = [
+    { profile, dataset: "events", rows: [1, 2].map((i) => eventToRecord(events[i], "new")), next_after: 2, scanned: 2 },
+    { profile: null, dataset: "events", rows: [3, 4].map((i) => eventToRecord(events[i], "new")), next_after: null, scanned: 2 },
+  ];
+  let i = 0;
+  const out = [];
+  for await (const x of walkExport(async () => pages[++i], ["events"], pages[0])) out.push(x);
+  check("profile-less later pages still yield the first page's profile", out.length === 4 && out.every((x) => x.profile === profile));
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
