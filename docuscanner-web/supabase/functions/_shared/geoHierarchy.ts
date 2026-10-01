@@ -25,6 +25,8 @@ export interface AnalyticsEventRow {
   neighborhood_suburb?: string | null;
   device_type: string | null;
   created_at: string;
+  // Number of identical events this row stands for (admin_analytics_event_groups collapses them in SQL).
+  n?: number;
 }
 
 export interface AdEventRow {
@@ -36,7 +38,10 @@ export interface AdEventRow {
   neighborhood_suburb?: string | null;
   device_type: string | null;
   created_at: string;
+  n?: number;
 }
+
+export const weightOf = (row: { n?: number }): number => row.n ?? 1;
 
 const PDF_JOB_EVENTS = new Set(["scan_completed", "conversion_completed"]);
 const OPEN_EVENTS = new Set(["page_view", "app_open"]);
@@ -221,14 +226,14 @@ export function buildGeoHierarchy(rows: AnalyticsEventRow[], adRows: AdEventRow[
     visit(row, (agg) => {
       if (row.visitor_id) agg.users.add(row.visitor_id);
       if (row.session_id) agg.sessions.add(row.session_id);
-      if (OPEN_EVENTS.has(row.event_name)) agg.opens += 1;
-      if (PDF_JOB_EVENTS.has(row.event_name)) agg.pdf_jobs += 1;
+      if (OPEN_EVENTS.has(row.event_name)) agg.opens += weightOf(row);
+      if (PDF_JOB_EVENTS.has(row.event_name)) agg.pdf_jobs += weightOf(row);
     });
   }
   for (const row of adRows) {
     visit(row, (agg) => {
-      if (row.event_type === "impression") agg.ad_impressions += 1;
-      if (row.event_type === "click") agg.ad_clicks += 1;
+      if (row.event_type === "impression") agg.ad_impressions += weightOf(row);
+      if (row.event_type === "click") agg.ad_clicks += weightOf(row);
     });
   }
 
@@ -351,13 +356,52 @@ export function buildLocationRows(
       };
       adTotals.set(key, entry);
     }
-    if (row.event_type === "impression") entry.row.ad_impressions += 1;
-    if (row.event_type === "click") entry.row.ad_clicks += 1;
+    if (row.event_type === "impression") entry.row.ad_impressions += weightOf(row);
+    if (row.event_type === "click") entry.row.ad_clicks += weightOf(row);
   }
 
   const out: LocationRow[] = [];
   for (const { row, sessions } of sessionRows.values()) out.push({ ...row, sessions: sessions.size });
   for (const { row } of adTotals.values()) out.push(row);
 
-  return out.sort((a, b) => b.sessions - a.sessions || b.ad_impressions - a.ad_impressions);
+  // Ties are broken by the row's own fields so the order never depends on the
+  // order the events happened to be read in (raw rows vs SQL-collapsed rows).
+  const tie = (r: LocationRow) => [r.date, r.country, r.state_province ?? "", r.city_town ?? "", r.county_district_lga ?? "", r.neighborhood_suburb ?? "", r.device ?? "", r.visitor_type].join("\u0001");
+  return out.sort((a, b) => b.sessions - a.sessions || b.ad_impressions - a.ad_impressions || (tie(a) < tie(b) ? -1 : tie(a) > tie(b) ? 1 : 0));
+}
+
+// --- Precision coverage ----------------------------------------------------
+//
+// What the stored data actually contains, per level: how many events carry a
+// country, a state/region, a city, a district, a neighbourhood. This is what
+// the Geography page shows so "Lagos appears" is never mistaken for "locality
+// level data exists". Counts only what is stored; nothing is inferred.
+
+export interface GeoCoverage {
+  events: number;
+  country: number;
+  state_province: number;
+  city_town: number;
+  county_district_lga: number;
+  neighborhood_suburb: number;
+  // Stored provider name (e.g. "vercel", "ip2location") -> events. Events
+  // recorded before location_source existed are counted under "unrecorded".
+  sources: { source: string; events: number }[];
+}
+
+export function buildGeoCoverage(rows: (GeoLocationInput & { location_source?: string | null; n?: number })[]): GeoCoverage {
+  const out: GeoCoverage = { events: rows.reduce((t, r) => t + weightOf(r), 0), country: 0, state_province: 0, city_town: 0, county_district_lga: 0, neighborhood_suburb: 0, sources: [] };
+  const sources = new Map<string, number>();
+  for (const row of rows) {
+    const w = weightOf(row);
+    if (row.country_code && row.country_code !== UNKNOWN) out.country += w;
+    if (row.region) out.state_province += w;
+    if (row.city) out.city_town += w;
+    if (row.county_district_lga) out.county_district_lga += w;
+    if (row.neighborhood_suburb) out.neighborhood_suburb += w;
+    const source = row.location_source || "unrecorded";
+    sources.set(source, (sources.get(source) ?? 0) + w);
+  }
+  out.sources = [...sources.entries()].sort((a, b) => b[1] - a[1]).map(([source, events]) => ({ source, events }));
+  return out;
 }

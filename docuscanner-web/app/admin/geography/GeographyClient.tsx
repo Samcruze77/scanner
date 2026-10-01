@@ -14,7 +14,6 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { getAdminAnalyticsBrowser } from "@/utils/admin/client.browser";
-import { defaultDateRange, todayRange } from "@/utils/admin/dateRange";
 import { buildExportPageUrl } from "@/utils/admin/exportClient";
 import {
   CHILD_LEVELS,
@@ -34,16 +33,10 @@ import {
 } from "@/utils/admin/geoLevels";
 import { regionName } from "@/utils/admin/location";
 import { normalizeOverview } from "@/utils/admin/format";
-import type { AdminAnalyticsResponse, AdminGeoChildField, AdminGeoField, AdminGeoRow, AdminLocationRow, DateRange } from "@/utils/admin/types";
+import type { AdminAnalyticsResponse, AdminGeoChildField, AdminGeoCoverage, AdminGeoField, AdminGeoRow, AdminLocationRow, DateRange } from "@/utils/admin/types";
+import { DateRangeControl } from "@/components/admin/DateRangeControl";
 import { MetricCard } from "@/components/admin/MetricCard";
 import { GeoSelectors, selectClass } from "@/components/admin/GeoSelectors";
-
-const PRESETS: { label: string; range: () => DateRange }[] = [
-  { label: "Today", range: todayRange },
-  { label: "7 days", range: () => defaultDateRange(7) },
-  { label: "30 days", range: () => defaultDateRange(30) },
-  { label: "90 days", range: () => defaultDateRange(90) },
-];
 
 const DEVICES = ["desktop", "mobile", "tablet"];
 
@@ -112,6 +105,42 @@ function TreeList({ nodes, depth = 0 }: { nodes: TreeNode[]; depth?: number }) {
     </ul>
   );
 }
+// What the stored data genuinely carries, level by level. A level with 0 events is
+// shown as not supplied -- the provider did not return it -- never as a zero-user place.
+function PrecisionCard({ coverage }: { coverage: AdminGeoCoverage | undefined }) {
+  if (!coverage || coverage.events === 0) return null;
+  const levels: [string, number][] = [
+    ["Country", coverage.country],
+    ["State / Province", coverage.state_province],
+    ["City / Town", coverage.city_town],
+    ["County / District / LGA", coverage.county_district_lga],
+    ["Neighborhood / Suburb", coverage.neighborhood_suburb],
+  ];
+  const pct = (n: number) => `${Math.round((n / coverage.events) * 100)}%`;
+  return (
+    <section aria-label="Location precision" className="rounded-lg border border-zinc-200 bg-surface p-4 dark:border-zinc-800">
+      <p className="text-sm font-medium">Location precision in this data</p>
+      <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+        Share of the {fmt(coverage.events)} events in this selection that carry each level. Locations come from the
+        visitor&apos;s IP address and are approximate; a level the provider does not return stays empty.
+      </p>
+      <ul className="flex flex-wrap gap-2">
+        {levels.map(([label, n]) => (
+          <li
+            key={label}
+            className={`rounded-full border px-2.5 py-0.5 text-xs ${n > 0 ? "border-zinc-300 dark:border-zinc-700" : "border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700"}`}
+          >
+            {label}: {n > 0 ? `${pct(n)} of events` : "not supplied by provider"}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+        Location source: {coverage.sources.map((x) => `${x.source} (${fmt(x.events)})`).join(", ")}
+      </p>
+    </section>
+  );
+}
+
 const thClass = "cursor-pointer select-none whitespace-nowrap px-4 py-2 text-right font-medium hover:text-zinc-900 dark:hover:text-zinc-100";
 
 export function GeographyClient({
@@ -285,33 +314,7 @@ export function GeographyClient({
             location provider supplies it.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {PRESETS.map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              onClick={() => refetch({ range: preset.range() })}
-              className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
-            >
-              {preset.label}
-            </button>
-          ))}
-          <input
-            type="date"
-            value={range.from}
-            max={range.to}
-            onChange={(e) => refetch({ range: { ...range, from: e.target.value } })}
-            className={inputClass}
-          />
-          <span className="text-sm text-zinc-400">to</span>
-          <input
-            type="date"
-            value={range.to}
-            min={range.from}
-            onChange={(e) => refetch({ range: { ...range, to: e.target.value } })}
-            className={inputClass}
-          />
-        </div>
+        <DateRangeControl value={range} onApply={(next) => refetch({ range: next })} busy={isPending} />
       </div>
 
       {/* --- Location filters: one dependent selector per level, built only from real data --- */}
@@ -345,6 +348,14 @@ export function GeographyClient({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {isPending && <p className="text-sm text-zinc-400">Loading…</p>}
+
+      {!isPending && !error && data && allCountries.length === 0 && (
+        <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+          No location data available for this selection.
+        </p>
+      )}
+
+      <PrecisionCard coverage={data?.geo_coverage} />
 
       {/* --- Location Overview --- */}
       <section>

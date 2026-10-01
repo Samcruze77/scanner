@@ -82,6 +82,9 @@ function fetchPage(token: string, base: URLSearchParams, dataset: ExportDataset,
   params.set("dataset", dataset);
   params.set("after", String(after));
   params.set("limit", String(limit));
+  // Ask for the big page when the caller wants a full page. A function deployed
+  // before the SQL page function existed ignores `page` and honours limit=1000.
+  if (limit === PAGE_SIZE) params.set("page", "large");
   return callEdge(token, params);
 }
 

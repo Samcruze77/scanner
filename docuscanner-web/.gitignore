@@ -63,3 +63,4 @@ next-env.d.ts
 
 # Word templates converted from a local Office install (Microsoft-owned; regenerate, do not commit)
 /tests/docx/fixtures/real/
+/tests/analytics/out/

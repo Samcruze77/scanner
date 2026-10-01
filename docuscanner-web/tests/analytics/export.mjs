@@ -140,7 +140,7 @@ console.log("3. Cell formatting is safe and stable");
   check("JSON record omits per-row profile (emitted once at top level)", !("account_email" in j) && j.state_province === "State-1");
   check("JSON keeps nulls as null", j.referrer === null);
   check("XLSX row aligns with columns", xlsxRow(flat, EXPORT_COLUMNS).length === EXPORT_COLUMNS.length);
-  check("filename", exportFilename("csv", "full", "2026-09-01", "2026-09-30") === "analytics-full-2026-09-01_to_2026-09-30.csv");
+  check("filename", exportFilename("csv", "full", "2026-09-01", "2026-09-30") === "freepdfscanner-analytics-2026-09-01-to-2026-09-30.csv");
 }
 
 console.log("4. XLSX round-trips through a real workbook");

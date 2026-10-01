@@ -3,20 +3,15 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { getAdminAnalyticsBrowser } from "@/utils/admin/client.browser";
-import { defaultDateRange } from "@/utils/admin/dateRange";
 import { buildExportPageUrl } from "@/utils/admin/exportClient";
 import type { AdminAnalyticsResponse, DateRange } from "@/utils/admin/types";
 import { humanizeKey, normalizeBreakdown, normalizeOverview, tryDailySeries } from "@/utils/admin/format";
+import { DateRangeControl } from "@/components/admin/DateRangeControl";
 import { MetricCard } from "@/components/admin/MetricCard";
 import { BreakdownTable } from "@/components/admin/BreakdownTable";
 import { MiniBarChart } from "@/components/admin/MiniBarChart";
 import { DailyTable } from "@/components/admin/DailyTable";
 
-const PRESETS: { label: string; days: number }[] = [
-  { label: "7 days", days: 7 },
-  { label: "30 days", days: 30 },
-  { label: "90 days", days: 90 },
-];
 
 export function DashboardClient({
   initialRange,
@@ -61,31 +56,7 @@ export function DashboardClient({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-lg font-semibold">Analytics</h1>
         <div className="flex flex-wrap items-center gap-2">
-          {PRESETS.map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              onClick={() => applyRange(defaultDateRange(preset.days))}
-              className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
-            >
-              {preset.label}
-            </button>
-          ))}
-          <input
-            type="date"
-            value={range.from}
-            max={range.to}
-            onChange={(e) => applyRange({ ...range, from: e.target.value })}
-            className="rounded-md border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-800 dark:bg-black"
-          />
-          <span className="text-sm text-zinc-400">to</span>
-          <input
-            type="date"
-            value={range.to}
-            min={range.from}
-            onChange={(e) => applyRange({ ...range, to: e.target.value })}
-            className="rounded-md border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-800 dark:bg-black"
-          />
+          <DateRangeControl value={range} onApply={applyRange} busy={isPending} />
           <Link
             href={buildExportPageUrl({ reportType: "full", dateRange: range })}
             className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-black"

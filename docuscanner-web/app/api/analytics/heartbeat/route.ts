@@ -22,9 +22,8 @@ export async function POST(request: Request) {
     const body = await readJsonBody(request);
     if (!body) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
-    const userId = await resolveUserId();
+    const [userId, geo] = await Promise.all([resolveUserId(), enrichRequestGeo(baseGeo)]);
     // Optional IP enrichment (off unless GEO_PROVIDER is configured).
-    const geo = await enrichRequestGeo(baseGeo);
 
     const result = await callEdgeFunction("heartbeat", {
       session_id: body.session_id,
