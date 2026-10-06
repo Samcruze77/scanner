@@ -145,7 +145,7 @@ await send("Page.addScriptToEvaluateOnNewDocument", {
   source: `
     window.__events = [];
     const realFetch = window.fetch.bind(window);
-    window.fetch = (url, init) => { try { if (String(url).includes('track-analytics')) window.__events.push(JSON.parse(init.body)); } catch {} return realFetch(url, init); };
+    window.fetch = (url, init) => { try { if (String(url).includes('/api/analytics/track')) window.__events.push(JSON.parse(init.body)); } catch {} return realFetch(url, init); };
     window.__printCalls = [];
     window.print = () => {
       const root = document.querySelector('.print-root:not([data-suspended])');

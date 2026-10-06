@@ -89,12 +89,23 @@ export function warpPerspective(
   const sctx = sourceCanvas.getContext("2d", { willReadFrequently: true });
   if (!sctx) return null;
 
+  // Only read the part of the source the quad covers (plus a small pad for the
+  // bilinear neighbours). On a 12MP frame with a page filling half the shot
+  // this halves the ImageData allocation; results are identical because every
+  // sampled point lies inside the quad.
+  const minX = Math.max(0, Math.floor(Math.min(...quad.map((p) => p.x))) - 2);
+  const minY = Math.max(0, Math.floor(Math.min(...quad.map((p) => p.y))) - 2);
+  const maxX = Math.min(sourceCanvas.width, Math.ceil(Math.max(...quad.map((p) => p.x))) + 3);
+  const maxY = Math.min(sourceCanvas.height, Math.ceil(Math.max(...quad.map((p) => p.y))) + 3);
+  if (maxX - minX < 2 || maxY - minY < 2) return null;
+
   let srcImageData: ImageData;
   try {
-    srcImageData = sctx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+    srcImageData = sctx.getImageData(minX, minY, maxX - minX, maxY - minY);
   } catch {
     return null;
   }
+  const regionQuad = quad.map((p) => ({ x: p.x - minX, y: p.y - minY })) as Quad;
 
   const dstRect: Point[] = [
     { x: 0, y: 0 },
@@ -103,7 +114,7 @@ export function warpPerspective(
     { x: 0, y: outHeight },
   ];
 
-  const h = solveHomography(dstRect, quad);
+  const h = solveHomography(dstRect, regionQuad);
   if (!h || h.some((v) => !Number.isFinite(v))) return null;
   const [h11, h12, h13, h21, h22, h23, h31, h32] = h;
 
@@ -115,8 +126,8 @@ export function warpPerspective(
 
   const outImageData = octx.createImageData(outWidth, outHeight);
   const srcData = srcImageData.data;
-  const sw = sourceCanvas.width;
-  const sh = sourceCanvas.height;
+  const sw = srcImageData.width;
+  const sh = srcImageData.height;
 
   for (let y = 0; y < outHeight; y++) {
     for (let x = 0; x < outWidth; x++) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { flattenPageToJpeg } from "./annotationRender";
+import { dataUrlBytes, debugLog, isScannerDebug } from "./debugLog";
 import type { ScannerPage } from "./page";
 
 // jsPDF is dynamically imported so it never lands in the initial bundle --
@@ -32,5 +33,21 @@ export async function createPdfFromPages(pages: ScannerPage[]): Promise<Blob> {
     doc.addImage(imageData, "JPEG", x, y, w, h);
   }
 
-  return doc.output("blob");
+  const blob = doc.output("blob");
+  if (isScannerDebug()) void logPdfContents(blob, pages);
+  return blob;
+}
+
+// Debug only: reads the image sizes actually embedded in the finished PDF and
+// puts them next to the processed scans they came from.
+async function logPdfContents(blob: Blob, pages: ScannerPage[]): Promise<void> {
+  const text = new TextDecoder("latin1").decode(new Uint8Array(await blob.arrayBuffer()));
+  const embedded = [...text.matchAll(/\/Width (\d+)\s*\/Height (\d+)/g)].map((m) => `${m[1]}x${m[2]}`);
+  debugLog("pdf", {
+    pdfBytes: blob.size,
+    pages: pages.length,
+    processedScans: pages.map((p) => `${p.processedWidth}x${p.processedHeight} (${dataUrlBytes(p.processedDataUrl)} bytes)`),
+    embeddedImages: embedded,
+    note: "annotated pages are flattened at their processed size and may differ in bytes",
+  });
 }

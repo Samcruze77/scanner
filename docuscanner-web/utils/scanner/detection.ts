@@ -11,6 +11,7 @@
 
 import { convexHull, boxBlur, dilate, otsuThreshold, sobelMagnitude, toGrayscale } from "./pixels";
 import { orderQuadCorners, polygonArea, type Point, type Quad } from "./geometry";
+import { MAX_DETECTABLE_AREA_RATIO, MIN_DETECTABLE_AREA_RATIO } from "./framing";
 
 export interface DetectionResult {
   quad: Quad;
@@ -19,8 +20,9 @@ export interface DetectionResult {
 
 const WORK_MAX_DIM = 500;
 const MIN_EDGE_POINTS = 20;
-const MIN_AREA_RATIO = 0.15;
-const MAX_AREA_RATIO = 0.97;
+// The edge hull sits on the page border; grow the quad outward by this fraction
+// of its size so the perspective crop never clips content at the page edges.
+export const QUAD_SAFETY_MARGIN = 0.012;
 
 function quadFromHull(hull: Point[]): Quad {
   let tl = hull[0];
@@ -54,6 +56,16 @@ function quadFromHull(hull: Point[]): Quad {
   }
 
   return [tl, tr, br, bl];
+}
+
+function expandQuad(quad: Quad, margin: number, maxX: number, maxY: number): Quad {
+  const cx = (quad[0].x + quad[1].x + quad[2].x + quad[3].x) / 4;
+  const cy = (quad[0].y + quad[1].y + quad[2].y + quad[3].y) / 4;
+  const grow = 1 + margin * 2;
+  return quad.map((p) => ({
+    x: Math.min(maxX, Math.max(0, cx + (p.x - cx) * grow)),
+    y: Math.min(maxY, Math.max(0, cy + (p.y - cy) * grow)),
+  })) as Quad;
 }
 
 export function detectDocumentQuad(sourceCanvas: HTMLCanvasElement): DetectionResult | null {
@@ -105,10 +117,10 @@ export function detectDocumentQuad(sourceCanvas: HTMLCanvasElement): DetectionRe
   const workQuad = quadFromHull(hull);
   const area = polygonArea(workQuad);
   const areaRatio = area / (w * h);
-  if (areaRatio < MIN_AREA_RATIO || areaRatio > MAX_AREA_RATIO) return null;
+  if (areaRatio < MIN_DETECTABLE_AREA_RATIO || areaRatio > MAX_DETECTABLE_AREA_RATIO) return null;
 
   const scaledQuad = workQuad.map((p) => ({ x: p.x / scale, y: p.y / scale })) as Quad;
-  const ordered = orderQuadCorners(scaledQuad);
+  const ordered = expandQuad(orderQuadCorners(scaledQuad), QUAD_SAFETY_MARGIN, fullW, fullH);
 
   // Confidence peaks around a document filling ~55-65% of frame (typical
   // "document on a desk" photo) and tapers off toward the extremes, which

@@ -44,6 +44,7 @@ import {
   trackSignPdf,
 } from "@/utils/analytics/events";
 import { CameraCapture } from "./CameraCapture";
+import { ScannerDebugPanel } from "./ScannerDebugPanel";
 import { PageList } from "./PageList";
 import { PageEditor } from "./PageEditor";
 import { PagePreview } from "./PagePreview";
@@ -973,6 +974,8 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
       )}
 
       {ocrEnabled && ocr.panelOpen && <OcrPanel ocr={ocr} pages={pages} />}
+
+      <ScannerDebugPanel />
     </div>
   );
 }

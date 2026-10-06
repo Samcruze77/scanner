@@ -8,11 +8,14 @@
 // unsafe" outcome, only for genuine failures (decode error, canvas
 // unavailable), which callers should catch and fall back to the original.
 
+import { dataUrlBytes, debugLog } from "./debugLog";
 import { distance, type Quad } from "./geometry";
 import type { ScannerPage } from "./page";
 
-const MAX_OUTPUT_DIMENSION = 1800;
-const JPEG_QUALITY = 0.85;
+// Matches the capture cap in image.ts so processing never downsizes a scan
+// that capture kept at full resolution.
+const MAX_OUTPUT_DIMENSION = 4096;
+const JPEG_QUALITY = 0.92;
 
 export type ProgressCallback = (label: string) => void;
 
@@ -33,6 +36,14 @@ function toCanvas(img: HTMLImageElement): HTMLCanvasElement {
   if (!ctx) throw new Error("canvas_unavailable");
   ctx.drawImage(img, 0, 0);
   return canvas;
+}
+
+// Full-resolution canvases are tens of MB each on a 12MP scan; drop a stage's
+// pixel buffer as soon as the next stage has produced its output so only one
+// or two are ever alive at once.
+function releaseCanvas(canvas: HTMLCanvasElement): void {
+  canvas.width = 0;
+  canvas.height = 0;
 }
 
 function rotateCanvas(canvas: HTMLCanvasElement, rotation: 0 | 90 | 180 | 270): HTMLCanvasElement {
@@ -87,6 +98,7 @@ export async function renderPage(page: ScannerPage, onProgress?: ProgressCallbac
     page.brightness === 0 &&
     page.contrast === 0;
   if (noOpChange) {
+    debugLog("render", { original: `${page.originalWidth}x${page.originalHeight}`, processed: "unchanged original", jpegBytes: dataUrlBytes(page.originalDataUrl) });
     return { dataUrl: page.originalDataUrl, width: page.originalWidth, height: page.originalHeight };
   }
 
@@ -103,6 +115,7 @@ export async function renderPage(page: ScannerPage, onProgress?: ProgressCallbac
     const outH = Math.max(100, Math.round(distance(tl, bl)));
     const warped = warpPerspective(canvas, page.quad, outW, outH);
     if (warped) {
+      releaseCanvas(canvas);
       canvas = warped;
     } else {
       perspectiveFailed = true;
@@ -110,7 +123,9 @@ export async function renderPage(page: ScannerPage, onProgress?: ProgressCallbac
   }
 
   if (page.rotation !== 0) {
-    canvas = rotateCanvas(canvas, page.rotation);
+    const rotated = rotateCanvas(canvas, page.rotation);
+    releaseCanvas(canvas);
+    canvas = rotated;
   }
 
   const hasAdjustments = page.brightness !== 0 || page.contrast !== 0;
@@ -127,14 +142,27 @@ export async function renderPage(page: ScannerPage, onProgress?: ProgressCallbac
     }
   }
 
-  canvas = capDimension(canvas);
+  const capped = capDimension(canvas);
+  if (capped !== canvas) releaseCanvas(canvas);
+  canvas = capped;
 
-  return {
+  const result = {
     dataUrl: canvas.toDataURL("image/jpeg", JPEG_QUALITY),
     width: canvas.width,
     height: canvas.height,
     perspectiveFailed,
   };
+  releaseCanvas(canvas);
+  debugLog("render", {
+    original: `${page.originalWidth}x${page.originalHeight}`,
+    processed: `${result.width}x${result.height}`,
+    jpegBytes: dataUrlBytes(result.dataUrl),
+    jpegQuality: JPEG_QUALITY,
+    cropped: page.cropEnabled && !perspectiveFailed,
+    rotation: page.rotation,
+    enhancement: page.enhancement,
+  });
+  return result;
 }
 
 export interface DetectResult {
@@ -148,5 +176,9 @@ export async function detectPageQuad(page: ScannerPage, onProgress?: ProgressCal
   const img = await loadImage(page.originalDataUrl);
   const canvas = toCanvas(img);
   const { detectDocumentQuad } = await import("./detection");
-  return detectDocumentQuad(canvas);
+  // Detection works on its own small copy; only the quad (in original-image
+  // coordinates) comes back, the full-resolution image is never replaced.
+  const result = detectDocumentQuad(canvas);
+  releaseCanvas(canvas);
+  return result;
 }
