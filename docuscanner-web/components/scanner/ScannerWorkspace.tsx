@@ -291,6 +291,10 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     // Show what was just captured.
     setSelectedPageId(initial.id);
     void runDetectionAndRender(initial);
+    // One capture per camera session: closing the camera here unmounts
+    // CameraCapture (which has already released the stream) and brings the editor
+    // back with the new page appended. "Scan another page" opens a fresh session.
+    setMode("idle");
   }
 
   // Renders each page of a PDF into the workspace, so it can be cropped,
@@ -755,7 +759,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
         </section>
       )}
 
-      {pages.length > 0 && selectedPage && (
+      {mode !== "camera" && pages.length > 0 && selectedPage && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
           <div className="min-w-0 space-y-3">
             <PagePreview
@@ -767,6 +771,10 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
               onNext={() => setSelectedPageId(pages[selectedIndex + 1]?.id ?? null)}
             />
             <PageList pages={pages} selectedId={selectedPage.id} onSelect={setSelectedPageId} />
+            <button type="button" onClick={handleOpenCamera} className="btn btn-primary w-full sm:w-auto">
+              <Icon name="camera" size={18} />
+              Scan another page
+            </button>
           </div>
 
           <div className="min-w-0 space-y-4">
@@ -927,12 +935,10 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
               )}
             </section>
 
-            {mode !== "camera" && (
-              <section aria-label="Add pages" className="card space-y-3 p-4">
-                <h2 className="panel-title">Add more pages</h2>
-                <div className="flex flex-col gap-2">{addButtons(false)}</div>
-              </section>
-            )}
+            <section aria-label="Add pages" className="card space-y-3 p-4">
+              <h2 className="panel-title">Add more pages</h2>
+              <div className="flex flex-col gap-2">{addButtons(false)}</div>
+            </section>
           </div>
         </div>
       )}

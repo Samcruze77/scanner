@@ -172,7 +172,16 @@ export function CameraCapture({
   const [quad, setQuad] = useState<Quad | null>(null);
   const [guidance, setGuidance] = useState<Guidance | null>(null);
   const [diag, setDiag] = useState<string | null>(null);
+  const [captureError, setCaptureError] = useState<string | null>(null);
   const readyStreak = useRef(0);
+
+  // The one place the camera is released: stops every track and detaches the
+  // stream from the preview. Safe to call more than once.
+  function stopStream() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -219,10 +228,15 @@ export function CameraCapture({
 
     start();
 
+    // Leaving the page (or the tab going to the bfcache) must release the
+    // camera even when React doesn't get to unmount us.
+    const release = () => stopStream();
+    window.addEventListener("pagehide", release);
+
     return () => {
       cancelled = true;
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
+      window.removeEventListener("pagehide", release);
+      stopStream();
     };
     // onError/onCapture are stable callbacks from the parent (useCallback) --
     // intentionally not in deps so this doesn't restart the camera stream.
@@ -292,13 +306,28 @@ export function CameraCapture({
     };
   }, []);
 
+  // A successful capture ends the camera session: the frame is taken, the camera
+  // is released straight away, and the parent moves on to the editor. A failed
+  // capture keeps the session open so the person can try again.
   function handleCapture() {
-    if (!videoRef.current) return;
-    onCapture(captureVideoFrame(videoRef.current));
+    const video = videoRef.current;
+    if (!video) return;
+    let captured: CapturedImage;
+    try {
+      // No decoded frame yet (0x0) would otherwise become an empty page.
+      if (!video.videoWidth || !video.videoHeight) throw new Error("no_frame");
+      captured = captureVideoFrame(video);
+    } catch {
+      setCaptureError("Couldn't capture that frame. Hold steady and try again.");
+      return;
+    }
+    setCaptureError(null);
+    stopStream();
+    onCapture(captured);
   }
 
   function handleClose() {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    stopStream();
     onClose();
   }
 
@@ -362,7 +391,12 @@ export function CameraCapture({
           </p>
         )}
       </div>
-      {ready && (
+      {captureError && (
+        <p role="alert" className="text-center text-sm text-red-600">
+          {captureError}
+        </p>
+      )}
+      {ready && !captureError && (
         <p
           role="status"
           className={`text-center text-sm ${isReady ? "font-medium text-green-600" : "text-fg-muted"}`}
@@ -385,7 +419,7 @@ export function CameraCapture({
           onClick={handleClose}
           className="btn btn-secondary btn-lg"
         >
-          Done
+          Cancel
         </button>
       </div>
     </div>
