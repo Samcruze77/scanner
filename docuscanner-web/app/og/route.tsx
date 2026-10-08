@@ -1,15 +1,20 @@
-// The branded 1200x630 social-share image, generated from the same mark and name as the
-// header (no separate design asset to keep in sync). Referenced by utils/seo/metadata.ts
-// as every page's Open Graph / Twitter image, and used as the root layout's default too.
+// The branded 1200x630 social-share image: the FreePDFScanner logo (public/brand/logo-full.png)
+// on its own black background, with the site description beneath. Referenced by
+// utils/seo/metadata.ts as every page's Open Graph / Twitter image, and used as the root
+// layout's default too.
 
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { ImageResponse } from "next/og";
-import { SITE_DESCRIPTION, SITE_NAME } from "@/utils/seo/site";
+import { SITE_DESCRIPTION } from "@/utils/seo/site";
 
 // The image is the same for every request, so this can be generated once at build time
 // rather than on the (deprecated) edge runtime per request.
 export const dynamic = "force-static";
 
-export function GET() {
+export async function GET() {
+  const file = await readFile(path.join(process.cwd(), "public", "brand", "logo-full.png"));
+  const logo = `data:image/png;base64,${file.toString("base64")}`;
   return new ImageResponse(
     (
       <div
@@ -20,30 +25,13 @@ export function GET() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "#fafafa",
+          background: "#000000",
           fontFamily: "system-ui, sans-serif",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <div
-            style={{
-              width: 96,
-              height: 96,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "#155DFC",
-              borderRadius: 22,
-            }}
-          >
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 3h7l5 5v13H7z" />
-              <path d="M10 13h6M10 17h6" />
-            </svg>
-          </div>
-          <span style={{ fontSize: 76, fontWeight: 700, color: "#18181b", letterSpacing: -1 }}>{SITE_NAME}</span>
-        </div>
-        <span style={{ marginTop: 28, fontSize: 30, color: "#52525b", maxWidth: 900, textAlign: "center" }}>{SITE_DESCRIPTION}</span>
+        {/* eslint-disable-next-line @next/next/no-img-element -- rendered by satori, not the browser */}
+        <img src={logo} alt="" width={420} height={340} />
+        <span style={{ marginTop: 20, fontSize: 28, color: "#d4d4d8", maxWidth: 960, textAlign: "center" }}>{SITE_DESCRIPTION}</span>
       </div>
     ),
     { width: 1200, height: 630 },

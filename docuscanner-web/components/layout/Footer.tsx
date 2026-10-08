@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { CookieSettingsButton } from "@/components/consent/CookieSettingsButton";
+import { Logo } from "@/components/layout/Logo";
 import { FEATURES } from "@/utils/features/plans";
 import { GUIDES } from "@/utils/seo/guides";
 import { SITE_NAME } from "@/utils/seo/site";
@@ -58,7 +59,7 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
-            <p className="text-base font-semibold">{SITE_NAME}</p>
+            <Logo variant="full" />
             <p className="muted mt-2 max-w-xs text-sm leading-6">
               Free online PDF scanner and document tools. Your files are processed in your browser and are not uploaded.
             </p>

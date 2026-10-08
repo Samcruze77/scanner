@@ -24,7 +24,7 @@ export function organizationSchema(): Json {
     "@id": ORG_ID(),
     name: SITE_NAME,
     url: `${getSiteUrl()}/`,
-    logo: { "@type": "ImageObject", url: absoluteUrl("/icon"), width: 512, height: 512 },
+    logo: { "@type": "ImageObject", url: absoluteUrl("/brand/icon-512.png"), width: 512, height: 512 },
   };
 }
 

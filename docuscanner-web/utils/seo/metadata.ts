@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 import { SITE_NAME } from "./site";
 
 // The branded 1200x630 share image (app/og/route.tsx).
-export const SHARE_IMAGE = { url: "/og", width: 1200, height: 630, alt: "PDFScanner: free online PDF scanner and document tools" };
+export const SHARE_IMAGE = { url: "/og", width: 1200, height: 630, alt: "FreePDFScanner: free online PDF scanner and document tools" };
 
 interface PageMeta {
   // The page's own title. The site name is added by the title template in app/layout.tsx.

@@ -1,19 +1,37 @@
-// The PDFScanner mark and wordmark. The wordmark is shown at every width, including
-// mobile, so the app is identifiable at a glance there too -- just a size smaller than
-// on desktop to keep the header compact. `showWordmark` still exists for a spot (e.g. a
-// tight admin nav) that wants the mark on its own.
-export function Logo({ showWordmark = true }: { showWordmark?: boolean }) {
+import Image from "next/image";
+
+// The FreePDFScanner brand. The artwork is black-backed with white wordmark text, so it is
+// served as a self-contained dark tile that stays legible on every theme's chrome (Light,
+// Soft Gray and Dark) without touching the theme palette. Files live in public/brand and are
+// derived from the supplied logo; next/image resizes them per device.
+//
+// Below 480px the header has no room for the wordmark next to the Log in / Sign up buttons,
+// so the tile shows just the mark there; at 480px and up it shows the full lockup. Only one
+// of the two is ever rendered by the browser (the other is display:none), so the link has
+// exactly one accessible name. `variant="mark"` pins the mark for tight spots.
+export function Logo({ variant = "responsive" }: { variant?: "responsive" | "full" | "mark" }) {
+  const showMark = variant !== "full";
+  const showFull = variant !== "mark";
   return (
-    <span className="flex min-w-0 items-center gap-2">
-      <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M7 3h7l5 5v13H7z" />
-          <path d="M10 13h6M10 17h6" />
-        </svg>
-      </span>
-      {showWordmark && (
-        <span className="truncate text-sm font-semibold tracking-tight sm:text-base">PDFScanner</span>
+    <>
+      {showMark && (
+        <Image
+          src="/brand/logo-mark.png"
+          alt="FreePDFScanner logo"
+          width={44}
+          height={44}
+          className={`h-11 w-11 shrink-0 rounded-lg ${variant === "responsive" ? "min-[480px]:hidden" : ""}`}
+        />
       )}
-    </span>
+      {showFull && (
+        <Image
+          src="/brand/logo-horizontal.png"
+          alt="FreePDFScanner logo"
+          width={168}
+          height={44}
+          className={`h-11 w-auto shrink-0 rounded-lg ${variant === "responsive" ? "hidden min-[480px]:block" : ""}`}
+        />
+      )}
+    </>
   );
 }
