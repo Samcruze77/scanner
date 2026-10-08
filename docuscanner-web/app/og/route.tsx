@@ -1,5 +1,5 @@
 // The branded 1200x630 social-share image: the FreePDFScanner logo (public/brand/logo-full.png)
-// on its own black background, with the site description beneath. Referenced by
+// on white, with the site description beneath. Referenced by
 // utils/seo/metadata.ts as every page's Open Graph / Twitter image, and used as the root
 // layout's default too.
 
@@ -25,13 +25,13 @@ export async function GET() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "#000000",
+          background: "#ffffff",
           fontFamily: "system-ui, sans-serif",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- rendered by satori, not the browser */}
         <img src={logo} alt="" width={420} height={340} />
-        <span style={{ marginTop: 20, fontSize: 28, color: "#d4d4d8", maxWidth: 960, textAlign: "center" }}>{SITE_DESCRIPTION}</span>
+        <span style={{ marginTop: 20, fontSize: 28, color: "#52525b", maxWidth: 960, textAlign: "center" }}>{SITE_DESCRIPTION}</span>
       </div>
     ),
     { width: 1200, height: 630 },
