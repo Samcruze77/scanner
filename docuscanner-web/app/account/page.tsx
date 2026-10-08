@@ -4,7 +4,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { DeleteAccountPanel } from "@/components/account/DeleteAccountPanel";
 import { privateMetadata } from "@/utils/seo/metadata";
 
-export const metadata: Metadata = privateMetadata("Account - PDFScanner");
+export const metadata: Metadata = privateMetadata("Account - FreePDFScanner");
 
 export default function AccountPage() {
   return (

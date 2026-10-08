@@ -13,7 +13,7 @@ import { HistoryPrintButton } from "./HistoryPrintButton";
 // true` (not the harsher `nofollow`) because the page itself links to real public pages
 // (Scan a document) that are fine for a crawler to reach.
 export const metadata: Metadata = {
-  title: "Document history - PDFScanner",
+  title: "Document history - FreePDFScanner",
   robots: { index: false, follow: true },
 };
 

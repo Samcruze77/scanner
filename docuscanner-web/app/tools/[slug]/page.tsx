@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const landing = getLanding(path);
   return pageMetadata({
     title: landing?.title ?? tool.title,
-    absoluteTitle: landing ? `${landing.h1} - PDFScanner` : `${tool.title} - PDFScanner`,
+    absoluteTitle: landing ? `${landing.h1} - FreePDFScanner` : `${tool.title} - FreePDFScanner`,
     description: landing?.description ?? `${tool.body} Free, in your browser.`,
     // A near-duplicate tool (e.g. Draw, Highlight) canonicalizes to the fuller editor it's
     // part of -- see utils/seo/toolCanonicals.ts -- so its own URL is never what search

@@ -15,7 +15,7 @@ const landing = getLanding("/document-converter")!;
 
 export const metadata: Metadata = pageMetadata({
   title: landing.title,
-  absoluteTitle: `${landing.h1} - PDFScanner`,
+  absoluteTitle: `${landing.h1} - FreePDFScanner`,
   description: landing.description,
   path: "/document-converter",
 });

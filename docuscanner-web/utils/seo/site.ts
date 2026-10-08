@@ -9,7 +9,7 @@
 //   4. http://localhost:3000         -- local development and local production builds.
 // So switching to a custom domain is one environment variable, not a code change.
 
-export const SITE_NAME = "PDFScanner";
+export const SITE_NAME = "FreePDFScanner";
 
 // Used as the default description and in structured data.
 export const SITE_DESCRIPTION =

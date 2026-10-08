@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!guide) return {};
   return pageMetadata({
     title: guide.title,
-    absoluteTitle: `${guide.h1} - PDFScanner`,
+    absoluteTitle: `${guide.h1} - FreePDFScanner`,
     description: guide.description,
     path: `/guides/${slug}`,
     type: "article",

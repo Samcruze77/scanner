@@ -8,7 +8,7 @@ import { TOOL_GROUPS, toolsInGroup } from "@/utils/tools/registry";
 
 export const metadata: Metadata = pageMetadata({
   title: "Tools",
-  absoluteTitle: "Tools - PDFScanner",
+  absoluteTitle: "Tools - FreePDFScanner",
   description: "Edit, sign, compress and password-protect documents for free, right in your browser. Nothing is uploaded.",
   path: "/tools",
 });

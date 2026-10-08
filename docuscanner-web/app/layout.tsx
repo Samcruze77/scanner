@@ -29,7 +29,7 @@ const geistMono = Geist_Mono({
 // wrong in production.
 //
 // No title.template here on purpose: every page already writes its own full title
-// ("Tools - PDFScanner", "Compress PDF - PDFScanner" ...), so a template would double
+// ("Tools - FreePDFScanner", "Compress PDF - FreePDFScanner" ...), so a template would double
 // up the site name instead of just filling in a gap. This plain title/description is
 // what a page falls back to only if it defines none of its own (none currently do).
 export const metadata: Metadata = {

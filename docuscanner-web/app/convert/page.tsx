@@ -8,7 +8,7 @@ import { pageMetadata } from "@/utils/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
   title: "Convert files",
-  absoluteTitle: "Convert files - PDFScanner",
+  absoluteTitle: "Convert files - FreePDFScanner",
   description: "Scan, edit and sign documents, and convert between Word, PDF and Excel. Free, in your browser.",
   path: "/convert",
 });

@@ -7,7 +7,7 @@ import { pageMetadata } from "@/utils/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
   title: "Guides",
-  absoluteTitle: "PDF and document guides - PDFScanner",
+  absoluteTitle: "PDF and document guides - FreePDFScanner",
   description: "Short, practical guides to scanning, compressing, converting and signing documents, each one leading straight to the PDFScanner tool that does it.",
   path: "/guides",
 });

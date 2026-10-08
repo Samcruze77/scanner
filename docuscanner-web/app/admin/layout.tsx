@@ -13,7 +13,7 @@ const KNOWN_ROLES: AdminRole[] = ["super_admin", "admin", "analyst"];
 // app/robots.ts). Access itself is enforced below and in the server-side auth check
 // this layout runs on every request -- this metadata only keeps it out of search
 // results; it grants nothing.
-export const metadata: Metadata = privateMetadata("Admin - PDFScanner");
+export const metadata: Metadata = privateMetadata("Admin - FreePDFScanner");
 
 export default async function AdminLayout({
   children,
