@@ -1,0 +1,14 @@
+experiment_id,campaign,channel,source_or_url,utm_or_referrer_tag,start_date,end_date,cost_usd,qualified_visits,tool_opened,completed_tool_uses,return_visits_7d,responses,backlink_or_listing_live,outcome,notes
+E01,Directory listing,public.tools,https://public.tools/,utm_source=public_tools,,,0,,,,,,,planned,Needs owner approval; verify no-signup claim first
+E02,Directory listing,AlternativeTo,https://alternativeto.net/software/ilovepdf-com/,utm_source=alternativeto,,,0,,,,,,,planned,Read rules first
+E03,Directory listing,SaaSHub,https://www.saashub.com/submit,utm_source=saashub,,,0,,,,,,,planned,
+E04,Launch,Product Hunt,https://www.producthunt.com/launch,utm_source=producthunt,,,0,,,,,,,planned,Personal account; no upvote requests
+E05,Community,Show HN,https://news.ycombinator.com/showhn.html,utm_source=hn,,,0,,,,,,,planned,Only with technical write-up
+E06,Content,DEV Community article,https://dev.to/,utm_source=devto,,,0,,,,,,,planned,
+E07,SEO,/jpg-to-pdf /png-to-pdf landing pages,https://www.freepdfscanner.com/jpg-to-pdf,organic,,,0,,,,,,,planned,Baseline from Search Console (needs owner access)
+E08,SEO,/pdf-to-text /pdf-to-csv landing pages,https://www.freepdfscanner.com/pdf-to-text,organic,,,0,,,,,,,planned,
+E09,Directory listing (paid),webtoolslist.com,https://webtoolslist.com/,utm_source=webtoolslist,,,19,,,,,,,needs approval,One-time USD 19
+E10,Guide (SEO + distribution),Compression guide,https://www.freepdfscanner.com/guides/how-to-compress-a-pdf-to-1mb-or-2mb,organic + utm_source=devto for cross-post,2026-10-11,,0,,,,,,,live - awaiting data,"Live 2026-10-11 (deploy dpl_GzzAaYXdchNaGGGMp1wB2YH3DSVD, commit f86ba10). Verified live: 200, www canonical, in sitemap. Next: submit URL in Search Console. Audience: applicants/students/professionals with upload limits. Measure guide -> /tools/compress-pdf click -> completed compression"
+E11,Guide (SEO + distribution),Privacy guide,https://www.freepdfscanner.com/guides/how-to-check-a-pdf-site-does-not-upload-your-file,organic + utm_source=hn if submitted,2026-10-11,,0,,,,,,,live - awaiting data,"Live 2026-10-11 (commit f86ba10). Verified live: 200, www canonical, in sitemap. Next: submit URL in Search Console. Audience: privacy-conscious users and businesses. Optional HN regular submission only if owner judges it interesting beyond promotion"
+E12,Guide (SEO + distribution),Alternatives guide,https://www.freepdfscanner.com/guides/ilovepdf-alternatives-compared,organic,2026-10-11,,0,,,,,,,live - awaiting data,"Live 2026-10-11 (commit f86ba10). Verified live: 200, www canonical, in sitemap. Next: submit URL in Search Console. Audience: people comparing free PDF tools. Reference from directory profiles only where allowed"
+E13,Content cross-post,DEV Community (compression or privacy guide),https://dev.to/,utm_source=devto&utm_medium=crosspost,,,0,,,,,,,planned,Use canonical_url pointing to the original guide
