@@ -30,7 +30,7 @@ function rowsFromOcrText(text: string): string[][] {
 export async function buildXlsxFromOcrPages(pages: OcrXlsxPage[], layout: OcrXlsxLayout): Promise<Blob> {
   const { Workbook } = await loadExcelJs();
   const workbook = new Workbook();
-  workbook.creator = "PDFScanner";
+  workbook.creator = "FreePDFScanner";
 
   if (layout === "single-sheet") {
     writeRows(workbook.addWorksheet("All pages"), pages.flatMap((p) => rowsFromOcrText(p.text)));

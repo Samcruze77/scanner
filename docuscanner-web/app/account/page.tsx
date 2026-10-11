@@ -9,7 +9,7 @@ export const metadata: Metadata = privateMetadata("Account - FreePDFScanner");
 export default function AccountPage() {
   return (
     <PageShell width="narrow" ads="content" maskRecordings>
-      <PageHeader title="Your account">Manage your PDFScanner account.</PageHeader>
+      <PageHeader title="Your account">Manage your FreePDFScanner account.</PageHeader>
       <DeleteAccountPanel />
     </PageShell>
   );

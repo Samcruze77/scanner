@@ -236,7 +236,7 @@ export async function convertPdfToExcel(file: File, options: PdfToExcelOptions):
 
   const { Workbook } = await loadExcelJs();
   const workbook = new Workbook();
-  workbook.creator = "PDFScanner";
+  workbook.creator = "FreePDFScanner";
 
   let sheetCount = 0;
   if (options.layout === "single-sheet") {

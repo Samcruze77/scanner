@@ -322,7 +322,7 @@ export function ProtectTool({ focus = "pdf" }: { focus?: Focus }) {
           </fieldset>
 
           <div className="notice notice-warning !block">
-            <strong>Don&apos;t forget this password.</strong> PDFScanner never sees it and cannot recover it. Keep it somewhere safe: if it is lost, the {isOffice ? "document" : "PDF"} cannot be opened.
+            <strong>Don&apos;t forget this password.</strong> FreePDFScanner never sees it and cannot recover it. Keep it somewhere safe: if it is lost, the {isOffice ? "document" : "PDF"} cannot be opened.
           </div>
 
           {stage.name === "ready" ? (

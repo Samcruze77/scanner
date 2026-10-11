@@ -55,7 +55,7 @@ export interface LandingPage {
 
 // Shared wording so the privacy promise is identical, and true, everywhere.
 const PRIVATE =
-  "Your file is processed in your browser, on your own device. It is not uploaded to PDFScanner's servers. PDFScanner counts basic usage, such as which tool was opened, but never sees what is inside your document.";
+  "Your file is processed in your browser, on your own device. It is not uploaded to FreePDFScanner's servers. FreePDFScanner counts basic usage, such as which tool was opened, but never sees what is inside your document.";
 
 const LINKS = {
   scan: { href: "/scan", label: "Scan a document to PDF", note: "Photograph or upload pages and export one PDF." },
@@ -92,7 +92,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Use your camera or upload a file, tidy up the pages, and export one clean PDF. It is free, needs no account, and your pages stay in your browser.",
     crumbs: [{ name: "Scan", path: "/scan" }],
-    appName: "PDFScanner document scanner",
+    appName: "FreePDFScanner document scanner",
     features: [
       "Scan pages with your camera or upload photos",
       "Automatic edge detection, crop and rotate",
@@ -119,9 +119,9 @@ export const LANDING_PAGES: LandingPage[] = [
     ],
     privacy: `${PRIVATE} Only if you choose Save to account is the finished PDF stored for you.`,
     faq: [
-      { q: "Is this scanner really free?", a: "Yes. Scanning, editing, signing, printing and downloading are free and need no account. PDFScanner is supported by ads." },
-      { q: "Can I scan with my phone?", a: "Yes. Open PDFScanner in your phone's browser, tap Use camera and allow camera access. You can also upload photos you have already taken." },
-      { q: "Does it add a watermark?", a: "No. The PDF you download has no PDFScanner watermark." },
+      { q: "Is this scanner really free?", a: "Yes. Scanning, editing, signing, printing and downloading are free and need no account. FreePDFScanner is supported by ads." },
+      { q: "Can I scan with my phone?", a: "Yes. Open FreePDFScanner in your phone's browser, tap Use camera and allow camera access. You can also upload photos you have already taken." },
+      { q: "Does it add a watermark?", a: "No. The PDF you download has no FreePDFScanner watermark." },
       { q: "Can I put several pages into one PDF?", a: "Yes. Add more pages, reorder them, then create a single PDF from all of them." },
     ],
     related: [LINKS.ocr, LINKS.compressPdf, LINKS.sign, LINKS.editor, LINKS.imageToPdf],
@@ -135,7 +135,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Crop, rotate and reorder pages, then add text, marks and your signature on top. Everything happens in your browser and needs no account.",
     crumbs: [TOOLS_CRUMB, { name: "PDF editor", path: "/tools/pdf-editor" }],
-    appName: "PDFScanner PDF editor",
+    appName: "FreePDFScanner PDF editor",
     features: [
       "Crop, rotate and straighten pages",
       "Reorder and remove pages",
@@ -174,7 +174,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Add your signature to a PDF without printing it. Draw, type or upload your signature, place it where it belongs, then download the signed PDF.",
     crumbs: [TOOLS_CRUMB, { name: "Sign PDF", path: "/tools/sign-pdf" }],
-    appName: "PDFScanner PDF signer",
+    appName: "FreePDFScanner PDF signer",
     features: [
       "Draw, type or upload a signature",
       "Choose ink colour",
@@ -199,7 +199,7 @@ export const LANDING_PAGES: LandingPage[] = [
     privacy: `${PRIVATE} A saved signature stays in this browser only and you can remove it at any time.`,
     faq: [
       { q: "Do I need an account to sign a PDF?", a: "No. Signing works for guests, with no sign-up." },
-      { q: "Is a signature made here legally binding?", a: "That depends on where you are and what the document is. PDFScanner places your signature image on the page; it does not provide a certified digital signature or legal advice." },
+      { q: "Is a signature made here legally binding?", a: "That depends on where you are and what the document is. FreePDFScanner places your signature image on the page; it does not provide a certified digital signature or legal advice." },
       { q: "Can I sign more than one page?", a: "Yes. Open each page in turn; your last signature is offered again so you do not need to redraw it." },
     ],
     related: [LINKS.editor, LINKS.annotate, LINKS.scan, LINKS.compressPdf],
@@ -213,7 +213,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Mark up a document with text, highlights, drawings, check marks, X marks, dates and signatures, all in one editor and all in your browser.",
     crumbs: [TOOLS_CRUMB, { name: "Annotate", path: "/tools/annotate" }],
-    appName: "PDFScanner PDF annotator",
+    appName: "FreePDFScanner PDF annotator",
     features: [
       "Add text with size, colour and style",
       "Highlight areas",
@@ -252,7 +252,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Turn a scanned PDF or a photo of a document into text you can search, edit and copy. The text recognition runs in your browser, so your document stays on your device.",
     crumbs: [TOOLS_CRUMB, { name: "OCR", path: "/tools/ocr" }],
-    appName: "PDFScanner OCR",
+    appName: "FreePDFScanner OCR",
     features: [
       "Read text from scanned PDFs and photos",
       "Runs in the browser",
@@ -274,7 +274,7 @@ export const LANDING_PAGES: LandingPage[] = [
       "Accuracy depends on the scan. A sharp, well-lit, straight page reads best; handwriting and unusual fonts read poorly. Check the result before you rely on it.",
       "The text is shown and copied. It is not added to the PDF as a hidden text layer, and it is not saved as a file.",
     ],
-    privacy: `${PRIVATE} The text engine is served from PDFScanner itself, not a third-party service.`,
+    privacy: `${PRIVATE} The text engine is served from FreePDFScanner itself, not a third-party service.`,
     faq: [
       { q: "Is the OCR free?", a: "Yes. Basic text recognition is free and needs no account." },
       { q: "Is my document sent to a server?", a: "No. Recognition runs in your browser, so the pages never leave your device." },
@@ -292,7 +292,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Make a PDF small enough to email or upload. Slide from higher quality to a smaller file, see the estimated size first, and keep your original untouched.",
     crumbs: [TOOLS_CRUMB, { name: "Compress PDF", path: "/tools/compress-pdf" }],
-    appName: "PDFScanner PDF compressor",
+    appName: "FreePDFScanner PDF compressor",
     features: [
       "Five quality-to-size levels",
       "Size estimate before you compress",
@@ -318,7 +318,7 @@ export const LANDING_PAGES: LandingPage[] = [
     privacy: PRIVATE,
     faq: [
       { q: "How do I compress a PDF without losing quality?", a: "Start at the lighter levels. They recompress the pictures inside the PDF and leave the text alone, and the estimate shows the size you can expect before you commit." },
-      { q: "Can I compress a PDF to a specific size?", a: "Yes. Under More options, enter a target size and PDFScanner picks the lightest level that fits. If it cannot fit without wrecking quality, it tells you." },
+      { q: "Can I compress a PDF to a specific size?", a: "Yes. Under More options, enter a target size and FreePDFScanner picks the lightest level that fits. If it cannot fit without wrecking quality, it tells you." },
       { q: "Is there a file size limit?", a: "PDFs up to 100 MB. There is no daily limit and no account is needed." },
     ],
     related: [LINKS.guideCompressTarget, LINKS.compressImage, LINKS.scan, LINKS.editor, LINKS.imageToPdf],
@@ -332,7 +332,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Add a password so your PDF asks for it before it opens. Choose whether people may print, copy or edit it. No account, and nothing is uploaded: the file is locked on your own device.",
     crumbs: [TOOLS_CRUMB, { name: "Protect PDF", path: "/tools/protect-pdf" }],
-    appName: "PDFScanner PDF protector",
+    appName: "FreePDFScanner PDF protector",
     features: [
       "Password required to open the PDF",
       "AES-256 encryption, opens in normal PDF readers",
@@ -352,7 +352,7 @@ export const LANDING_PAGES: LandingPage[] = [
       ? "PDF files up to 100 MB. JPG, PNG and WebP pictures are turned into a one-page PDF first. Word, Excel and PowerPoint files have their own pages (Protect Word Document, Protect Excel Workbook, Protect PowerPoint Presentation)."
       : "PDF files up to 100 MB. JPG, PNG and WebP pictures are turned into a one-page PDF first. Word and Excel files must be converted to PDF before they can be protected.",
     limits: [
-      "If you forget the password, the PDF cannot be opened. PDFScanner never sees the password and cannot recover it.",
+      "If you forget the password, the PDF cannot be opened. FreePDFScanner never sees the password and cannot recover it.",
       "Printing, copying and editing limits are requests that PDF apps honour; they are not a lock. The password is what keeps the file private. Anyone you share it with can read the file.",
       "PDFs that already have a password or restrictions are not changed. Remove those first.",
       "Choose a password that is not easy to guess, and send it separately from the file. Plain letters and numbers work in every PDF app; some apps handle other characters differently.",
@@ -360,7 +360,7 @@ export const LANDING_PAGES: LandingPage[] = [
     privacy: PRIVATE,
     faq: [
       { q: "How do I password protect a PDF for free?", a: "Choose your PDF, enter a password twice, and choose Protect PDF. Then download the locked copy. It is free and needs no account." },
-      { q: "Is my PDF or password uploaded?", a: "No. The PDF is locked by code running in your browser, so neither the file nor the password is sent to PDFScanner. Only your browser downloads the small program that does the locking." },
+      { q: "Is my PDF or password uploaded?", a: "No. The PDF is locked by code running in your browser, so neither the file nor the password is sent to FreePDFScanner. Only your browser downloads the small program that does the locking." },
       { q: "How strong is the protection?", a: "The PDF is encrypted with AES-256, the strongest standard PDF encryption. Its strength then depends mostly on your password, so pick a long one." },
       {
         q: "Can I protect a Word document or a picture?",
@@ -368,7 +368,7 @@ export const LANDING_PAGES: LandingPage[] = [
           ? "A picture (JPG, PNG or WebP) is turned into a one-page PDF and protected. Word, Excel and PowerPoint files can be password protected with their own tools, which use Microsoft Office's own encryption instead of turning them into PDFs."
           : "A picture (JPG, PNG or WebP) is turned into a one-page PDF and protected. A Word or Excel file has to be converted to PDF first; the Word to PDF converter does that.",
       },
-      { q: "Can I recover a forgotten password?", a: "No. Nobody, including PDFScanner, can open the file without it." },
+      { q: "Can I recover a forgotten password?", a: "No. Nobody, including FreePDFScanner, can open the file without it." },
     ],
     related: [LINKS.compressPdf, LINKS.sign, LINKS.editor, LINKS.wordToPdf],
   },
@@ -377,7 +377,7 @@ export const LANDING_PAGES: LandingPage[] = [
         officePage({
           path: "/tools/protect-word",
           crumb: "Protect Word Document",
-          appName: "PDFScanner Word document protector",
+          appName: "FreePDFScanner Word document protector",
           app: "Word",
           noun: "Word document",
           title: "Protect Word Document: Password Protect a DOCX for Free",
@@ -395,7 +395,7 @@ export const LANDING_PAGES: LandingPage[] = [
         officePage({
           path: "/tools/protect-excel",
           crumb: "Protect Excel Workbook",
-          appName: "PDFScanner Excel workbook protector",
+          appName: "FreePDFScanner Excel workbook protector",
           app: "Excel",
           noun: "Excel workbook",
           title: "Protect Excel Workbook: Password Protect an XLSX for Free",
@@ -413,7 +413,7 @@ export const LANDING_PAGES: LandingPage[] = [
         officePage({
           path: "/tools/protect-powerpoint",
           crumb: "Protect PowerPoint Presentation",
-          appName: "PDFScanner PowerPoint presentation protector",
+          appName: "FreePDFScanner PowerPoint presentation protector",
           app: "PowerPoint",
           noun: "PowerPoint presentation",
           title: "Protect PowerPoint: Password Protect a PPTX for Free",
@@ -439,7 +439,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Make a photo smaller with a quality-to-size slider and see the estimated size first. Your original is never changed.",
     crumbs: [TOOLS_CRUMB, { name: "Compress image", path: "/tools/compress-image" }],
-    appName: "PDFScanner image compressor",
+    appName: "FreePDFScanner image compressor",
     features: ["Quality-to-size slider", "Size estimate", "Optional target size and image dimensions", "Original is never changed"],
     how: [
       "Choose a JPG, PNG or WebP picture (up to 60 MB).",
@@ -468,7 +468,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Most of a Word file's size is the pictures inside it. This shrinks those pictures and leaves your text, layout and formatting exactly as they are.",
     crumbs: [TOOLS_CRUMB, { name: "Compress Word", path: "/tools/compress-word" }],
-    appName: "PDFScanner Word compressor",
+    appName: "FreePDFScanner Word compressor",
     features: ["Shrinks pictures inside a .docx", "Text and layout untouched", "Size estimate", "Original is never changed"],
     how: [
       "Choose a Word document (.docx, up to 100 MB).",
@@ -497,7 +497,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "If an Excel workbook is big, it is usually because of pictures. This shrinks them and leaves your formulas, sheets and formatting exactly as they are.",
     crumbs: [TOOLS_CRUMB, { name: "Compress Excel", path: "/tools/compress-excel" }],
-    appName: "PDFScanner Excel compressor",
+    appName: "FreePDFScanner Excel compressor",
     features: ["Shrinks pictures inside an .xlsx", "Formulas, sheets and formatting untouched", "Size estimate", "Original is never changed"],
     how: [
       "Choose an Excel workbook (.xlsx, up to 100 MB).",
@@ -526,7 +526,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Combine photos and pictures into a single PDF. Crop, straighten and reorder them first, then download. It is free and needs no account.",
     crumbs: [CONVERT_CRUMB, { name: "Image to PDF", path: "/convert/image-to-pdf" }],
-    appName: "PDFScanner image to PDF converter",
+    appName: "FreePDFScanner image to PDF converter",
     features: ["Convert JPG, PNG and other images to PDF", "Combine several images into one PDF", "Crop, rotate and enhance each page", "Reorder pages"],
     how: [
       "Add your images with Upload document (you can choose several at once).",
@@ -556,7 +556,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Turn a Word document into a PDF that keeps your fonts, spacing, margins, tables, pictures, headers and footers. It runs in your browser and needs no account.",
     crumbs: [CONVERT_CRUMB, { name: "Word to PDF", path: "/convert/word-to-pdf" }],
-    appName: "PDFScanner Word to PDF converter",
+    appName: "FreePDFScanner Word to PDF converter",
     features: ["Convert .docx to PDF", "Keeps fonts, tables, pictures, headers and footers", "Preview the first page", "Edit and sign the result"],
     how: [
       "Choose your Word document (.docx).",
@@ -587,7 +587,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Get an editable Word document from a PDF. Text PDFs convert directly, and scanned pages are read with text recognition. It runs in your browser.",
     crumbs: [CONVERT_CRUMB, { name: "PDF to Word", path: "/convert/pdf-to-word" }],
-    appName: "PDFScanner PDF to Word converter",
+    appName: "FreePDFScanner PDF to Word converter",
     features: ["Convert PDF to .docx", "Reads scanned pages with OCR", "Runs in the browser"],
     how: [
       "Choose your PDF (up to 100 pages).",
@@ -617,7 +617,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Turn a spreadsheet into a paginated PDF that is ready to share or print. Choose which sheets to include and how they are laid out.",
     crumbs: [CONVERT_CRUMB, { name: "Excel to PDF", path: "/convert/excel-to-pdf" }],
-    appName: "PDFScanner Excel to PDF converter",
+    appName: "FreePDFScanner Excel to PDF converter",
     features: ["Convert .xlsx and CSV to PDF", "Choose sheets", "Keeps values, fonts, colours, borders and merged cells", "Optional gridlines"],
     how: [
       "Choose an Excel workbook (.xlsx) or a CSV file.",
@@ -647,7 +647,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Extract the tables from a PDF into a real spreadsheet with numbers you can add up. It runs in your browser.",
     crumbs: [CONVERT_CRUMB, { name: "PDF to Excel", path: "/convert/pdf-to-excel" }],
-    appName: "PDFScanner PDF to Excel converter",
+    appName: "FreePDFScanner PDF to Excel converter",
     features: ["Extract PDF tables to .xlsx", "Numbers become real numbers", "Reads scanned pages with OCR (one line per row)"],
     how: [
       "Choose a PDF (up to 100 pages).",
@@ -677,7 +677,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Turn one or more JPG photos into a single PDF. Add your files, put them in order, then download -- it is free, needs no account, and your photos never leave your browser.",
     crumbs: [{ name: "JPG to PDF", path: "/jpg-to-pdf" }],
-    appName: "PDFScanner JPG to PDF converter",
+    appName: "FreePDFScanner JPG to PDF converter",
     features: ["Convert JPG photos to PDF", "Combine several JPGs into one PDF", "Crop, rotate and enhance each page", "Reorder pages before you export"],
     how: [
       "Open the JPG to PDF converter and add your photos (choose several at once if you like).",
@@ -706,7 +706,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Turn one or more PNG images into a single PDF. Add your files, put them in order, then download -- it is free, needs no account, and your images never leave your browser.",
     crumbs: [{ name: "PNG to PDF", path: "/png-to-pdf" }],
-    appName: "PDFScanner PNG to PDF converter",
+    appName: "FreePDFScanner PNG to PDF converter",
     features: ["Convert PNG images to PDF", "Combine several PNGs into one PDF", "Crop, rotate and enhance each page", "Reorder pages before you export"],
     how: [
       "Open the PNG to PDF converter and add your images (choose several at once if you like).",
@@ -733,9 +733,9 @@ export const LANDING_PAGES: LandingPage[] = [
       "Turn your phone or computer camera into a document scanner. Photograph pages, straighten and crop them automatically, then export one PDF. Free and private.",
     h1: "Scan to PDF with your phone or camera",
     intro:
-      "Use your phone or computer's camera as a document scanner: photograph each page, let PDFScanner straighten and crop it, then export one tidy PDF -- all in your browser.",
+      "Use your phone or computer's camera as a document scanner: photograph each page, let FreePDFScanner straighten and crop it, then export one tidy PDF -- all in your browser.",
     crumbs: [{ name: "Scan to PDF", path: "/scan-to-pdf" }],
-    appName: "PDFScanner document scanner",
+    appName: "FreePDFScanner document scanner",
     features: [
       "Photograph pages with your phone or webcam",
       "Automatic edge detection, crop and straighten",
@@ -756,7 +756,7 @@ export const LANDING_PAGES: LandingPage[] = [
     ],
     privacy: `${PRIVATE} Only if you choose Save to account is the finished PDF stored for you.`,
     faq: [
-      { q: "Do I need to install an app to scan with my phone?", a: "No. Open PDFScanner in your phone's browser and allow camera access -- there is nothing to install." },
+      { q: "Do I need to install an app to scan with my phone?", a: "No. Open FreePDFScanner in your phone's browser and allow camera access -- there is nothing to install." },
       { q: "Does it straighten crooked photos automatically?", a: "Yes. Page edges are detected and the page is straightened for you, and you can always adjust the crop by hand." },
     ],
     related: [LINKS.ocr, LINKS.compressPdf, LINKS.sign, LINKS.editor],
@@ -770,7 +770,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Crop, rotate and reorder pages, then add text, marks and your signature on top -- all for free, in your browser, with no account needed.",
     crumbs: [{ name: "Edit PDF", path: "/edit-pdf" }],
-    appName: "PDFScanner PDF editor",
+    appName: "FreePDFScanner PDF editor",
     features: [
       "Crop, rotate and straighten pages",
       "Reorder and remove pages",
@@ -803,9 +803,9 @@ export const LANDING_PAGES: LandingPage[] = [
       "Convert PDF to Word or Excel, and Word, Excel or images to PDF -- all free, in your browser. Pick a format below; nothing is uploaded to a server.",
     h1: "Free online PDF converter",
     intro:
-      "One place for every PDF conversion PDFScanner offers: turn a PDF into Word or Excel, or turn Word, Excel and images into a PDF. Pick the conversion you need below.",
+      "One place for every PDF conversion FreePDFScanner offers: turn a PDF into Word or Excel, or turn Word, Excel and images into a PDF. Pick the conversion you need below.",
     crumbs: [{ name: "PDF converter", path: "/pdf-converter" }],
-    appName: "PDFScanner PDF converter",
+    appName: "FreePDFScanner PDF converter",
     features: ["Convert PDF to Word (.docx)", "Convert PDF to Excel (.xlsx)", "Convert Word, Excel, CSV and images to PDF", "Everything runs in your browser"],
     how: [
       "Choose the conversion you need: PDF to Word, PDF to Excel, Word to PDF, Excel to PDF, or images to PDF.",
@@ -834,7 +834,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Convert between PDF, Word and Excel, or scan a paper document straight to PDF -- all free, all in your browser, with nothing uploaded to a server.",
     crumbs: [{ name: "Document converter", path: "/document-converter" }],
-    appName: "PDFScanner document converter",
+    appName: "FreePDFScanner document converter",
     features: ["Convert PDF, Word and Excel between each other", "Scan paper documents to PDF", "Combine images into a PDF", "Everything runs in your browser"],
     how: [
       "Pick what you have and what you need: a paper document to scan, or a file to convert between PDF, Word and Excel.",
@@ -863,7 +863,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Get the words out of a PDF or a scanned document as a plain .txt file. Upload or scan the pages, and download the text -- free, in your browser, no account needed.",
     crumbs: [{ name: "PDF to text", path: "/pdf-to-text" }],
-    appName: "PDFScanner document scanner",
+    appName: "FreePDFScanner document scanner",
     features: ["Upload a PDF or scan pages with your camera", "Read scanned pages with English text recognition", "Export a plain .txt file"],
     how: [
       "Open the scanner and upload your PDF, photos, or use your camera.",
@@ -877,7 +877,7 @@ export const LANDING_PAGES: LandingPage[] = [
       "The .txt file has no formatting, images or layout -- just the recognised words, one line per line of text.",
       "English only for now.",
     ],
-    privacy: `${PRIVATE} The text engine is served from PDFScanner itself, not a third-party service.`,
+    privacy: `${PRIVATE} The text engine is served from FreePDFScanner itself, not a third-party service.`,
     faq: [
       { q: "Does this work on scanned PDFs?", a: "Yes. Scanned and photographed pages are read with English text recognition before being exported as text." },
       { q: "Will the text keep the PDF's layout?", a: "No. A .txt file is plain text with no formatting, columns or images -- just the words." },
@@ -893,7 +893,7 @@ export const LANDING_PAGES: LandingPage[] = [
     intro:
       "Get the content of a PDF or a scanned document as a .csv file you can open in a spreadsheet. Upload or scan the pages, then download the CSV -- free, in your browser.",
     crumbs: [{ name: "PDF to CSV", path: "/pdf-to-csv" }],
-    appName: "PDFScanner document scanner",
+    appName: "FreePDFScanner document scanner",
     features: ["Upload a PDF or scan pages with your camera", "Read scanned pages with English text recognition", "Export a genuine .csv file"],
     how: [
       "Open the scanner and upload your PDF, photos, or use your camera.",
@@ -907,7 +907,7 @@ export const LANDING_PAGES: LandingPage[] = [
       "Text recognition accuracy depends on scan quality: a sharp, well-lit, straight page reads best.",
       "English only for now.",
     ],
-    privacy: `${PRIVATE} The text engine is served from PDFScanner itself, not a third-party service.`,
+    privacy: `${PRIVATE} The text engine is served from FreePDFScanner itself, not a third-party service.`,
     faq: [
       { q: "Does this detect table columns?", a: "No. Each line of recognised text becomes one CSV row. For real column detection from a digital PDF's tables, use PDF to Excel instead." },
       { q: "Can I open the CSV in Excel or Google Sheets?", a: "Yes. It's a genuine, correctly-escaped CSV file that opens in any spreadsheet app." },
@@ -957,7 +957,7 @@ function officePage(o: {
     goodFor: `Sending ${o.sample} by email or chat so that only people who know the password can open it.`,
     formats: `${o.formats}, up to 50 MB. Also Office "XML Document" files from a current version of Office, which are converted to the regular file they describe first. Old binary files (.doc, .xls, .ppt), 2003 XML files and files that already have a password are not supported.`,
     limits: [
-      "If you forget the password, the file cannot be opened. PDFScanner never sees the password and cannot recover it.",
+      "If you forget the password, the file cannot be opened. FreePDFScanner never sees the password and cannot recover it.",
       "Old .doc, .xls and .ppt files are refused: open them in Office and save in the current format first.",
       "Macro-enabled files are encrypted exactly as they are. Macros are not run, changed or removed, and the application decides whether to run them after you enter the password.",
       "A file's contents must match its type: a macro-enabled file saved under a plain .docx, .xlsx or .pptx name is refused.",
@@ -968,11 +968,11 @@ function officePage(o: {
     privacy: PRIVATE,
     faq: [
       { q: `How do I password protect an ${o.noun} for free?`, a: `Choose your file, enter a password twice, and choose the Protect button. Then download the protected copy. It is free and needs no account.` },
-      { q: "Is my file or password uploaded?", a: "No. The file is encrypted by code running in your browser, so neither the file nor the password is sent to PDFScanner." },
+      { q: "Is my file or password uploaded?", a: "No. The file is encrypted by code running in your browser, so neither the file nor the password is sent to FreePDFScanner." },
       { q: `Will ${o.app} ask for the password?`, a: `Yes. The protected file uses the same password format as ${o.app}'s own File > Info > Protect > Encrypt with Password, so ${o.app} asks for the password before it opens.` },
       ...o.faqExtra,
       { q: "Can I protect an old .doc, .xls or .ppt file?", a: "No. Those formats cannot be password-protected the way Office does it. Open the file in Office, save it in the current format, then protect that file." },
-      { q: "Can I recover a forgotten password?", a: "No. Nobody, including PDFScanner, can open the file without it." },
+      { q: "Can I recover a forgotten password?", a: "No. Nobody, including FreePDFScanner, can open the file without it." },
     ],
     related: o.related,
   };

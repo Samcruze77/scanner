@@ -43,14 +43,14 @@ export const GUIDES: Guide[] = [
       {
         h2: "What you need",
         paragraphs: [
-          "A phone or computer with a camera (or photos you have already taken), a flat surface, and decent light. That is all. PDFScanner runs in your browser, so there is nothing to install.",
+          "A phone or computer with a camera (or photos you have already taken), a flat surface, and decent light. That is all. FreePDFScanner runs in your browser, so there is nothing to install.",
         ],
       },
       {
         h2: "Scan a document to PDF, step by step",
         steps: [
-          "Open the PDFScanner scanner in your browser and choose Use camera. Allow camera access when your browser asks. If you already have photos, choose Upload document instead.",
-          "Photograph the first page, then the next. Each photo becomes one page. PDFScanner finds the edges of the paper and straightens it for you.",
+          "Open the FreePDFScanner scanner in your browser and choose Use camera. Allow camera access when your browser asks. If you already have photos, choose Upload document instead.",
+          "Photograph the first page, then the next. Each photo becomes one page. FreePDFScanner finds the edges of the paper and straightens it for you.",
           "Check each page. If an edge is wrong, open the page and use Adjust crop to drag the corners. Rotate the page if it is sideways.",
           "Pick a look for text pages: Auto for most documents, Black & White for high-contrast text, Grayscale to keep some tone. Adjust brightness and contrast if the page looks dull.",
           "Reorder or remove pages with the arrow and bin buttons, then choose Create PDF and download it.",
@@ -129,7 +129,7 @@ export const GUIDES: Guide[] = [
       {
         h2: "Aim for a specific size",
         paragraphs: [
-          "Some forms and email systems have a hard limit, such as 2 MB. Under More options you can enter a target size. PDFScanner picks the lightest level that fits, and says so if it cannot reach the target without ruining the pages.",
+          "Some forms and email systems have a hard limit, such as 2 MB. Under More options you can enter a target size. FreePDFScanner picks the lightest level that fits, and says so if it cannot reach the target without ruining the pages.",
         ],
       },
       {
@@ -205,7 +205,7 @@ export const GUIDES: Guide[] = [
       {
         h2: "Limits to know about",
         bullets: [
-          "PDFScanner's free OCR reads English only, and up to 30 pages in one run.",
+          "FreePDFScanner's free OCR reads English only, and up to 30 pages in one run.",
           "It runs in your browser, so a large batch on an older phone can be slow. Extract fewer pages at a time if it struggles.",
           "The text is shown for you to copy. It is not added to the PDF as a hidden layer, so the PDF itself is not made searchable.",
         ],
@@ -272,7 +272,7 @@ export const GUIDES: Guide[] = [
       {
         h2: "Is this signature legally valid?",
         paragraphs: [
-          "That depends on the document and where you are. What you add here is an image of your signature placed on the page, the same as signing on paper. It is not a certificate-based digital signature, and PDFScanner cannot give legal advice. If the person or organisation asking for your signature requires a specific e-signature service or a certified signature, check with them first.",
+          "That depends on the document and where you are. What you add here is an image of your signature placed on the page, the same as signing on paper. It is not a certificate-based digital signature, and FreePDFScanner cannot give legal advice. If the person or organisation asking for your signature requires a specific e-signature service or a certified signature, check with them first.",
         ],
       },
       {
@@ -368,7 +368,7 @@ export const GUIDES: Guide[] = [
         steps: [
           "Open the PDF compressor and choose your file (up to 100 MB).",
           "Open More options and choose a target size: 500 KB, 1 MB, 2 MB or 5 MB. For another limit, choose Custom and enter a size of at least 20 KB.",
-          "Choose Compress PDF. PDFScanner picks the lightest level that fits the target, so you keep as much quality as the limit allows. This recompresses the pictures inside the PDF and leaves the text alone.",
+          "Choose Compress PDF. FreePDFScanner picks the lightest level that fits the target, so you keep as much quality as the limit allows. This recompresses the pictures inside the PDF and leaves the text alone.",
           "Check the result before you download it. The result says either that your target was reached, or that it could not be reached without unacceptable quality loss and shows the smallest good result.",
         ],
       },
@@ -431,9 +431,9 @@ export const GUIDES: Guide[] = [
         h2: "What you should expect to see on a browser-only tool",
         bullets: [
           "Small requests for analytics, advertising and page scripts. These are normal, and they do not contain your document.",
-          "On PDFScanner, the text-recognition engine files are downloaded from PDFScanner itself the first time you use OCR. That is a download to your device, not an upload of your file.",
+          "On FreePDFScanner, the text-recognition engine files are downloaded from FreePDFScanner itself the first time you use OCR. That is a download to your device, not an upload of your file.",
           "No request whose size matches your file.",
-          "If you accept analytics cookies, PDFScanner sends usage events such as which tool was opened. If you accept session recordings, Microsoft Clarity may record page interactions, with pages that show your documents masked. The Network test checks whether your file is uploaded; it does not show everything a page might record, so read the privacy policy too.",
+          "If you accept analytics cookies, FreePDFScanner sends usage events such as which tool was opened. If you accept session recordings, Microsoft Clarity may record page interactions, with pages that show your documents masked. The Network test checks whether your file is uploaded; it does not show everything a page might record, so read the privacy policy too.",
         ],
       },
       {
@@ -445,7 +445,7 @@ export const GUIDES: Guide[] = [
       {
         h2: "When a file is deliberately sent",
         paragraphs: [
-          "Some features are meant to store a file. On PDFScanner, the scanner has a Save to account button. It asks you to sign in, and when you choose it, the PDF you created is sent to your account's private storage, because that is the point of saving it. Nothing is saved unless you choose that button. The tools that process a file locally do not upload it.",
+          "Some features are meant to store a file. On FreePDFScanner, the scanner has a Save to account button. It asks you to sign in, and when you choose it, the PDF you created is sent to your account's private storage, because that is the point of saving it. Nothing is saved unless you choose that button. The tools that process a file locally do not upload it.",
           "Check any site's privacy policy as well. It should say which features use a server and which do not. Ours is at /privacy.",
         ],
       },
@@ -477,7 +477,7 @@ export const GUIDES: Guide[] = [
       "An honest comparison of free iLovePDF alternatives: server-based sites, in-browser tools and self-hosted software, with trade-offs, including ours.",
     h1: "Free iLovePDF alternatives compared",
     intro:
-      "There is no single best free PDF tool. They differ mainly in where your file is processed, what they cost, and how much you can do. This page explains those differences, so you can choose, and says plainly what PDFScanner does not do.",
+      "There is no single best free PDF tool. They differ mainly in where your file is processed, what they cost, and how much you can do. This page explains those differences, so you can choose, and says plainly what FreePDFScanner does not do.",
     published: "2026-10-11",
     updated: "2026-10-11",
     sections: [
@@ -485,18 +485,18 @@ export const GUIDES: Guide[] = [
         h2: "The three kinds of tool",
         bullets: [
           "Server-based websites (for example iLovePDF, Smallpdf, Sejda, PDF24's online tools). You upload a file, a server processes it and you download the result. They are often powerful and handle heavy jobs, and most say they delete uploads after a period. Read each site's own policy for its exact terms.",
-          "In-browser tools (for example BentoPDF and PDFScanner). Processing happens on your device, so the file does not need to be uploaded. They depend on your device's memory and the browser's capabilities.",
+          "In-browser tools (for example BentoPDF and FreePDFScanner). Processing happens on your device, so the file does not need to be uploaded. They depend on your device's memory and the browser's capabilities.",
           "Self-hosted software (for example Stirling-PDF). You run it on your own computer or server, which gives you the most control and needs some technical setup.",
         ],
       },
       {
-        h2: "Where PDFScanner fits",
+        h2: "Where FreePDFScanner fits",
         paragraphs: [
-          "PDFScanner is free, supported by ads, and runs in your browser. It can scan with a phone or computer camera, turn images into PDFs, convert Word and Excel to and from PDF, edit, sign and annotate PDFs, compress PDFs, images and Office files, extract text with OCR, and add passwords to PDF and Office files. The core tools do not need an account. For checking the privacy claim yourself, see our guide to testing whether a site uploads your file.",
+          "FreePDFScanner is free, supported by ads, and runs in your browser. It can scan with a phone or computer camera, turn images into PDFs, convert Word and Excel to and from PDF, edit, sign and annotate PDFs, compress PDFs, images and Office files, extract text with OCR, and add passwords to PDF and Office files. The core tools do not need an account. For checking the privacy claim yourself, see our guide to testing whether a site uploads your file.",
         ],
       },
       {
-        h2: "What PDFScanner does not do",
+        h2: "What FreePDFScanner does not do",
         bullets: [
           "OCR reads English only, up to 30 pages at a time, and the result is text you copy or correct. It does not add a hidden text layer to make the PDF itself searchable.",
           "PDFs we create from scans are made of page images, so their text is not selectable.",
@@ -508,8 +508,8 @@ export const GUIDES: Guide[] = [
         h2: "Which should you pick?",
         bullets: [
           "You need a quick one-off job and do not mind uploading: a server-based site is fine for non-sensitive files.",
-          "You want to avoid uploading and prefer a website: an in-browser tool such as PDFScanner or BentoPDF.",
-          "You want a camera scanner in the browser with conversions and signing in one place: PDFScanner.",
+          "You want to avoid uploading and prefer a website: an in-browser tool such as FreePDFScanner or BentoPDF.",
+          "You want a camera scanner in the browser with conversions and signing in one place: FreePDFScanner.",
           "You need open-source code, automation or a private server: Stirling-PDF or another self-hosted tool.",
           "You need a searchable PDF from a scan, in another language, or heavy editing: use a tool built for it and check its current features.",
         ],
@@ -517,7 +517,7 @@ export const GUIDES: Guide[] = [
       {
         h2: "A note on this comparison",
         paragraphs: [
-          "We publish PDFScanner, so we are not a neutral reviewer. This page describes categories rather than rating products, and tools change, so check each tool's own site for current features, limits and terms before you decide.",
+          "We publish FreePDFScanner, so we are not a neutral reviewer. This page describes categories rather than rating products, and tools change, so check each tool's own site for current features, limits and terms before you decide.",
         ],
       },
     ],

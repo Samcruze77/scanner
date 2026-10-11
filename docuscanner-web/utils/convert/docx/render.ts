@@ -51,8 +51,8 @@ export async function renderPages(pages: PageOut[], fonts: FontStore, options: R
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
   if (options.title) pdf.setTitle(options.title);
-  pdf.setProducer("PDFScanner");
-  pdf.setCreator("PDFScanner");
+  pdf.setProducer("FreePDFScanner");
+  pdf.setCreator("FreePDFScanner");
 
   const warnings = new Set<string>();
   const fontCache = new Map<string, PDFFont>();

@@ -61,7 +61,7 @@ export async function buildDocxFromOcrPages(pages: OcrDocxPage[], title: string)
     };
   });
 
-  const document = new Document({ creator: "PDFScanner", title, sections });
+  const document = new Document({ creator: "FreePDFScanner", title, sections });
   const buffer = await Packer.toArrayBuffer(document);
   return new Blob([buffer], { type: DOCX_MIME });
 }

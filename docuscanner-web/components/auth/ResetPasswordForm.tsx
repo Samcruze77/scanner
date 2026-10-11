@@ -127,9 +127,9 @@ export function ResetPasswordForm() {
     return (
       <div role="status" className={CARD}>
         <h1 className="text-lg font-semibold">Password updated</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Your new password is set and you&apos;re signed in. Taking you back to PDFScanner…</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Your new password is set and you&apos;re signed in. Taking you back to FreePDFScanner…</p>
         <Link href="/" className="btn btn-primary w-full">
-          Continue to PDFScanner
+          Continue to FreePDFScanner
         </Link>
       </div>
     );
@@ -155,7 +155,7 @@ export function ResetPasswordForm() {
             Back to log in
           </button>
           <Link href="/" className="inline-flex min-h-11 items-center font-medium underline">
-            Go to PDFScanner
+            Go to FreePDFScanner
           </Link>
         </div>
       </div>
