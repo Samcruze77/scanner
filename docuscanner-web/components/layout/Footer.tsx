@@ -68,7 +68,7 @@ export function Footer() {
           <Column title="Convert" links={CONVERT} />
           <Column
             title="Guides"
-            links={[{ href: "/guides", label: "All guides" }, ...GUIDES.slice(0, 4).map((g) => ({ href: `/guides/${g.slug}`, label: g.h1.replace(/^How to /, "How to ") }))]}
+            links={[{ href: "/guides", label: "All guides" }, ...GUIDES.map((g) => ({ href: `/guides/${g.slug}`, label: g.h1.replace(/^How to /, "How to ") }))]}
           />
         </div>
         <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">

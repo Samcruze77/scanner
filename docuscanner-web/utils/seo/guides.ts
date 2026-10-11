@@ -160,6 +160,7 @@ export const GUIDES: Guide[] = [
       blurb: "See the estimated size first. Free, and your file is not uploaded.",
     },
     related: [
+      { href: "/guides/how-to-compress-a-pdf-to-1mb-or-2mb", label: "How to compress a PDF to 1 MB or 2 MB", note: "Set a target size for an upload limit." },
       { href: "/tools/compress-image", label: "Compress an image", note: "Shrink a single photo." },
       { href: "/scan", label: "Scan a document to PDF", note: "Start with a cleaner, smaller scan." },
       { href: "/convert/image-to-pdf", label: "Convert images to PDF", note: "Combine photos into one PDF." },
@@ -349,6 +350,186 @@ export const GUIDES: Guide[] = [
       { href: "/scan", label: "Scan a document to PDF", note: "Use your camera instead of files." },
       { href: "/tools/compress-pdf", label: "Compress a PDF", note: "Make the combined PDF smaller." },
       { href: "/tools/ocr", label: "Extract text with OCR", note: "Copy words from the pictures." },
+    ],
+  },
+  {
+    slug: "how-to-compress-a-pdf-to-1mb-or-2mb",
+    title: "How to Compress a PDF to 1 MB or 2 MB (or Another Size Limit)",
+    description:
+      "Get a PDF under an upload limit such as 500 KB, 1 MB, 2 MB or 5 MB. Set a target size, see what is realistic for your file, and keep it readable.",
+    h1: "How to compress a PDF to 1 MB or 2 MB",
+    intro:
+      "Job portals, visa forms and email systems often reject a PDF over a fixed size. You can set that size as a target, and the compressor picks the lightest level that fits.",
+    published: "2026-10-11",
+    updated: "2026-10-11",
+    sections: [
+      {
+        h2: "Compress to a target size, step by step",
+        steps: [
+          "Open the PDF compressor and choose your file (up to 100 MB).",
+          "Open More options and choose a target size: 500 KB, 1 MB, 2 MB or 5 MB. For another limit, choose Custom and enter a size of at least 20 KB.",
+          "Choose Compress PDF. PDFScanner picks the lightest level that fits the target, so you keep as much quality as the limit allows. This recompresses the pictures inside the PDF and leaves the text alone.",
+          "Check the result before you download it. The result says either that your target was reached, or that it could not be reached without unacceptable quality loss and shows the smallest good result.",
+        ],
+      },
+      {
+        h2: "What size is realistic for your file",
+        paragraphs: [
+          "The amount a PDF can shrink depends on what is inside it. A scan or a PDF full of photos can often be reduced a great deal. A PDF that is mostly text is already small and will not shrink much, so a 1 MB target for a text-only file may simply not be reachable.",
+          "If the target cannot be reached without unacceptable quality loss, the tool tells you and gives you the smallest good result instead of an unreadable file. If the saving would be too small to be worth it, it keeps your original rather than hand you a file that is barely smaller. In that case, see the options below.",
+        ],
+      },
+      {
+        h2: "If it will not fit",
+        bullets: [
+          "Remove pages you do not need to submit before compressing.",
+          "For a scan, go back to the original photos, crop away the table or background, and re-scan with Black & White for text pages. High-contrast pages compress far better than colour photos of them.",
+          "Choose Try stronger compression, which is offered after a result that is weak or misses the target on files of 200 KB or more. It redraws every page as a lower-resolution picture, which makes the file much smaller but means the text can no longer be selected or searched. Use it only if you must.",
+          "Check the portal's real limit. Some sites accept less than they advertise, so aim a little under the stated size.",
+        ],
+      },
+      {
+        h2: "Keep the original",
+        paragraphs: [
+          "Your original file is never changed. You download the compressed copy separately, and compression happens in your browser. Keep the original for your records and send the compressed copy.",
+        ],
+      },
+    ],
+    tool: {
+      href: "/tools/compress-pdf",
+      label: "Compress a PDF now",
+      blurb: "Free, no account, and your file stays in your browser.",
+    },
+    related: [
+      { href: "/guides/how-to-reduce-pdf-file-size", label: "How to reduce a PDF's file size", note: "Why PDFs get big and what helps." },
+      { href: "/scan", label: "Scan a document to PDF", note: "Re-scan pages so they compress well." },
+      { href: "/tools/compress-image", label: "Compress an image", note: "Shrink a photo before it goes into a PDF." },
+    ],
+  },
+  {
+    slug: "how-to-check-a-pdf-site-does-not-upload-your-file",
+    title: "How to Check Whether a PDF Website Uploads Your File",
+    description:
+      "A simple browser test to see whether a PDF tool uploads your document, including ours, and what you should and should not expect to see.",
+    h1: "How to check if a PDF site uploads your file",
+    intro:
+      "Many free PDF sites send your file to a server to process it. Others work entirely in your browser. Instead of taking any site's word for it, you can check in about a minute, and the test works on any website, including this one.",
+    published: "2026-10-11",
+    updated: "2026-10-11",
+    sections: [
+      {
+        h2: "The test, step by step",
+        steps: [
+          "Open the tool in a desktop browser and press F12 (or Ctrl+Shift+I) to open the developer tools. Choose the Network tab.",
+          "Click the clear button in the Network tab so the list is empty, and tick Preserve log if you see it.",
+          "Choose a small, non-sensitive test file and run the tool: convert, compress or whatever the page does.",
+          "Look at the list of requests. Click any request that uses POST or PUT, and open its Payload or Request tab. If your file is being uploaded, you will see a large request carrying the file's contents, and its size will be close to the size of your file.",
+          "Compare sizes. Sort the list by size. A tool that uploads a 5 MB file must send roughly 5 MB somewhere.",
+        ],
+      },
+      {
+        h2: "What you should expect to see on a browser-only tool",
+        bullets: [
+          "Small requests for analytics, advertising and page scripts. These are normal, and they do not contain your document.",
+          "On PDFScanner, the text-recognition engine files are downloaded from PDFScanner itself the first time you use OCR. That is a download to your device, not an upload of your file.",
+          "No request whose size matches your file.",
+          "If you accept analytics cookies, PDFScanner sends usage events such as which tool was opened. If you accept session recordings, Microsoft Clarity may record page interactions, with pages that show your documents masked. The Network test checks whether your file is uploaded; it does not show everything a page might record, so read the privacy policy too.",
+        ],
+      },
+      {
+        h2: "A second check: go offline",
+        paragraphs: [
+          "Load the tool, then turn off your internet connection (airplane mode, or the Offline setting in the Network tab) and run it on your test file. A tool that works in your browser can often still process the file. A tool that needs a server will fail. This is a hint rather than proof, because a tool might need to fetch extra files the first time it runs, so use it alongside the Network check.",
+        ],
+      },
+      {
+        h2: "When a file is deliberately sent",
+        paragraphs: [
+          "Some features are meant to store a file. On PDFScanner, the scanner has a Save to account button. It asks you to sign in, and when you choose it, the PDF you created is sent to your account's private storage, because that is the point of saving it. Nothing is saved unless you choose that button. The tools that process a file locally do not upload it.",
+          "Check any site's privacy policy as well. It should say which features use a server and which do not. Ours is at /privacy.",
+        ],
+      },
+      {
+        h2: "Be careful with sensitive files",
+        bullets: [
+          "Test with a harmless file first, not your passport or contract.",
+          "Browser extensions can read what you open. Use a private window with extensions off for sensitive documents.",
+          "If a site asks you to upload a file and you cannot tell what happens to it, use software installed on your own device instead.",
+        ],
+      },
+    ],
+    tool: {
+      href: "/tools",
+      label: "See the PDF tools",
+      blurb: "Free, no account for the core tools. Run the test above on any of them.",
+    },
+    related: [
+      { href: "/convert/image-to-pdf", label: "Convert images to PDF", note: "A quick tool to test with." },
+      { href: "/tools/compress-pdf", label: "Compress a PDF", note: "Another easy test." },
+      { href: "/tools/protect-pdf", label: "Protect a PDF with a password", note: "Lock a file before you share it." },
+      { href: "/guides/ilovepdf-alternatives-compared", label: "Free iLovePDF alternatives compared", note: "Server-based, in-browser and self-hosted tools." },
+    ],
+  },
+  {
+    slug: "ilovepdf-alternatives-compared",
+    title: "iLovePDF Alternatives Compared: Free, In-Browser and Self-Hosted",
+    description:
+      "An honest comparison of free iLovePDF alternatives: server-based sites, in-browser tools and self-hosted software, with trade-offs, including ours.",
+    h1: "Free iLovePDF alternatives compared",
+    intro:
+      "There is no single best free PDF tool. They differ mainly in where your file is processed, what they cost, and how much you can do. This page explains those differences, so you can choose, and says plainly what PDFScanner does not do.",
+    published: "2026-10-11",
+    updated: "2026-10-11",
+    sections: [
+      {
+        h2: "The three kinds of tool",
+        bullets: [
+          "Server-based websites (for example iLovePDF, Smallpdf, Sejda, PDF24's online tools). You upload a file, a server processes it and you download the result. They are often powerful and handle heavy jobs, and most say they delete uploads after a period. Read each site's own policy for its exact terms.",
+          "In-browser tools (for example BentoPDF and PDFScanner). Processing happens on your device, so the file does not need to be uploaded. They depend on your device's memory and the browser's capabilities.",
+          "Self-hosted software (for example Stirling-PDF). You run it on your own computer or server, which gives you the most control and needs some technical setup.",
+        ],
+      },
+      {
+        h2: "Where PDFScanner fits",
+        paragraphs: [
+          "PDFScanner is free, supported by ads, and runs in your browser. It can scan with a phone or computer camera, turn images into PDFs, convert Word and Excel to and from PDF, edit, sign and annotate PDFs, compress PDFs, images and Office files, extract text with OCR, and add passwords to PDF and Office files. The core tools do not need an account. For checking the privacy claim yourself, see our guide to testing whether a site uploads your file.",
+        ],
+      },
+      {
+        h2: "What PDFScanner does not do",
+        bullets: [
+          "OCR reads English only, up to 30 pages at a time, and the result is text you copy or correct. It does not add a hidden text layer to make the PDF itself searchable.",
+          "PDFs we create from scans are made of page images, so their text is not selectable.",
+          "Very large files or batches depend on your device's memory.",
+          "It is a website, not software you can run on your own server. If you need that, look at a self-hosted option instead.",
+        ],
+      },
+      {
+        h2: "Which should you pick?",
+        bullets: [
+          "You need a quick one-off job and do not mind uploading: a server-based site is fine for non-sensitive files.",
+          "You want to avoid uploading and prefer a website: an in-browser tool such as PDFScanner or BentoPDF.",
+          "You want a camera scanner in the browser with conversions and signing in one place: PDFScanner.",
+          "You need open-source code, automation or a private server: Stirling-PDF or another self-hosted tool.",
+          "You need a searchable PDF from a scan, in another language, or heavy editing: use a tool built for it and check its current features.",
+        ],
+      },
+      {
+        h2: "A note on this comparison",
+        paragraphs: [
+          "We publish PDFScanner, so we are not a neutral reviewer. This page describes categories rather than rating products, and tools change, so check each tool's own site for current features, limits and terms before you decide.",
+        ],
+      },
+    ],
+    tool: {
+      href: "/tools",
+      label: "Try the PDF tools",
+      blurb: "Free, and the core tools need no account. Judge for yourself.",
+    },
+    related: [
+      { href: "/guides/how-to-check-a-pdf-site-does-not-upload-your-file", label: "How to check if a PDF site uploads your file", note: "A one-minute browser test." },
+      { href: "/scan", label: "Scan a document to PDF", note: "Use your camera." },
+      { href: "/tools/ocr", label: "Extract text with OCR", note: "English text from scans." },
     ],
   },
 ];

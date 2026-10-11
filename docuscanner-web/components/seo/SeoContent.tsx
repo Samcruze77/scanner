@@ -44,6 +44,13 @@ export function SeoContent({ page }: { page: LandingPage }) {
       <div>
         <h2 className="section-title">Your files and privacy</h2>
         <p className="muted mt-3 text-sm leading-6">{page.privacy}</p>
+        <p className="muted mt-2 text-sm leading-6">
+          Want to check for yourself?{" "}
+          <Link href="/guides/how-to-check-a-pdf-site-does-not-upload-your-file" className="underline hover:no-underline">
+            See how to test whether a PDF site uploads your file
+          </Link>
+          .
+        </p>
       </div>
 
       <div>

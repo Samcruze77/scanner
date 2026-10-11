@@ -75,6 +75,7 @@ const LINKS = {
   pdfToExcel: { href: "/convert/pdf-to-excel", label: "Convert PDF to Excel", note: "Pull tables out of a PDF." },
   convert: { href: "/convert", label: "All file converters", note: "Word, Excel, CSV, images and PDF." },
   tools: { href: "/tools", label: "All PDF tools", note: "Edit, sign, compress and extract text." },
+  guideCompressTarget: { href: "/guides/how-to-compress-a-pdf-to-1mb-or-2mb", label: "How to compress a PDF to 1 MB or 2 MB", note: "Get under an upload limit." },
 } satisfies Record<string, RelatedLink>;
 
 export const HOME_CRUMB: Crumb = { name: "Home", path: "/" };
@@ -320,7 +321,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Can I compress a PDF to a specific size?", a: "Yes. Under More options, enter a target size and PDFScanner picks the lightest level that fits. If it cannot fit without wrecking quality, it tells you." },
       { q: "Is there a file size limit?", a: "PDFs up to 100 MB. There is no daily limit and no account is needed." },
     ],
-    related: [LINKS.compressImage, LINKS.scan, LINKS.editor, LINKS.imageToPdf],
+    related: [LINKS.guideCompressTarget, LINKS.compressImage, LINKS.scan, LINKS.editor, LINKS.imageToPdf],
   },
   {
     path: "/tools/protect-pdf",
