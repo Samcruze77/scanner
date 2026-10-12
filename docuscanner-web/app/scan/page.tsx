@@ -29,7 +29,7 @@ export default async function ScanPage({
 
   return (
     <PageShell width="workspace" ads="workflow">
-      <JsonLd data={graph(webApplicationSchema("/scan", landing.appName, landing.description, landing.features), webPageSchema("/scan", landing.h1, landing.description))} />
+      <JsonLd data={graph(webApplicationSchema("/scan", landing.appName, landing.description, landing.features), webPageSchema("/scan", landing.h1, landing.description, false))} />
       <PageHeader title={landing.h1}>
         Free to use as a guest, and everything happens in your browser. Sign in if you&apos;d like to save a document to your account.
       </PageHeader>

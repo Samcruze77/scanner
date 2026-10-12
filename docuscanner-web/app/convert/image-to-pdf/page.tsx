@@ -23,7 +23,7 @@ export const metadata: Metadata = pageMetadata({
 export default function ImageToPdfPage() {
   return (
     <PageShell width="workspace" ads="workflow">
-      <JsonLd data={graph(webApplicationSchema("/convert/image-to-pdf", landing.appName, landing.description, landing.features), webPageSchema("/convert/image-to-pdf", landing.h1, landing.description))} />
+      <JsonLd data={graph(webApplicationSchema("/convert/image-to-pdf", landing.appName, landing.description, landing.features), webPageSchema("/convert/image-to-pdf", landing.h1, landing.description, false))} />
       <PageHeader title={landing.h1}>
         Add one or more pictures, crop and reorder them, then create one PDF. Free, no account needed. Your pictures stay on your device.
       </PageHeader>

@@ -23,7 +23,7 @@ export const metadata: Metadata = pageMetadata({
 export default function PdfToWordPage() {
   return (
     <PageShell width="narrow" ads="workflow">
-      <JsonLd data={graph(webApplicationSchema("/convert/pdf-to-word", landing.appName, landing.description, landing.features), webPageSchema("/convert/pdf-to-word", landing.h1, landing.description))} />
+      <JsonLd data={graph(webApplicationSchema("/convert/pdf-to-word", landing.appName, landing.description, landing.features), webPageSchema("/convert/pdf-to-word", landing.h1, landing.description, false))} />
       <PageHeader title={landing.h1}>
         Free, no account needed. The conversion happens in your browser, so your file is never uploaded.
       </PageHeader>
