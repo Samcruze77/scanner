@@ -22,7 +22,16 @@ function toGray(imageData: ImageData): void {
 // Simple percentile-based contrast stretch: clips the darkest/lightest 1% of
 // pixels and stretches the rest across the full 0-255 range. A lightweight
 // stand-in for the "auto levels" most scanner apps offer.
-function autoLevels(imageData: ImageData): void {
+export interface EnhancementParams {
+  // Auto: the grey levels stretched to black and white.
+  lo?: number;
+  hi?: number;
+  // Black & White: the grey level that separates black from white.
+  threshold?: number;
+}
+
+// The levels Auto stretches: the darkest and lightest 1% of pixels are clipped (red channel, after greying).
+function autoBounds(imageData: ImageData): { lo: number; hi: number } | null {
   const { data } = imageData;
   const hist = new Array(256).fill(0);
   let count = 0;
@@ -30,7 +39,6 @@ function autoLevels(imageData: ImageData): void {
     hist[data[i]]++;
     count++;
   }
-
   const clip = count * 0.01;
   let lo = 0;
   let acc = 0;
@@ -44,8 +52,14 @@ function autoLevels(imageData: ImageData): void {
     acc += hist[hi];
     if (acc > clip) break;
   }
-  if (hi <= lo) return;
+  return hi <= lo ? null : { lo, hi };
+}
 
+function autoLevels(imageData: ImageData, fixed?: EnhancementParams): void {
+  const { data } = imageData;
+  const bounds = fixed?.lo !== undefined && fixed.hi !== undefined && fixed.hi > fixed.lo ? { lo: fixed.lo, hi: fixed.hi } : autoBounds(imageData);
+  if (!bounds) return;
+  const { lo, hi } = bounds;
   const range = hi - lo;
   for (let i = 0; i < data.length; i += 4) {
     for (let c = 0; c < 3; c++) {
@@ -55,9 +69,9 @@ function autoLevels(imageData: ImageData): void {
   }
 }
 
-function binarize(imageData: ImageData): void {
+function binarize(imageData: ImageData, fixed?: EnhancementParams): void {
   const gray = toGrayscale(imageData);
-  const threshold = otsuThreshold(gray);
+  const threshold = fixed?.threshold ?? otsuThreshold(gray);
   const { data } = imageData;
   for (let i = 0, j = 0; i < data.length; i += 4, j++) {
     const v = gray[j] >= threshold ? 255 : 0;
@@ -94,19 +108,32 @@ export function applyAdjustments(imageData: ImageData, brightness: number, contr
 }
 
 // Mutates imageData in place and returns it, for convenient chaining.
-export function applyEnhancement(imageData: ImageData, mode: EnhancementMode): ImageData {
+// Mutates imageData in place and returns it, for convenient chaining.
+//
+// Auto and Black & White decide their levels from the picture they are given. `params` lets a caller reuse the levels
+// found on another rendering of the same page: the PDF export draws an imported page again at about 300 dpi, and
+// must use the levels the editor's preview used, or the exported tones would differ from what was on screen (thin
+// text and lines weigh differently in the histogram at different resolutions). `used`, when given, receives the
+// levels that were applied.
+export function applyEnhancement(imageData: ImageData, mode: EnhancementMode, params?: EnhancementParams, used?: EnhancementParams): ImageData {
   switch (mode) {
     case "original":
       return imageData;
     case "grayscale":
       toGray(imageData);
       return imageData;
-    case "auto":
+    case "auto": {
       toGray(imageData);
-      autoLevels(imageData);
+      const bounds = params?.lo !== undefined && params.hi !== undefined ? { lo: params.lo, hi: params.hi } : autoBounds(imageData);
+      if (used && bounds) Object.assign(used, bounds);
+      autoLevels(imageData, bounds ?? undefined);
       return imageData;
-    case "bw":
-      binarize(imageData);
+    }
+    case "bw": {
+      const threshold = params?.threshold ?? otsuThreshold(toGrayscale(imageData));
+      if (used) used.threshold = threshold;
+      binarize(imageData, { threshold });
       return imageData;
+    }
   }
 }

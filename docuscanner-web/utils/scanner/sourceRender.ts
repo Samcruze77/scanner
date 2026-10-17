@@ -50,7 +50,10 @@ export async function sharpenFlattenedPage(page: ScannerPage, opened: Map<string
     const f = hi.width / page.originalWidth;
     const scaled = page.quad ? (page.quad.map((p) => ({ x: p.x * f, y: p.y * f })) as ScannerPage["quad"]) : null;
     const { renderPage } = await import("./pageProcessing");
-    const result = await renderPage({ ...page, originalDataUrl: hi.dataUrl, originalWidth: hi.width, originalHeight: hi.height, quad: scaled });
+    // Auto and Black & White pick their levels from the picture. Take them from the on-screen picture, as the preview
+    // did, so the export has the tones the person saw.
+    const screen = page.enhancement === "auto" || page.enhancement === "bw" ? await renderPage(page) : null;
+    const result = await renderPage({ ...page, originalDataUrl: hi.dataUrl, originalWidth: hi.width, originalHeight: hi.height, quad: scaled }, undefined, { enhancementParams: screen?.enhancementParams });
     if (result.perspectiveFailed) return page;
     // The page keeps its real physical size: points per pixel from what the old picture covered.
     const ptPerPx = (page.processedWidth * page.ptPerPx) / result.width;

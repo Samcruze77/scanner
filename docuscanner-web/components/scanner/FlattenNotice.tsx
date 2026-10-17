@@ -8,7 +8,7 @@ import { axisAlignedRect, flattenReason, type FlattenReason } from "@/utils/scan
 import { ENHANCEMENT_MODES } from "@/utils/scanner/enhance";
 import type { ScannerPage } from "@/utils/scanner/page";
 
-const PICTURE = "In the exported PDF this page becomes a picture, drawn sharply from the original at about 300 dpi, so its text can no longer be selected or searched.";
+const PICTURE = "In the exported PDF this page becomes a picture, drawn from the original at about 300 dpi (lower on very large pages), so its text and lines can no longer be selected or searched. Your other pages are not affected.";
 
 export function flattenMessage(page: ScannerPage, reason: FlattenReason): string {
   switch (reason) {
@@ -25,7 +25,9 @@ export function flattenMessage(page: ScannerPage, reason: FlattenReason): string
   }
 }
 
-export function FlattenNotice({ page, className }: { page: ScannerPage; className?: string }) {
+// `before` adds a heads-up while nothing has been applied yet, so the person knows what Grayscale, Black & White,
+// Auto, brightness and contrast will do before choosing them.
+export function FlattenNotice({ page, className, before }: { page: ScannerPage; className?: string; before?: boolean }) {
   if (!page.source) return null;
   const reason = flattenReason(page);
   if (reason) {
@@ -39,6 +41,13 @@ export function FlattenNotice({ page, className }: { page: ScannerPage; classNam
     return (
       <p role="status" data-flatten-notice="kept" className={`muted text-xs leading-5 ${className ?? ""}`}>
         Cropped without flattening: the page keeps its selectable text. The area you cut away is hidden, but it is still inside the PDF file.
+      </p>
+    );
+  }
+  if (before) {
+    return (
+      <p data-flatten-notice="before" className={`muted text-xs leading-5 ${className ?? ""}`}>
+        Heads-up: Grayscale, Black &amp; White, Auto, brightness and contrast change the colours of the page itself. Only this page then becomes a picture in the exported PDF (its text can no longer be selected); your other pages keep theirs. Reset to original brings it back.
       </p>
     );
   }

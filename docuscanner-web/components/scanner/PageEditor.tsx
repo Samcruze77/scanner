@@ -246,7 +246,7 @@ export function PageEditor({
               />
             </div>
 
-            <FlattenNotice page={page} />
+            <FlattenNotice page={page} before />
 
             <div>
               <p className="panel-title mb-2">Annotate</p>

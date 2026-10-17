@@ -261,3 +261,51 @@ Type check clean; lint 0 errors (17 existing warnings); production build succeed
 Passing: `test:pdf-quality` 18 (crop geometry) + 18 (downloaded PDFs), `test:pdf-edit` 11, `test:quality-fixes` 23, `test:print-quality` 3, `test:images` 15 + 4, `test:images:e2e` 27, `test:images:quality` 11, `test:compress` 38, assistant launcher 16, assistant browser 31, `test:install:browser` 56.
 
 Failing with the same sets as on the clean base commit (documented in section 11): zoom 4 passed / 14 failed, theme 21 / 1, consent 65 / 1.
+
+
+## 13. Auto enhancement verified in the browser, and the final status of the PDF limitation (2026-10-18)
+
+Auto was exercised through the real UI on its own (`node tests/audit/verify-pdf-auto.mjs`, 13 checks), not inferred from Grayscale.
+
+### A defect found by this test, and fixed
+Auto (and Black & White) choose their levels from the picture they are given (Auto stretches between the 1% darkest and lightest grey levels; Black & White uses Otsu's threshold). The export draws an imported page again at 300 dpi, where hairlines and small text weigh differently in the histogram, so **the exported Auto tones differed from the editor's preview**: photo-area tones (5 / 50 / 95 percent) were 70 / 154 / 184 in the preview and 97 / 161 / 191 in the export (lighter, flatter).
+
+Fix: `utils/scanner/enhance.ts` can now report the levels it used and accept them (`EnhancementParams`); `utils/scanner/sourceRender.ts` first renders the on-screen picture to get those levels and applies them to the 300 dpi render. After the fix the same measurement gives 70 / 154 / 184 against 80 / 152 / 185 (the 5% tail differs by 10 because the photo's fine stripes alias differently when shrunk; the middle and light tones are within 8). Printing uses the same code, so it gets the same correction. Pages that were not enhanced are unchanged.
+
+### Measurements on the downloaded PDFs (rich.pdf: A4 portrait, A4 landscape, A4 portrait)
+| Item | Result |
+|---|---|
+| Auto on page 1 | a picture of 2481x3509 px filling 210x297 mm: **300 dpi** (the editor's own picture is 1414x2000 = 171 dpi); no colour (chroma 0.00) |
+| Page sizes, orientation, order | 210x297 portrait, 297x210 landscape, 210x297 portrait; order kept |
+| Against the editor's Auto preview, same pixel size | photo tones as above; white point 255 vs 255; mean brightness within 0.45; text ink: mean 227.79 vs 228.32, dark pixels 10.33% vs 10.32% |
+| Clarity | at 4x the photo area has detail 26.05 vs 16.29 for the on-screen picture enlarged; text grey-edge share 0.459 vs 0.653 (lower is crisper) |
+| Readability | OCR of the downloaded page reads 7 of 7 sample words, including the title, body lines and the 6 pt caption |
+| Untouched pages beside an Auto page | page 2 text 71/71 characters, 9/9 vector operations; page 3 text 1059/1059 |
+| Auto on the landscape page 2 | 3508x2480 px at 300 dpi, 297x210 mm; page 1 keeps 1029/1029 characters, 50/50 vector operations and the 1600x1200 photo (407 dpi, identical bytes); page 3 keeps its text |
+| Reset to original after Auto (page 2) | text 71/71 (6 pt text selectable again), 9/9 vector operations, 297x210 mm, PSNR vs source 99 dB |
+| Repeated adjustments (8 mode changes, 5 slider moves, rotate right and left, ending in Auto) | identical to a single Auto export (PSNR 99 dB), 300 dpi: the stored source does not degrade, because every render starts from the untouched original |
+| Black & White vs its preview | agrees (the photo area is solid black in both with this fixture, so this shows agreement, not sensitivity) |
+
+Per-pixel comparison of text and hairlines against the preview is not meaningful (PSNR was about 20 dB although the ink density matched to 0.01%), so text is judged by ink density, edge crispness and OCR. The 0.25 pt vertical lines are drawn slightly darker at screen size than at 300 dpi (dark-pixel share 7.9% vs 4.5% in that strip); the export is the truer one.
+
+### The warning
+Before anything is applied the page editor says (for PDF pages): "Grayscale, Black & White, Auto, brightness and contrast change the colours of the page itself. Only this page then becomes a picture in the exported PDF (its text can no longer be selected); your other pages keep theirs. Reset to original brings it back." After choosing Auto it says Auto changes the colours of the page itself, the page becomes a picture drawn from the original at about 300 dpi (lower on very large pages), its text and lines can no longer be selected or searched, and the other pages are not affected. The same notice is shown beside the selected page. Both are checked in the browser, including that neither implies the whole document is flattened.
+
+### Decision on scope for this release
+Rasterization is accepted for the pixel-based effects (Auto, Grayscale, Black & White, brightness, contrast, "remove for good" crop) because every condition is measured: the result is clear at its physical size (300 dpi, crisper than the on-screen picture, OCR reads it), the resolution limit is stated, untouched pages keep text, vectors and photographs byte for byte, Reset restores the source, and the person is told about the loss of selectability. No application-wide PDF graphics rewrite was attempted.
+
+Possible future work (not done, not required): (1) a real PDF colour-space rewrite for Grayscale only, which needs content-stream, image and shading handling and validation across viewers (the blend-mode overlay was measured and rejected); (2) an optional lower dpi for smaller files; (3) per-pixel checks against browser-drawn references instead of Node's pdf.js.
+
+### Final test results (production build; exact)
+Type check clean; lint 0 errors (17 existing warnings); production build succeeds.
+
+**Ran and passed:** crop geometry 18; `verify-pdf-quality` 18; `verify-pdf-auto` 13; `test:pdf-edit` 11; `test:quality-fixes` 23; `test:print-quality` 3; install unit 71, install browser 56, install final verification 35 PASS / 0 FAIL / 3 NOT TESTED; assistant unit 19 + 17, assistant browser 31, launcher 16; `test:images` 15 + 4, e2e 27, quality 11; `test:compress` 38; Excel to PDF 5; PDF to Word 8 + 9; PDF to Excel 11 + 7; DOCX tables 9; DOCX robust 12; OCR 7 + UI 6.
+
+**Known failures, identical to the clean base commit (section 11):** zoom 4 passed / 14 failed; theme 21 / 1; print 27 / 6; consent 65 / 1. (`test:protect` and `test:docx` were not re-run in this pass; their documented failures are unchanged.)
+
+**Untested:** a real phone photograph, Safari/iOS, XLSX charts, Word/Excel compression, Office-file protection, the camera auto-crop path, PDFs with encryption, form fields or links on an edited page, and the real native install flow (see tests/install/INSTALL-VERIFICATION.md).
+
+**Known product limitations:** Auto, Grayscale, Black & White, brightness and contrast make that one page a picture (300 dpi, lower on very large pages); a rectangle crop only hides the cut-away area unless "remove for good" is chosen; links, form fields and bookmarks of an edited PDF page are not carried over; printing still sends page pictures to the browser's print layer (download the PDF for vector output); imported PDFs are limited to 50 pages.
+
+### Status of the output-quality audit
+The PDF-editing limitation is **accepted for this release with the conditions above met and verified**, and a related defect it exposed (Auto and Black & White tones differing between preview and export) is fixed. The remaining ranked defects are those in sections 11 and 12 (direct print scaling, OCR O/0 ambiguity, camera and suggested-crop quality, complex PDF-to-Word layouts) plus the untested items above. The audit is not claimed to be free of defects: its highest-priority document-quality issues are fixed or accepted, with measurements.

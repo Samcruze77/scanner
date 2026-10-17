@@ -81,6 +81,8 @@ function yieldToBrowser(): Promise<void> {
 }
 
 export interface RenderResult {
+  // The Auto / Black & White levels this render used (see enhance.ts), so another rendering of the same page can match.
+  enhancementParams?: import("./enhance").EnhancementParams;
   dataUrl: string;
   width: number;
   height: number;
@@ -90,7 +92,7 @@ export interface RenderResult {
   perspectiveFailed?: boolean;
 }
 
-export async function renderPage(page: ScannerPage, onProgress?: ProgressCallback): Promise<RenderResult> {
+export async function renderPage(page: ScannerPage, onProgress?: ProgressCallback, options: { enhancementParams?: import("./enhance").EnhancementParams } = {}): Promise<RenderResult> {
   const noOpChange =
     !page.cropEnabled &&
     page.rotation === 0 &&
@@ -105,6 +107,7 @@ export async function renderPage(page: ScannerPage, onProgress?: ProgressCallbac
   const img = await loadImage(page.originalDataUrl);
   let canvas = toCanvas(img);
   let perspectiveFailed = false;
+  const usedParams: import("./enhance").EnhancementParams = {};
 
   if (page.cropEnabled && page.quad) {
     onProgress?.("Correcting perspective…");
@@ -136,7 +139,7 @@ export async function renderPage(page: ScannerPage, onProgress?: ProgressCallbac
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (ctx) {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      applyEnhancement(imageData, page.enhancement);
+      applyEnhancement(imageData, page.enhancement, options.enhancementParams, usedParams);
       applyAdjustments(imageData, page.brightness, page.contrast);
       ctx.putImageData(imageData, 0, 0);
     }
@@ -151,6 +154,7 @@ export async function renderPage(page: ScannerPage, onProgress?: ProgressCallbac
     width: canvas.width,
     height: canvas.height,
     perspectiveFailed,
+    enhancementParams: page.enhancement === "auto" || page.enhancement === "bw" ? usedParams : undefined,
   };
   releaseCanvas(canvas);
   debugLog("render", {
