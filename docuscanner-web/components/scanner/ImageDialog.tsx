@@ -36,12 +36,15 @@ export function ImageDialog({
   mode,
   pageWidthPx,
   pageHeightPx,
+  ptPerPx,
   onApply,
   onCancel,
 }: {
   mode: "insert" | "replace";
   pageWidthPx: number;
   pageHeightPx: number;
+  // The page's physical scale when it came from a PDF (see pageLayout.ts).
+  ptPerPx?: number;
   onApply: (choice: ImageChoice) => void;
   onCancel: () => void;
 }) {
@@ -67,7 +70,7 @@ export function ImageDialog({
   const tokenRef = useRef(0);
 
   const preset = getPreset(presetId);
-  const presetSize = preset ? presetFractions(preset, pageWidthPx, pageHeightPx) : null;
+  const presetSize = preset ? presetFractions(preset, pageWidthPx, pageHeightPx, ptPerPx) : null;
   const presetAspect = preset ? preset.widthMm / preset.heightMm : null;
 
   useEffect(() => {

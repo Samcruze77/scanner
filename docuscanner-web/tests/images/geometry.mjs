@@ -16,6 +16,7 @@ import {
   sniffImageKind,
   stackPosition,
 } from "../../utils/scanner/imagePlacement.ts";
+import { exportPageLayout } from "../../utils/scanner/pageLayout.ts";
 import { createImage, resizeAnnotation } from "../../utils/scanner/annotations.ts";
 
 let pass = 0;
@@ -55,10 +56,24 @@ test("an A4 portrait page is 210 x 297 mm", () => {
   near(p.w, 210, 0.2);
   near(p.h, 297, 0.2);
 });
-test("a landscape page is scaled to the sheet, not stretched", () => {
+test("a landscape picture gets a landscape A4 sheet, fitted and not stretched", () => {
   const p = pageSizeMm(2000, 1000);
-  near(p.w, 210, 0.2);
-  near(p.h, 105, 0.2);
+  near(p.w, 297, 0.3);
+  near(p.h, 148.5, 0.3);
+});
+test("a page from a PDF keeps its own physical size (Letter stays Letter, landscape stays landscape)", () => {
+  const letter = pageSizeMm(1700, 2200, 612 / 1700);
+  near(letter.w, 215.9, 0.1);
+  near(letter.h, 279.4, 0.1);
+  const landscape = exportPageLayout(2000, 1414, 841.89 / 2000);
+  near(landscape.sheetW, 841.89, 0.01);
+  near(landscape.sheetH, 595.28, 0.2);
+  assert.equal(landscape.orientation, "landscape");
+  assert.equal(landscape.x, 0);
+  // Turning the page a quarter keeps the scale and swaps the sheet's shape.
+  const turned = exportPageLayout(1414, 2000, 841.89 / 2000);
+  near(turned.sheetW, 595.28, 0.2);
+  near(turned.sheetH, 841.89, 0.01);
 });
 test("35 x 45 mm on A4 is the right fraction of the page", () => {
   const f = presetFractions(getPreset("35x45mm"), 1240, 1754);

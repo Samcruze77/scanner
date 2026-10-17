@@ -7,9 +7,8 @@
 // the normalized coordinates annotations use, once the page's shape is known.
 
 import type { Annotation, ImageAnnotation } from "./annotations.ts";
+import { exportPageLayout } from "./pageLayout.ts";
 
-const A4_WIDTH_PT = 595.28;
-const A4_HEIGHT_PT = 841.89;
 const MM_PER_PT = 25.4 / 72;
 
 // Picture sizes people ask for. Passport and ID photo sizes differ by country
@@ -34,9 +33,9 @@ export function getPreset(id: string | null | undefined): SizePreset | undefined
 }
 
 // The printed size of the whole page in millimetres, as the exported PDF draws it.
-export function pageSizeMm(pageWidthPx: number, pageHeightPx: number): { w: number; h: number } {
-  const scale = Math.min(A4_WIDTH_PT / pageWidthPx, A4_HEIGHT_PT / pageHeightPx);
-  return { w: pageWidthPx * scale * MM_PER_PT, h: pageHeightPx * scale * MM_PER_PT };
+export function pageSizeMm(pageWidthPx: number, pageHeightPx: number, ptPerPx?: number): { w: number; h: number } {
+  const layout = exportPageLayout(pageWidthPx, pageHeightPx, ptPerPx);
+  return { w: layout.w * MM_PER_PT, h: layout.h * MM_PER_PT };
 }
 
 // Normalized width and height that make a picture exactly `widthMm` x `heightMm`
@@ -46,8 +45,9 @@ export function presetFractions(
   preset: SizePreset,
   pageWidthPx: number,
   pageHeightPx: number,
+  ptPerPx?: number,
 ): { w: number; h: number } | null {
-  const page = pageSizeMm(pageWidthPx, pageHeightPx);
+  const page = pageSizeMm(pageWidthPx, pageHeightPx, ptPerPx);
   const w = preset.widthMm / page.w;
   const h = preset.heightMm / page.h;
   return w <= 1 && h <= 1 ? { w, h } : null;
@@ -292,9 +292,9 @@ export function aspectRectWithin(rect: Rect, sw: number, sh: number, aspect: num
 
 // Dots per inch a picture of `pxWidth` pixels gets when it fills `fractionOfPage` of the
 // page width as printed. Null when it cannot be worked out.
-export function effectiveDpi(pxWidth: number | undefined, fractionOfPage: number, pageWidthPx: number, pageHeightPx: number): number | null {
+export function effectiveDpi(pxWidth: number | undefined, fractionOfPage: number, pageWidthPx: number, pageHeightPx: number, ptPerPx?: number): number | null {
   if (!pxWidth || !(fractionOfPage > 0)) return null;
-  const widthInches = (fractionOfPage * pageSizeMm(pageWidthPx, pageHeightPx).w) / 25.4;
+  const widthInches = (fractionOfPage * pageSizeMm(pageWidthPx, pageHeightPx, ptPerPx).w) / 25.4;
   return Math.round(pxWidth / widthInches);
 }
 

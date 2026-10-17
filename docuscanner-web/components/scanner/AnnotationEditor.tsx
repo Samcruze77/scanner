@@ -279,7 +279,7 @@ export function AnnotationEditor({
       return;
     }
     const preset = getPreset(choice.presetId);
-    const size = preset ? presetFractions(preset, page.processedWidth, page.processedHeight) ?? undefined : undefined;
+    const size = preset ? presetFractions(preset, page.processedWidth, page.processedHeight, page.ptPerPx) ?? undefined : undefined;
     const fresh = createImage(choice.image.dataUrl, choice.image.width, choice.image.height, page.processedWidth, page.processedHeight, size, { original: choice.original });
     const current = selected?.type === "image" ? selected : null;
     if (mode === "replace" && current) {
@@ -343,7 +343,7 @@ export function AnnotationEditor({
     const current = selected;
     const preset = getPreset(presetId);
     if (!preset) return;
-    const size = presetFractions(preset, page.processedWidth, page.processedHeight);
+    const size = presetFractions(preset, page.processedWidth, page.processedHeight, page.ptPerPx);
     if (!size) {
       setImageNotice("That size doesn't fit on this page.");
       return;
@@ -371,7 +371,7 @@ export function AnnotationEditor({
   }
 
   // How sharp the selected picture will be when printed at the size it is placed at.
-  const imageDpi = selected?.type === "image" ? effectiveDpi(selected.pxW, selected.w, page.processedWidth, page.processedHeight) : null;
+  const imageDpi = selected?.type === "image" ? effectiveDpi(selected.pxW, selected.w, page.processedWidth, page.processedHeight, page.ptPerPx) : null;
 
   function moveSelectedInStack(move: "forward" | "backward" | "front" | "back") {
     if (!selectedId) return;
@@ -726,6 +726,7 @@ export function AnnotationEditor({
           mode={imageDialog}
           pageWidthPx={page.processedWidth}
           pageHeightPx={page.processedHeight}
+          ptPerPx={page.ptPerPx}
           onApply={(choice) => void placeImage(choice)}
           onCancel={() => setImageDialog(null)}
         />

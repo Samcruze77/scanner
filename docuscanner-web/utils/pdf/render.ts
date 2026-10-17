@@ -10,6 +10,9 @@ export interface RenderedPdfPage {
   dataUrl: string;
   width: number;
   height: number;
+  // The page's real size in points (1/72 inch), as the PDF declares it.
+  widthPt: number;
+  heightPt: number;
 }
 
 // Renders one PDF page to a JPEG whose long side is about `longSidePx`. The
@@ -35,7 +38,7 @@ export async function renderPdfPage(
 
   await page.render({ canvas, canvasContext: ctx, viewport }).promise;
 
-  const rendered = { dataUrl: canvas.toDataURL("image/jpeg", jpegQuality), width: canvas.width, height: canvas.height };
+  const rendered = { dataUrl: canvas.toDataURL("image/jpeg", jpegQuality), width: canvas.width, height: canvas.height, widthPt: base.width, heightPt: base.height };
   // Free the canvas backing store promptly (matters on iOS Safari).
   canvas.width = canvas.height = 0;
   return rendered;

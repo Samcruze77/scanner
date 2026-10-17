@@ -1,6 +1,7 @@
 "use client";
 
 import { buildPageLayers, flattenPageToJpeg } from "./annotationRender";
+import { exportPageLayout } from "./pageLayout";
 import { dataUrlBytes, debugLog, isScannerDebug } from "./debugLog";
 import type { ScannerPage } from "./page";
 
@@ -17,18 +18,16 @@ export async function createPdfFromPages(pages: ScannerPage[]): Promise<Blob> {
   if (pages.length === 0) throw new Error("no_pages");
 
   const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
+  // Each page gets a sheet of its own size and orientation (see pageLayout.ts): a PDF page keeps
+  // its original size, a landscape picture gets a landscape sheet, nothing is forced to A4 portrait.
+  const first = exportPageLayout(pages[0].processedWidth, pages[0].processedHeight, pages[0].ptPerPx);
+  const doc = new jsPDF({ unit: "pt", format: [first.sheetW, first.sheetH], orientation: first.orientation, compress: true });
 
   for (let index = 0; index < pages.length; index++) {
     const page = pages[index];
-    if (index > 0) doc.addPage();
-    const scale = Math.min(pageWidth / page.processedWidth, pageHeight / page.processedHeight);
-    const w = page.processedWidth * scale;
-    const h = page.processedHeight * scale;
-    const x = (pageWidth - w) / 2;
-    const y = (pageHeight - h) / 2;
+    const layout = exportPageLayout(page.processedWidth, page.processedHeight, page.ptPerPx);
+    if (index > 0) doc.addPage([layout.sheetW, layout.sheetH], layout.orientation);
+    const { x, y, w, h } = layout;
     // Pages with inserted pictures are exported as layers, so each picture keeps its own
     // resolution instead of being painted into the page-sized raster (see buildPageLayers).
     const layers = await buildPageLayers(page);
