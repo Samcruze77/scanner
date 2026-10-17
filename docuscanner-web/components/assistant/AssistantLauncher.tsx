@@ -1,19 +1,25 @@
 "use client";
 
-// The floating "Ask me anything" button. This file is all that loads on every page: a
-// small button and nothing else. The chat panel, the product knowledge and the guide
-// are a separate chunk that is only fetched the first time the button is pressed (or
-// when it is about to be, on hover/focus), so the assistant costs the document
-// workflows nothing.
+// The floating "Ask me" button. This file is all that loads on every page: a small button
+// and nothing else. The chat panel, the product knowledge and the guide are a separate chunk
+// that is only fetched the first time the button is pressed (or when it is about to be, on
+// hover/focus), so the assistant costs the document workflows nothing.
 //
-// Placement: bottom right, above the phone's bottom navigation bar. It sits below the
-// cookie banner and every full-screen editor and dialog, so it never covers a Download
-// button, an editor control or a dialog; the editors open over it. It is not shown on
-// the admin pages or the password-reset page.
+// Look: closed, it is a compact, translucent pill that blends into the page (about 30 px
+// tall, drawn from the theme's own surface, text and line colours, so Light, Warm Beige and
+// Dark each get a matching version). Hover and keyboard focus make it more opaque with a
+// focus ring; while the chat is open it turns solid, bold and blue so it is obvious the
+// assistant is active, and pressing it closes the chat. The visible pill is small but the
+// clickable area around it is at least 44 px, so it stays easy to tap.
+//
+// Placement: bottom right, above the phone's bottom navigation bar. It sits below the cookie
+// banner and every full-screen editor and dialog, so it never covers a Download button, an
+// editor control or a dialog; the editors open over it. Not shown on the admin pages or the
+// password-reset page.
 
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icons";
 
 const AssistantPanel = dynamic(() => import("./AssistantPanel").then((m) => m.AssistantPanel), { ssr: false });
@@ -27,6 +33,62 @@ export function AssistantLauncher() {
   // closing it and moving between pages. It is only ever kept in memory.
   const [everOpened, setEverOpened] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  // How far the closed launcher steps up to stay clear of an advertisement that has scrolled
+  // into its corner. Ads are never covered; the launcher moves instead.
+  const [lift, setLift] = useState(0);
+  const liftRef = useRef(0);
+
+  useEffect(() => {
+    if (open) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const button = buttonRef.current;
+      if (!button) return;
+      const r = button.getBoundingClientRect();
+      const baseTop = r.top + liftRef.current;
+      const baseBottom = r.bottom + liftRef.current;
+      let next = 0;
+      for (const ad of document.querySelectorAll("aside[data-ad-placement]")) {
+        const a = ad.getBoundingClientRect();
+        if (a.width === 0 || a.height === 0) continue;
+        const overlapsX = a.left < r.right && a.right > r.left;
+        const overlapsY = a.top < baseBottom + 4 && a.bottom > baseTop - 4;
+        if (overlapsX && overlapsY) next = Math.max(next, baseBottom - a.top + 8);
+      }
+      next = Math.min(next, 240);
+      if (Math.abs(next - liftRef.current) > 1) {
+        liftRef.current = next;
+        setLift(next);
+      }
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+    schedule();
+    const late = window.setTimeout(schedule, 1500); // ads fill in after the page loads
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.clearTimeout(late);
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [open, pathname]);
+
+  // Escape closes the chat from anywhere on the page while it is open, not only when focus is
+  // already inside the panel (for example right after pressing the launcher).
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      setOpen(false);
+      requestAnimationFrame(() => buttonRef.current?.focus());
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   if (HIDDEN_ON.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return null;
 
@@ -44,23 +106,33 @@ export function AssistantLauncher() {
   return (
     <>
       {everOpened && <AssistantPanel open={open} pathname={pathname} onClose={closePanel} />}
-      {!open && (
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={openPanel}
-          onPointerEnter={() => void import("./AssistantPanel")}
-          onFocus={() => void import("./AssistantPanel")}
-          aria-label="Ask FreePDFScanner: open the help assistant"
-          aria-haspopup="dialog"
-          data-assistant-launcher
-          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-3 z-30 flex min-h-12 items-center gap-2 rounded-full bg-blue-600 px-4 text-sm font-semibold text-white shadow-lg ring-1 ring-black/10 hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:bottom-5 sm:right-5"
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => (open ? closePanel() : openPanel())}
+        onPointerEnter={() => void import("./AssistantPanel")}
+        onFocus={() => void import("./AssistantPanel")}
+        aria-label={open ? "Close the help assistant" : "Ask FreePDFScanner: open the help assistant"}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={everOpened ? "assistant-panel" : undefined}
+        data-assistant-launcher
+        data-state={open ? "open" : "closed"}
+        style={!open && lift ? { transform: `translateY(-${lift}px)` } : undefined}
+        // The button is the (at least 44 px) touch target; the pill inside is the visible part.
+        className="group fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] right-1 z-30 flex min-h-11 min-w-11 items-center justify-center rounded-full transition-transform duration-150 focus-visible:outline-none sm:bottom-3 sm:right-3"
+      >
+        <span
+          className={`flex h-[30px] items-center gap-1 rounded-full border px-2.5 text-xs transition-[opacity,background-color,box-shadow] duration-150 group-focus-visible:ring-2 group-focus-visible:ring-blue-600 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-[color:var(--page)] ${
+            open
+              ? "border-blue-700 bg-blue-600 font-bold text-white opacity-100 shadow-md"
+              : "border-line bg-[color:color-mix(in_srgb,var(--surface)_72%,transparent)] font-medium text-[color:var(--text)] opacity-75 backdrop-blur-sm group-hover:bg-[color:color-mix(in_srgb,var(--surface)_92%,transparent)] group-hover:opacity-100 group-hover:shadow-sm group-focus-visible:opacity-100"
+          }`}
         >
-          <Icon name="info" size={20} />
-          <span className="hidden sm:inline">Ask me anything</span>
-          <span className="sm:hidden">Ask</span>
-        </button>
-      )}
+          <Icon name="info" size={14} />
+          <span>{open ? "Close" : "Ask me"}</span>
+        </span>
+      </button>
     </>
   );
 }

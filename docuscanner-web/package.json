@@ -23,7 +23,7 @@
     "test:images:e2e": "node tests/images/e2e.mjs",
     "test:images:quality": "node tests/images/quality.mjs",
     "test:assistant": "node --no-warnings tests/assistant/knowledge.mjs && node --no-warnings tests/assistant/api.mjs",
-    "test:assistant:browser": "node tests/assistant/browser.mjs",
+    "test:assistant:browser": "node tests/assistant/browser.mjs && node tests/assistant/launcher.mjs",
     "test:print": "node tests/print/verify.mjs",
     "test:zoom": "node tests/zoom/verify.mjs",
     "test:auth": "node tests/auth/verify.mjs",

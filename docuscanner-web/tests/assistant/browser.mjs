@@ -117,7 +117,7 @@ try {
     ok("the six example questions are offered");
     await page.keyboard.press("Escape");
     await panel(page).waitFor({ state: "hidden" });
-    assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute("data-assistant-launcher")), true);
+    await page.waitForFunction(() => document.activeElement?.hasAttribute("data-assistant-launcher"), null, { timeout: 3000 });
     ok("Escape closes it and focus returns to the launcher");
     await launcher(page).click();
     await panel(page).getByRole("button", { name: "Close the help assistant" }).click();
