@@ -14,7 +14,8 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { PDFDocument, PDFName, PDFRawStream, PDFRef, rgb } from "pdf-lib";
-import { renderPdf } from "../docx/pdftool.mjs";
+import { openPdf, renderPdf } from "../docx/pdftool.mjs";
+const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright-core");
@@ -104,6 +105,34 @@ async function embeddedImages(pdfFile, pageIndex) {
       bytes: Buffer.from(obj.contents),
     });
   }
+  return out;
+}
+
+// The PHYSICAL size of every image drawn on a page, in millimetres, read from the PDF's own
+// drawing instructions (the transform in force when each image is painted), not from pixels.
+async function placements(pdfFile, pageNumber) {
+  const pdf = await openPdf(pdfFile);
+  const page = await pdf.getPage(pageNumber);
+  const list = await page.getOperatorList();
+  const { OPS } = pdfjs;
+  const mul = (m, n) => [
+    m[0] * n[0] + m[1] * n[2], m[0] * n[1] + m[1] * n[3],
+    m[2] * n[0] + m[3] * n[2], m[2] * n[1] + m[3] * n[3],
+    m[4] * n[0] + m[5] * n[2] + n[4], m[4] * n[1] + m[5] * n[3] + n[5],
+  ];
+  let ctm = [1, 0, 0, 1, 0, 0];
+  const stack = [];
+  const out = [];
+  list.fnArray.forEach((fn, i) => {
+    const args = list.argsArray[i];
+    if (fn === OPS.save) stack.push(ctm);
+    else if (fn === OPS.restore) ctm = stack.pop() ?? ctm;
+    else if (fn === OPS.transform) ctm = mul(args, ctm);
+    else if (fn === OPS.paintImageXObject) {
+      const mm = (pt) => (pt * 25.4) / 72;
+      out.push({ px: [args[1], args[2]], wMm: mm(Math.hypot(ctm[0], ctm[1])), hMm: mm(Math.hypot(ctm[2], ctm[3])) });
+    }
+  });
   return out;
 }
 
@@ -220,6 +249,11 @@ try {
     // jsPDF lists every image in each page's resources, so count the whole document: two page
     // images plus the one photograph, nothing else.
     assert.equal((await embeddedImages(pdf, 0)).length, 3, "two page images and the photograph");
+    // Physical size inside the downloaded PDF, from its drawing instructions.
+    const placed = (await placements(pdf, 2)).find((p) => p.px[0] >= 2990);
+    assert.ok(placed, "the photograph is drawn on page 2");
+    assert.ok(Math.abs(placed.wMm - 35) < 0.3 && Math.abs(placed.hMm - 45) < 0.3, `downloaded PDF places the photo at ${placed.wMm.toFixed(2)} x ${placed.hMm.toFixed(2)} mm (intended 35 x 45)`);
+    console.log(`      downloaded PDF: photo measures ${placed.wMm.toFixed(2)} x ${placed.hMm.toFixed(2)} mm`);
     ok(`embedded at ${photo.width}x${photo.height} (source 3000x4000) as JPEG; rendered detail ${(exported / source * 100).toFixed(0)}% of the source's`);
     await context.close();
   }
@@ -331,7 +365,7 @@ try {
     );
     await page.waitForFunction(() => [...document.querySelectorAll(".print-root[data-standing] img")].every((i) => i.complete), null, { timeout: 30000 });
     const file = path.join(work, name);
-    fs.writeFileSync(file, await page.pdf({ preferCSSPageSize: true, printBackground: true }));
+    fs.writeFileSync(file, await page.pdf({ format: "A4", printBackground: true }));
     return file;
   }
   // The pale-yellow page's own rectangle inside a rendered sheet (the print adds a margin).
@@ -356,6 +390,7 @@ try {
     await addImage(page, files.passport, "35x45mm");
     const box = await selection(page);
     const pdf = await printedPdf(page, "print-passport.pdf");
+    assert.ok(await page.getByText(/Print fits each page to the paper/).first().isVisible(), "the Print button explains that it fits the page to the paper and how to get an exact size");
     const doc = await PDFDocument.load(fs.readFileSync(pdf));
     assert.equal(doc.getPageCount(), 2, "printed page count and order unchanged");
     const imgs = await embeddedImages(pdf, 1);
@@ -368,12 +403,19 @@ try {
     const crop = { x: 0, y: (1 - 3857 / 4000) / 2, w: 1, h: 3857 / 4000 };
     const { exported, source } = await sharpness(canvas, printedBox, files.passport, crop);
     assert.ok(exported >= source * 0.93, `printed output keeps fine detail (print ${exported.toFixed(1)} vs source ${source.toFixed(1)})`);
-    // Physical size: the print fits the page inside the sheet's margin, so every page (and the
-    // photo on it) is scaled by the same factor; relative to the page it is exactly as placed.
-    const pageWmm = sheet.w * 210;
-    const photoMm = box.w * pageWmm;
-    assert.ok(Math.abs(photoMm / 35 - sheet.w * 210 / 210) < 0.03, `photo is ${photoMm.toFixed(1)} mm wide on paper (page printed at ${(sheet.w * 100).toFixed(0)}% of the sheet)`);
-    // The photograph is cropped to the passport shape, not stretched: no blue bars, right shape.
+    // Physical size on the printed A4 sheet, from the PDF's drawing instructions. The print fits
+    // each page inside the sheet's 6 mm margin, so the page (and the photo with it) is scaled by
+    // the same factor: the page's own width on paper tells us that factor.
+    const drawn = await placements(pdf, 2);
+    const printedPhoto = drawn.find((p) => p.px[0] >= 2990);
+    const printedPage = drawn.find((p) => p.px[0] === 1414 || (p.px[0] < 2990 && p.wMm > 150));
+    assert.ok(printedPhoto && printedPage, "found the photo and the page image in the printed PDF: " + JSON.stringify(drawn));
+    const scale = printedPage.wMm / 210;
+    assert.ok(scale > 0.9 && scale < 1.0001, `the printed page is scaled to fit: ${(scale * 100).toFixed(1)}% of A4 width`);
+    assert.ok(Math.abs(printedPhoto.wMm / scale - 35) < 0.3 && Math.abs(printedPhoto.hMm / scale - 45) < 0.3, `relative to the page the photo is exactly 35 x 45 (${(printedPhoto.wMm / scale).toFixed(2)} x ${(printedPhoto.hMm / scale).toFixed(2)})`);
+    assert.ok(printedPhoto.wMm < 35, "direct print shrinks the photo (fit to paper), which is why the UI says so");
+    console.log(`      printed A4 PDF: page at ${(scale * 100).toFixed(1)}%, photo measures ${printedPhoto.wMm.toFixed(2)} x ${printedPhoto.hMm.toFixed(2)} mm (intended 35 x 45)`);
+    const photoMm = printedPhoto.wMm;
     const body = detailBox(canvas, (r, g, b) => b > 150 && r < 60 && g < 60);
     ok(`printed PDF: photograph embedded ${photo.width}x${photo.height}; detail ${(exported / source * 100).toFixed(0)}% of source; ${photoMm.toFixed(1)} mm wide (${(sheet.w * 100).toFixed(0)}% scale)`);
     void body;

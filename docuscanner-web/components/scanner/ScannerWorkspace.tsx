@@ -16,6 +16,7 @@ import { buildDocxFromOcrPages } from "@/utils/convert/ocrToDocx";
 import { buildXlsxFromOcrPages } from "@/utils/convert/ocrToXlsx";
 import { ocrTextToCsv } from "@/utils/convert/toCsv";
 import { downloadTextFile } from "@/utils/ocr/export";
+import { PRINT_FIT_NOTE } from "@/utils/print/printPages";
 import { scannerPagesToPrintPages } from "@/utils/print/sources";
 import { importPdfPages } from "@/utils/scanner/pdfImport";
 import type { Annotation, AnnotationTool } from "@/utils/scanner/annotations";
@@ -884,6 +885,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
                   title="document"
                   disabled={anyPageProcessing}
                   className="btn btn-secondary flex-1"
+                  note={pages.some((p) => p.annotations.some((a) => a.type === "image")) ? PRINT_FIT_NOTE : undefined}
                   getPages={() => scannerPagesToPrintPages(pages)}
                 />
                 {pdfBlob && (

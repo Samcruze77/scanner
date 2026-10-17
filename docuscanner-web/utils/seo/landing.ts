@@ -235,7 +235,7 @@ export const LANDING_PAGES: LandingPage[] = [
       "Pictures are placed on top of the page. Existing text in the document is not rewritten.",
       "The result is a PDF. A Word or Excel file is converted to PDF first, so the picture is added to that PDF and your original .docx or .xlsx is not changed.",
       "The saved PDF is created from page images, so its text is not selectable.",
-      "Passport and ID photo sizes are different for every country and application. Check the size you need; the sizes offered are exact when the PDF is printed at 100%.",
+      "Passport and ID photo sizes are different for every country and application. Check the size you need; the sizes offered are exact in the downloaded PDF printed at Actual size (100%) with Fit to page off. The Print button fits the page to the paper, so a photo comes out slightly smaller.",
       "HEIC, GIF, SVG and BMP pictures are not supported. Save them as JPG or PNG first.",
     ],
     privacy: PRIVATE,

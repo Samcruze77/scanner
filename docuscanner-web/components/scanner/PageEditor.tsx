@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icons";
 import { PrintButton } from "@/components/print/PrintButton";
+import { PRINT_FIT_NOTE } from "@/utils/print/printPages";
 import { scannerPagesToPrintPages } from "@/utils/print/sources";
 import type { ScannerPage } from "@/utils/scanner/page";
 import { ENHANCEMENT_MODES, type EnhancementMode } from "@/utils/scanner/enhance";
@@ -277,6 +278,7 @@ export function PageEditor({
                   title={`page-${index + 1}`}
                   label="Print this page"
                   disabled={processing}
+                  note={page.annotations.some((a) => a.type === "image") ? PRINT_FIT_NOTE : undefined}
                   getPages={() => scannerPagesToPrintPages([page])}
                 />
               </div>

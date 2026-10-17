@@ -361,7 +361,7 @@ export function ImageDialog({
                 </select>
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                   Passport and ID photo sizes are different for every country and application. Check the size you need before you choose one.
-                  Sizes are exact when the PDF is printed at 100%.
+                  Sizes are exact in the downloaded PDF when you print it at Actual size (100%) with Fit to page turned off. The Print button fits the page to the paper, so a photo comes out a little smaller.
                 </p>
               </div>
 

@@ -31,6 +31,7 @@ export function PrintButton({
   label = "Print",
   disabled = false,
   className,
+  note,
 }: {
   // Builds the pages to print. Called when the button is pressed.
   getPages: () => Promise<PrintPage[]>;
@@ -41,6 +42,8 @@ export function PrintButton({
   label?: string;
   disabled?: boolean;
   className?: string;
+  // Small print under the button (for example, how exact sizes are kept).
+  note?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -83,6 +86,7 @@ export function PrintButton({
         <Icon name="print" size={18} />
         {busy ? "Preparing…" : label}
       </button>
+      {note && <p className="muted basis-full text-xs leading-5">{note}</p>}
       {message && (
         <p role="alert" className="basis-full text-sm text-amber-700 dark:text-amber-400">
           {message}

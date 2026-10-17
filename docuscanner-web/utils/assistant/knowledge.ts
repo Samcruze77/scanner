@@ -208,7 +208,7 @@ const ENTRIES: HelpEntry[] = [
       },
     ],
     notes: [
-      "Passport and ID photo sizes differ by country and application, so check the size you need. The sizes offered are exact when the PDF is printed at 100%.",
+      "Passport and ID photo sizes differ by country and application, so check the size you need. The sizes offered are exact in the downloaded PDF printed at Actual size (100%) with Fit to page turned off. The Print button fits the page to the paper, so a photo prints slightly smaller.",
       "Word and Excel files are converted to PDF first, so the picture is added to the PDF. Your original .docx or .xlsx is not changed.",
       "Pictures sit on top of the page; the existing text in a document is not rewritten.",
     ],

@@ -52,6 +52,11 @@ export class PrintError extends Error {
 
 export const MAX_PRINT_PAGES = 100;
 
+// Shown next to Print when a page has an inserted picture: direct printing fits the page to
+// the paper (with a 6 mm margin), so it cannot promise a picture's exact physical size.
+export const PRINT_FIT_NOTE =
+  "Print fits each page to the paper with a small margin, so a picture comes out slightly smaller than its stated size. For an exact size, download the PDF and print it at Actual size (100%) with Fit to page turned off.";
+
 const ROOT_CLASS = "print-root";
 // While any visible container exists, the app around it is hidden when printing.
 const SCOPE_CLASS = "print-document";
