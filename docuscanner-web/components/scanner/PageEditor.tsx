@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icons";
+import { FlattenNotice } from "./FlattenNotice";
 import { PrintButton } from "@/components/print/PrintButton";
 import { PRINT_FIT_NOTE } from "@/utils/print/printPages";
 import { scannerPagesToPrintPages } from "@/utils/print/sources";
@@ -244,6 +245,8 @@ export function PageEditor({
                 onCommit={(contrast) => onAdjustmentChange({ contrast })}
               />
             </div>
+
+            <FlattenNotice page={page} />
 
             <div>
               <p className="panel-title mb-2">Annotate</p>

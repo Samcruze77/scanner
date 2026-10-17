@@ -33,19 +33,41 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+// A page of an imported PDF has no perspective to correct, so its crop is always a rectangle: dragging a
+// corner moves the two sides it touches. A rectangle can be applied to the real PDF page, which keeps its
+// text and vector drawing (see utils/scanner/cropMath.ts). Photos keep four free corners.
+const MIN_RECT_FRACTION = 0.03;
+
+function toRectangle(quad: Quad): Quad {
+  const xs = quad.map((p) => p.x);
+  const ys = quad.map((p) => p.y);
+  const [l, r, t, b] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  return [
+    { x: l, y: t },
+    { x: r, y: t },
+    { x: r, y: b },
+    { x: l, y: b },
+  ];
+}
+
 export function CropEditor({
   page,
   onApply,
   onCancel,
 }: {
   page: ScannerPage;
-  onApply: (quad: Quad) => void;
+  onApply: (quad: Quad, options: { permanent: boolean }) => void;
   onCancel: () => void;
 }) {
+  const rectangular = !!page.source;
+  const [permanent, setPermanent] = useState(!!page.cropPermanent);
   const width = page.originalWidth;
   const height = page.originalHeight;
 
-  const [quad, setQuad] = useState<Quad>(() => page.quad ?? insetQuad(width, height));
+  const [quad, setQuad] = useState<Quad>(() => {
+    const start = page.quad ?? insetQuad(width, height);
+    return rectangular ? toRectangle(start) : start;
+  });
   const [dragging, setDragging] = useState<number | null>(null);
   const [tooSmall, setTooSmall] = useState(false);
 
@@ -66,8 +88,26 @@ export function CropEditor({
   function setCorner(index: number, point: Point) {
     setTooSmall(false);
     setQuad((prev) => {
+      const x = clamp(point.x, 0, width);
+      const y = clamp(point.y, 0, height);
+      if (rectangular) {
+        // Corners 0 and 3 share the left side, 1 and 2 the right; 0 and 1 share the top, 2 and 3 the bottom.
+        const minW = width * MIN_RECT_FRACTION;
+        const minH = height * MIN_RECT_FRACTION;
+        let [l, r, t, b] = [prev[0].x, prev[1].x, prev[0].y, prev[2].y];
+        if (index === 0 || index === 3) l = Math.min(x, r - minW);
+        else r = Math.max(x, l + minW);
+        if (index === 0 || index === 1) t = Math.min(y, b - minH);
+        else b = Math.max(y, t + minH);
+        return [
+          { x: l, y: t },
+          { x: r, y: t },
+          { x: r, y: b },
+          { x: l, y: b },
+        ];
+      }
       const next = [...prev] as Quad;
-      next[index] = { x: clamp(point.x, 0, width), y: clamp(point.y, 0, height) };
+      next[index] = { x, y };
       return next;
     });
   }
@@ -97,7 +137,7 @@ export function CropEditor({
       setTooSmall(true);
       return;
     }
-    onApply(ordered);
+    onApply(ordered, { permanent: rectangular && permanent });
   }
 
   const points = quad.map((p) => `${p.x},${p.y}`).join(" ");
@@ -113,7 +153,7 @@ export function CropEditor({
       <div className="flex max-h-full w-full flex-col overflow-y-auto rounded-2xl bg-elevated p-4 shadow-xl sm:max-w-lg sm:max-h-[95vh]">
         <h2 className="text-base font-semibold">Adjust crop</h2>
         <p className="muted mb-3 text-sm">
-          Drag the corners to the edges of your document. Rotation is applied after cropping.
+          {rectangular ? "Drag the corners to crop the page to a rectangle. Rotation is applied after cropping." : "Drag the corners to the edges of your document. Rotation is applied after cropping."}
         </p>
 
         {/* Zoomed in, the photo scrolls inside this window: handy for placing the
@@ -182,6 +222,21 @@ export function CropEditor({
           <p className="text-xs text-zinc-500 dark:text-zinc-400">Zoom in to place the corners exactly: pinch, or use + and −.</p>
           <ZoomControls api={zoom} />
         </div>
+
+        {rectangular && (
+          <div className="mb-3 space-y-2 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--border)" }}>
+            <p className="muted text-xs leading-5">
+              The page keeps its selectable text and sharp lines. The area you cut away is hidden, but it is still inside the PDF file.
+            </p>
+            <label className="flex min-h-11 cursor-pointer items-start gap-3">
+              <input type="checkbox" checked={permanent} onChange={(e) => setPermanent(e.target.checked)} className="mt-1 h-4 w-4" />
+              <span>
+                Remove the cut-away area for good
+                <span className="muted block text-xs leading-5">Use this to hide private details. The page becomes a picture, so its text can no longer be selected.</span>
+              </span>
+            </label>
+          </div>
+        )}
 
         {tooSmall && (
           <p role="alert" className="notice notice-error mb-3">

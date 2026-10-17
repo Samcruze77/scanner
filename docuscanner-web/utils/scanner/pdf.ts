@@ -3,6 +3,7 @@
 import { buildPageLayers, flattenPageToJpeg } from "./annotationRender";
 import { exportPageLayout } from "./pageLayout";
 import { createPdfPreservingSource } from "./pdfExport";
+import { sharpenFlattenedPages } from "./sourceRender";
 import { dataUrlBytes, debugLog, isScannerDebug } from "./debugLog";
 import type { ScannerPage } from "./page";
 
@@ -15,8 +16,11 @@ import type { ScannerPage } from "./page";
 // flattened first: the annotations are drawn onto the processed image so the
 // PDF shows them. Pages without annotations use their image untouched, exactly
 // as before.
-export async function createPdfFromPages(pages: ScannerPage[]): Promise<Blob> {
-  if (pages.length === 0) throw new Error("no_pages");
+export async function createPdfFromPages(inputPages: ScannerPage[]): Promise<Blob> {
+  if (inputPages.length === 0) throw new Error("no_pages");
+  // Pages of an imported PDF that were cropped skewed, enhanced or adjusted are drawn again from the original at
+  // about 300 dpi (sourceRender.ts) so the picture that has to be used is sharp.
+  const pages = await sharpenFlattenedPages(inputPages);
 
   // Pages that came from a PDF keep their original content (text, vectors, fonts); see pdfExport.ts.
   // If that path cannot be used for any reason the picture-based writer below produces the PDF.

@@ -4,15 +4,22 @@
 //
 // Opening a PDF in the scanner workspace shows each page as a picture so it can be marked up. Rebuilding
 // the PDF from those pictures would turn selectable text, fonts and vector drawing into pixels. Instead,
-// a page that came from a PDF and has not had its PIXELS changed (no crop, no enhancement, no brightness
-// or contrast) is re-embedded from the original PDF, and the person's additions (text, pen, highlights,
-// check marks, signatures, pictures) are drawn on top as real PDF content: text as text, pen and marks
-// as vector paths, highlights as multiply-blended rectangles, pictures at their own resolution.
+// a page that came from a PDF and has not had its PIXELS changed is re-embedded from the original PDF, and the
+// person's additions (text, pen, highlights, check marks, signatures, pictures) are drawn on top as real PDF
+// content: text as text, pen and marks as vector paths, highlights as multiply-blended rectangles, pictures at
+// their own resolution. Rotating a page and cropping it to a RECTANGLE do not change pixels either: the crop is
+// applied as a clip box on the original page, so the text and vector drawing stay.
 //
-// What is kept: the page's text and its fonts, vector graphics, embedded images at full quality, the
-// page size and orientation, and the page order. What is not: links, form fields and bookmarks of the
-// source page (the page becomes a flat page with its content), and any page that was cropped or enhanced,
-// which needs new pixels and is exported as a picture of the page (at its true physical size).
+// What is kept: the page's text and its fonts, vector graphics, embedded images at full quality, the page size
+// and orientation, and the page order. What is not: links, form fields and bookmarks of the source page (the
+// page becomes a flat page with its content).
+//
+// What genuinely needs new pixels: grayscale, black and white, auto levels, brightness and contrast (they
+// change the colour of the artwork itself, which PDF cannot do reliably for text, vectors and embedded
+// photographs together), a skewed (perspective) crop, and a crop the person asked to remove for good. Those
+// pages are exported as a picture of the page, drawn again from the ORIGINAL PDF at about 300 dpi
+// (see sourceRender.ts), not enlarged from the on-screen picture. A rectangle crop hides the cropped-away
+// area but the PDF still contains it; "remove for good" is the option that does not.
 // Photographs and scans are not PDFs, so they are always pictures.
 
 import { BlendMode, LineCapStyle, PDFDocument, StandardFonts, degrees, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
@@ -21,16 +28,10 @@ import { buildPageLayers, ensureAnnotationImages, flattenPageToJpeg, layoutText,
 import { exportPageLayout } from "./pageLayout";
 import type { ScannerPage } from "./page";
 import { getSourcePdf } from "./sourcePdfs";
+import { axisAlignedRect, cropToUserSpace, flattenReason } from "./cropMath";
 
 export function canPreserveSource(page: ScannerPage): boolean {
-  return (
-    !!page.source &&
-    !!getSourcePdf(page.source.fileId) &&
-    !page.cropEnabled &&
-    page.enhancement === "original" &&
-    page.brightness === 0 &&
-    page.contrast === 0
-  );
+  return !!page.source && !!getSourcePdf(page.source.fileId) && flattenReason(page) === null;
 }
 
 function dataUrlBytes(dataUrl: string): { bytes: Uint8Array; mime: string } {
@@ -185,7 +186,15 @@ export async function createPdfPreservingSource(pages: ScannerPage[]): Promise<B
     const src = canPreserveSource(page) && page.source ? await loadSource(page.source.fileId) : null;
     if (src && page.source && page.source.pageIndex < src.getPageCount()) {
       const srcPage = src.getPage(page.source.pageIndex);
-      const box = srcPage.getCropBox();
+      const pageBox = srcPage.getCropBox();
+      // A rectangle crop becomes a clip box on the page itself.
+      const rect = page.cropEnabled && page.quad ? axisAlignedRect(page.quad) : null;
+      const box = rect
+        ? (() => {
+            const u = cropToUserSpace(pageBox, srcPage.getRotation().angle, rect, page.originalWidth, page.originalHeight);
+            return { x: u.left, y: u.bottom, width: u.right - u.left, height: u.top - u.bottom };
+          })()
+        : pageBox;
       const bw = box.width;
       const bh = box.height;
       // The source page's own /Rotate plus whatever the person turned it by.

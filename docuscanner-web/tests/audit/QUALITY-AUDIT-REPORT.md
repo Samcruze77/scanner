@@ -202,3 +202,62 @@ Failing, with failure sets identical to the documented ones on the clean base co
 5. **Camera auto-crop and suggested-crop quality (low-medium, untested):** the suggestion can cut text on some pages; the camera path was not run.
 6. **PDF to Word complex layouts (low):** columns and wrapped pictures change; stated in the UI.
 7. **Not tested:** XLSX charts, Word/Excel compression, Office-file protection, enhancement modes other than Grayscale, a real phone photograph, Safari/iOS memory behaviour.
+
+
+## 12. Cropping and enhancing imported PDF pages (2026-10-17)
+
+Question: can a page of an imported PDF be cropped or enhanced without becoming a picture? Answer, operation by operation, with the reason and the measurement.
+
+### What can stay vector, and what cannot
+
+| Operation | Result | Why |
+|---|---|---|
+| Rotate | Vector (already) | a page rotation is a transform |
+| **Rectangle crop** | **Vector (new)** | the crop rectangle is mapped from the page picture back to the PDF page's own coordinates (through the page's own `/Rotate`) and applied as the clip box of the embedded page; text, vector drawing and embedded photographs are untouched |
+| Skewed (perspective) crop | Picture | straightening a slanted quad is a pixel warp. It cannot occur on an imported PDF page any more: the crop editor now keeps a PDF page's crop a rectangle (dragging a corner moves the two sides it touches) |
+| Crop with "Remove the cut-away area for good" | Picture, by choice | a clip box only hides the area; the text and drawing outside it stay inside the file. The editor says so and offers this option for private details |
+| Grayscale, Black and White, Auto | Picture | they change the colour of the artwork (text, vectors and photographs alike). See the overlay experiment below |
+| Brightness, contrast | Picture | the editor's curve (contrast pivoting on mid-grey, then an offset) has no PDF equivalent that works for text, vectors and photographs together |
+| Added text, marks, pen, pictures, signatures | Vector (already) | drawn as real PDF content |
+
+**Overlay experiment (Grayscale).** A full-page rectangle with the PDF *Saturation* blend mode and a grey fill should desaturate the page without touching it. I built that PDF (red and blue squares under the overlay) and rendered it with pdf.js: both squares came out as flat grey 128,128,128 (the colour of the overlay itself, not the grey of the artwork underneath, which would be about 87 and 78). A viewer that does not implement the non-separable blend modes correctly would therefore show a solid grey page. Even where it works, the file would still hold the colour data, so it would not be smaller or truly grey. Rejected as not reliable. Brightness and contrast cannot be reproduced by a blend either (a white or black overlay mixes towards a colour, the editor's curve stretches).
+
+### What was changed
+
+- `utils/scanner/cropMath.ts` (new, pure): rectangle detection, picture-crop to PDF-box conversion for `/Rotate` 0/90/180/270, and `flattenReason` (the single rule for "does this page keep its text").
+- `utils/scanner/pdfExport.ts`: `canPreserveSource` uses that rule; a rectangle crop embeds the page with the cropped bounding box, then rotation and annotations are applied as before.
+- `utils/scanner/sourceRender.ts` (new): pages that must be pictures are now drawn again from the ORIGINAL PDF at 300 dpi (capped at 6000 px on the long side; processing still caps at 4096 px) and the same crop and enhancement are applied to that sharper picture, instead of enlarging the 170 dpi on-screen picture. Used by the PDF export (`pdf.ts`) and by printing (`utils/print/sources.ts`). If anything fails the page is exported as before. The on-screen page, the original and every setting are untouched, so each edit stays reversible.
+- `components/scanner/CropEditor.tsx`: rectangle crop for PDF pages, a short explanation, and the "Remove the cut-away area for good" option (`page.cropPermanent`).
+- `components/scanner/FlattenNotice.tsx` (new), shown in the page editor and next to the selected page: says whether the page keeps its selectable text and, when an edit prevents it, which edit and what to do to keep the text.
+
+### Measured on the downloaded PDFs (`npm run test:pdf-quality`; rich.pdf: A4 portrait, A4 landscape, A4 portrait; selectable text, 6 pt text, hairlines and circles, one 1600x1200 photo)
+
+| Case | Result |
+|---|---|
+| Rectangle crop 16-84% x 11-79% of page 1 | page size 142.8x202.0 mm (expected 142.8x202.0); 16 of 16 text operations in the file; 734 of 1029 characters selectable (the rest lies outside the crop and pdf.js leaves out glyphs that are not visible); 50 path operations (source 50); photo bytes identical, 407 dpi (source 407); rendered result vs the same region of the source: identical (PSNR 99 dB) |
+| `/Rotate` 90, 180, 270 pages, cropped differently | rendered crop equals the same region of the source: 76.6, 99, 75.3 dB; text operations 2 of 2; path operations 14 |
+| Crop then rotate right (page 3) | 231.7x163.8 mm (swapped as expected); 930 characters selectable; PSNR vs the expected pixels 70.9 dB |
+| Grayscale on the landscape page | a picture, 3508x2480 px at **300 dpi** (the same export was about 170 dpi before this change), 297x210 mm |
+| Grayscale on the coloured page 1 | colour (mean channel difference) 5.1 -> 0.00; mean luminance within 1.5 of the source; 300 dpi |
+| Black and White on page 1 | 2481x3509 px at 300 dpi; 95.9% of pixels pure black or white; no colour |
+| Brightness -40 and contrast +25 on page 2 | 300 dpi; matches the editor's own curve applied to the unadjusted picture (PSNR 38.5 dB; an unadjusted page would be 23.5 dB); mean luminance 253.3 -> 236.2 |
+| "Remove the cut-away area for good" | a picture at 300 dpi, 231.7x163.8 mm, no text left in the file |
+| Untouched page 3 combined with edited pages | 1059 of 1059 characters, same path operations, PSNR 99 dB |
+| Reverting: crop + Grayscale, then Reset to original | page is A4 again, 1059 of 1059 characters, PSNR 99 dB; no notice shown |
+| Page order and sizes across all exports | as expected; every file reopens |
+
+### Remaining limitations
+
+- Grayscale, Black and White, Auto, brightness and contrast still make the page a picture (now at 300 dpi). The editor says so before and after the edit. **Auto** was not run through the browser; it takes the same code path as Grayscale.
+- A rectangle crop only hides the cut-away area: the text and drawing there remain in the PDF (all 16 text operations were still present after the crop). The editor says so and offers "Remove the cut-away area for good".
+- On a very large page the 300 dpi render is capped by memory (6000 px, then 4096 px after processing), so the dpi is lower there.
+- A page that came from a PDF and is exported as a picture is drawn by pdf.js, which can differ slightly from other viewers in font substitution.
+- pdf.js in Node (used by the tests) draws the vector source with substitute fonts and thicker hairlines than Chrome does, so raster-versus-source comparisons use pages exported through the same browser pipeline, or measure statistics (colour, luminance) instead of per-pixel PSNR.
+- Not tested: PDFs with encryption, form fields or links on a cropped page (these are not carried over, as for any edited page); a real phone; Safari.
+
+### Test results for this change (production build; exact)
+Type check clean; lint 0 errors (17 existing warnings); production build succeeds.
+
+Passing: `test:pdf-quality` 18 (crop geometry) + 18 (downloaded PDFs), `test:pdf-edit` 11, `test:quality-fixes` 23, `test:print-quality` 3, `test:images` 15 + 4, `test:images:e2e` 27, `test:images:quality` 11, `test:compress` 38, assistant launcher 16, assistant browser 31, `test:install:browser` 56.
+
+Failing with the same sets as on the clean base commit (documented in section 11): zoom 4 passed / 14 failed, theme 21 / 1, consent 65 / 1.

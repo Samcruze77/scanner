@@ -8,6 +8,7 @@
 import { buildPageLayers, flattenPageToJpeg } from "@/utils/scanner/annotationRender";
 import { canPreserveSource } from "@/utils/scanner/pdfExport";
 import { getSourcePdf } from "@/utils/scanner/sourcePdfs";
+import { sharpenFlattenedPage } from "@/utils/scanner/sourceRender";
 import type { ScannerPage } from "@/utils/scanner/page";
 import { openPdfData, PdfError, type OpenedPdf } from "@/utils/pdf/pdfjs";
 import { renderPdfPage } from "@/utils/pdf/render";
@@ -74,6 +75,7 @@ export async function scannerPagesToPrintPages(pages: ScannerPage[]): Promise<Pr
       const hi = await sourceRenderForPrint(original, opened);
       // Same page, same normalized annotations, but drawn on the sharper render.
       if (hi) page = { ...original, processedDataUrl: hi.dataUrl, processedWidth: hi.width, processedHeight: hi.height };
+      else page = await sharpenFlattenedPage(original, opened);
     } catch {
       page = original; // fall back to the on-screen page image
     }

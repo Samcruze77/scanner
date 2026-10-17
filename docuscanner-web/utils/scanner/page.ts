@@ -25,6 +25,9 @@ export interface ScannerPage {
   detectedQuad: Quad | null;
   quadConfidence: number;
   cropEnabled: boolean;
+  // For a page of an imported PDF: the person chose to remove the cropped-away area for good (the page
+  // becomes a picture). Otherwise the crop only hides it and the page keeps its text. See pdfExport.ts.
+  cropPermanent?: boolean;
   rotation: PageRotation;
   enhancement: EnhancementMode;
   // -100..100, 0 = unchanged. Applied after the enhancement mode.

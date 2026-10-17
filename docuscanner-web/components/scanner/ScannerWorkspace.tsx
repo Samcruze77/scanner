@@ -52,6 +52,7 @@ import { PageEditor } from "./PageEditor";
 import { PagePreview } from "./PagePreview";
 import { WorkspaceStepper, type WorkspaceStep } from "./WorkspaceStepper";
 import { CropEditor } from "./CropEditor";
+import { FlattenNotice } from "./FlattenNotice";
 import { ErrorBanner } from "./ErrorBanner";
 import { OcrPanel } from "./OcrPanel";
 import { useOcr } from "./useOcr";
@@ -503,6 +504,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     if (!editingPage) return;
     const reset = {
       cropEnabled: false,
+      cropPermanent: false,
       // Back to what auto-detection found, discarding any manual crop.
       quad: editingPage.detectedQuad,
       rotation: 0 as PageRotation,
@@ -518,12 +520,12 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
 
   const croppingPage = pages.find((p) => p.id === croppingPageId) ?? null;
 
-  function handleCropApply(quad: Quad) {
+  function handleCropApply(quad: Quad, options: { permanent: boolean }) {
     if (!croppingPage) return;
     const page = croppingPage;
     setCroppingPageId(null);
     void trackFeatureUsed("manual_crop");
-    void reprocessPage(page, { quad, cropEnabled: true, annotations: annotationsForChange(page, { quad, cropEnabled: true }) });
+    void reprocessPage(page, { quad, cropEnabled: true, cropPermanent: options.permanent, annotations: annotationsForChange(page, { quad, cropEnabled: true }) });
   }
 
   const autoOpenId =
@@ -809,6 +811,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
                 Edit page
               </button>
               <p className="muted text-xs">Crop, rotate, enhance, add text or sign.</p>
+              <FlattenNotice page={selectedPage} />
               {selectedPage.status === "ready" &&
                 !selectedPage.cropEnabled &&
                 selectedPage.detectedQuad &&
