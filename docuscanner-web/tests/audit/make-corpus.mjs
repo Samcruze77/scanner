@@ -319,3 +319,38 @@ console.log(fs.readdirSync(dir).map((f) => `${f} ${(fs.statSync(path.join(dir, f
   for (let i = 1; i <= 20; i++) p3.drawText(`RICH-P3-L${String(i).padStart(2, "0")} Pack my box with five dozen liquor jugs`, { x: 50, y: 780 - i * 16, size: 10, font });
   fs.writeFileSync(out("rich.pdf"), await pdf.save());
 }
+
+// ---- report.pdf: structure fixture for PDF -> Word (headings, paragraphs, tables, a list, and traps) ----
+{
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const page = pdf.addPage([595.28, 841.89]);
+  let y = 790;
+  const text = (t, size, f = font, x = 56) => page.drawText(t, { x, y, size, font: f });
+  const para = (lines, size = 11, lead = 14.5) => lines.forEach((l) => { text(l, size); y -= lead; });
+  text("REPORT-TITLE Annual Quality Report 2026", 22, bold); y -= 34;
+  // A lead paragraph set a little larger than the body, NOT bold: a paragraph, not a heading.
+  para(["REPORT-LEAD This opening paragraph is set in a slightly larger size than the rest of the report but it is", "still ordinary running text and must stay an editable paragraph."], 13, 17);
+  y -= 10;
+  text("REPORT-H2 Results", 15, bold); y -= 22;
+  para(["REPORT-P1 The measurements were repeated three times on each device and the averages are listed in the", "table below. Variation between runs stayed within two percent for every category that was tested,", "which is well inside the tolerance agreed at the start of the project."]);
+  y -= 12;
+  // Ruled table (lines + text).
+  const top = y, rowH = 20, colX = [56, 216, 336, 476];
+  const cells = [["REPORT-TBL-A Category", "Q1", "Q2"], ["Scans", "1200", "1350"], ["Exports", "980", "1020"], ["Prints", "870", "905"]];
+  for (let r = 0; r <= cells.length; r++) page.drawLine({ start: { x: colX[0], y: top - r * rowH }, end: { x: colX[3], y: top - r * rowH }, thickness: 0.6 });
+  for (let c = 0; c < colX.length; c++) page.drawLine({ start: { x: colX[c], y: top }, end: { x: colX[c], y: top - cells.length * rowH }, thickness: 0.6 });
+  cells.forEach((row, r) => row.forEach((cell, c) => page.drawText(cell, { x: colX[c] + 5, y: top - r * rowH - 14, size: 10.5, font: r === 0 ? bold : font })));
+  y = top - cells.length * rowH - 30;
+  text("REPORT-H2 Notes", 15, bold); y -= 22;
+  para(["• REPORT-LI1 Calibration was checked every morning.", "• REPORT-LI2 Devices were restarted between runs.", "• REPORT-LI3 Results were reviewed by two people."]);
+  y -= 12;
+  para(["REPORT-P2 A second table follows without any ruling lines; its columns are only aligned.", "Note: bold words inside a sentence, such as this one, are not headings."], 11, 14.5);
+  y -= 14;
+  const rows2 = [["REPORT-TBL-B Region", "Units", "Revenue", "Share"], ["North", "420", "52,000", "31%"], ["South", "380", "47,500", "28%"], ["East", "510", "61,200", "36%"], ["West", "90", "11,000", "5%"]];
+  rows2.forEach((row, r) => { row.forEach((cell, c) => page.drawText(cell, { x: [56, 216, 306, 406][c], y, size: 10.5, font: r === 0 ? bold : font })); y -= 17; });
+  y -= 18;
+  para(["REPORT-END Last paragraph of the report closes the document with a few plain sentences."]);
+  fs.writeFileSync(out("report.pdf"), await pdf.save());
+}

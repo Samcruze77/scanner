@@ -351,11 +351,19 @@ export function layoutPage(
     const textLength = group.reduce((n, r) => n + r.text.length, 0);
     // A large or bold short line is a heading even if it starts "1." -- that is
     // a section number, not a list item.
+    //
+    // Size alone is not enough below the very large sizes: body text can change size from line to line
+    // (forms, sheets, captions) without any of it being a heading. A larger line also has to be bold,
+    // or stand apart with clear space above it (and, in the weaker size band, be short and not read as
+    // a sentence).
+    const spacedAbove = start === 0 || rows[start - 1].line.y - first.line.y > first.size * 1.2 * 1.35;
+    const readsAsSentence = textLength > 40 && /[.!?;,]$/.test(group[group.length - 1].text.trim());
     let heading: 0 | 1 | 2 | 3 = 0;
     if (group.length <= 3 && textLength <= 140) {
       if (size >= bodySize * 1.6) heading = 1;
-      else if (size >= bodySize * 1.3) heading = 2;
-      else if (size >= bodySize * 1.12 || (allBold && size >= bodySize * 0.98 && textLength <= 80)) heading = 3;
+      else if (size >= bodySize * 1.3 && (allBold || spacedAbove)) heading = 2;
+      else if (size >= bodySize * 1.12 && (allBold || (spacedAbove && textLength <= 60 && !readsAsSentence))) heading = 3;
+      else if (allBold && size >= bodySize * 0.98 && textLength <= 80) heading = 3;
     }
     const isList = !!first.marker && heading === 0;
 
