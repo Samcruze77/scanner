@@ -313,6 +313,8 @@ const PAGE = { portrait: [595.28, 841.89], landscape: [841.89, 595.28] } as cons
 const MARGIN = 28;
 const FOOTER_HEIGHT = 16;
 const CELL_PADDING = 2.5;
+// Text up to this much wider than its column is shrunk to fit instead of being cut (see drawRows).
+const TEXT_FIT_TOLERANCE = 1.3;
 const DEFAULT_ROW_HEIGHT = 15;
 const DEFAULT_COLUMN_WIDTH_CHARS = 8.43;
 const LINE_HEIGHT = 1.18;
@@ -773,6 +775,14 @@ function drawRows(
         if (cell.display.kind === "number") {
           // Never cut digits off a number: shrink it to fit instead.
           fontSize = Math.max(4, fontSize * (available / widest) * 0.98);
+          doc.setFontSize(fontSize);
+        } else if (widest <= available * TEXT_FIT_TOLERANCE) {
+          // The PDF has to draw Calibri and other fonts in a built-in face (Helvetica, Times, Courier),
+          // which is usually wider, so a value that fits its column in Excel can measure a little too
+          // wide here. Shrink such a value just enough to show it in full (like Excel's own
+          // shrink-to-fit) rather than cutting its last characters off. A value that is genuinely
+          // much longer than its column is still cut at the column edge, as Excel does.
+          fontSize = Math.max(4, fontSize * (available / widest) * 0.99);
           doc.setFontSize(fontSize);
         } else {
           drawn = lines.map((line) => {
