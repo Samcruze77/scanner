@@ -19,6 +19,7 @@ import {
 import { pickFamily, isMetricCompatible, faceKey, type BundledFamily, type FamilyKey } from "./fonts.ts";
 import { customFamily, type FontRegistry } from "./fontFiles.ts";
 import type { Borders, CellProps, PPr, RPr, TableProps } from "./types.ts";
+import { reconcileGrid } from "./tableGrid.ts";
 
 // ---- model types -------------------------------------------------------------------
 
@@ -95,6 +96,8 @@ export interface Cell {
   vMerge: "restart" | "continue" | null;
   rowSpan: number;
   props: CellProps;
+  // The cell's own preferred width (`tcW`, twips), used to repair a bad table grid (see tableGrid.ts).
+  preferredWidth?: number;
 }
 
 export interface Row {
@@ -931,7 +934,9 @@ async function parseTable(el: Element, ctx: Ctx): Promise<Table | null> {
       // A cell must end with a paragraph.
       if (blocks[blocks.length - 1].kind === "t") blocks.push(emptyParagraph(cellCtx));
 
-      row.cells.push({ blocks, gridStart: col, gridSpan: span, vMerge, rowSpan: 1, props: cellProps });
+      const tcW = child(tcPrEl, "tcW");
+      const preferredWidth = tcW && (attr(tcW, "type") ?? "dxa") === "dxa" ? attrNum(tcW, "w") : undefined;
+      row.cells.push({ blocks, gridStart: col, gridSpan: span, vMerge, rowSpan: 1, props: cellProps, ...(preferredWidth ? { preferredWidth } : {}) });
       col += span;
     }
     rows.push(row);
@@ -955,7 +960,9 @@ async function parseTable(el: Element, ctx: Ctx): Promise<Table | null> {
   // Tables without a grid: derive one from the widest row.
   const gridSize = Math.max(grid.length, ...rows.map((row) => row.cells.reduce((n, c) => Math.max(n, c.gridStart + c.gridSpan), 0)));
   while (grid.length < gridSize) grid.push(Math.round(9360 / gridSize));
-  return { kind: "t", grid, rows, props, cellMargins };
+  // A grid that disagrees with the cells' own widths (a placeholder grid) is replaced by theirs.
+  const fixedGrid = reconcileGrid(grid, rows);
+  return { kind: "t", grid: fixedGrid, rows, props, cellMargins };
 }
 
 function emptyParagraph(ctx: Ctx): Paragraph {
