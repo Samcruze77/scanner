@@ -561,6 +561,8 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
       void trackDocumentCreated(pages.length);
       const signatures = pages.reduce((n, p) => n + p.annotations.filter((a) => a.type === "signature").length, 0);
       if (signatures > 0) void trackSignPdf(signatures);
+      const pictures = pages.reduce((n, p) => n + p.annotations.filter((a) => a.type === "image").length, 0);
+      if (pictures > 0) void trackFeatureUsed("insert_image", { imageCount: pictures });
     } catch {
       setError("Couldn't create the PDF. Please try again.");
       void trackError("pdf_generation", "pdf_generation_failed");
@@ -672,6 +674,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
       <button
         type="button"
         onClick={handleOpenCamera}
+        data-assistant-id="scan-use-camera"
         className={`btn ${large ? `btn-lg ${intent ? "btn-secondary order-2" : "btn-primary"}` : "btn-secondary"}`}
       >
         <Icon name="camera" size={20} />
@@ -680,6 +683,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
       <button
         type="button"
         onClick={handleUploadClick}
+        data-assistant-id="scan-upload"
         className={`btn ${large ? `btn-lg ${intent ? "btn-primary order-1" : "btn-secondary"}` : "btn-secondary"}`}
       >
         <Icon name="upload" size={20} />
@@ -771,7 +775,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
               onNext={() => setSelectedPageId(pages[selectedIndex + 1]?.id ?? null)}
             />
             <PageList pages={pages} selectedId={selectedPage.id} onSelect={setSelectedPageId} />
-            <button type="button" onClick={handleOpenCamera} className="btn btn-primary w-full sm:w-auto">
+            <button type="button" onClick={handleOpenCamera} data-assistant-id="scan-another-page" className="btn btn-primary w-full sm:w-auto">
               <Icon name="camera" size={18} />
               Scan another page
             </button>
@@ -780,7 +784,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
           <div className="min-w-0 space-y-4">
             <section aria-label="This page" className="card space-y-3 p-4">
               <h2 className="panel-title">Page {selectedIndex + 1}</h2>
-              <button type="button" onClick={() => setEditingPageId(selectedPage.id)} className="btn btn-secondary w-full">
+              <button type="button" onClick={() => setEditingPageId(selectedPage.id)} data-assistant-id="scan-edit-page" className="btn btn-secondary w-full">
                 <Icon name="crop" size={18} />
                 Edit page
               </button>
@@ -789,6 +793,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
                 <button
                   type="button"
                   onClick={() => handleMovePage(selectedPage.id, "up")}
+                  data-assistant-id="scan-move-earlier"
                   disabled={selectedIndex === 0}
                   aria-label={`Move page ${selectedIndex + 1} earlier`}
                   title="Move earlier"
@@ -831,7 +836,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
               )}
 
               {pdfBlob ? (
-                <button type="button" onClick={handleDownload} className="btn btn-primary btn-lg w-full">
+                <button type="button" onClick={handleDownload} data-assistant-id="scan-download-pdf" className="btn btn-primary btn-lg w-full">
                   <Icon name="download" size={20} />
                   Download PDF
                 </button>
@@ -839,6 +844,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
                 <button
                   type="button"
                   onClick={handleCreatePdf}
+                  data-assistant-id="scan-create-pdf"
                   disabled={pages.length === 0 || creatingPdf || anyPageProcessing}
                   className="btn btn-primary btn-lg w-full"
                 >
@@ -884,6 +890,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
                   <button
                     type="button"
                     onClick={handleSaveToAccount}
+                    data-assistant-id="scan-save-account"
                     disabled={saving}
                     className="btn btn-secondary flex-1 whitespace-nowrap"
                   >
@@ -895,7 +902,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
 
               {ocrEnabled && (
                 <details className="group border-t border-zinc-200 pt-3 dark:border-zinc-800">
-                  <summary className="btn btn-ghost w-full cursor-pointer list-none justify-between">
+                  <summary data-assistant-id="scan-more-options" className="btn btn-ghost w-full cursor-pointer list-none justify-between">
                     More options
                     <Icon name="chevron-down" size={18} className="transition-transform group-open:rotate-180" />
                   </summary>
@@ -903,6 +910,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
                     <button
                       type="button"
                       onClick={handleExtractAllText}
+                      data-assistant-id="scan-extract-text"
                       disabled={pages.length === 0 || anyPageProcessing || ocr.running}
                       className="btn btn-secondary"
                     >
@@ -970,8 +978,8 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
           onSignatureUsed={setLastSignature}
           onTrack={(feature) => void trackFeatureUsed(feature)}
           onDone={handleAnnotationsDone}
-          initialTool={intent?.tool}
-          initialSignatureTab={intent?.signatureTab}
+          initialTool={intentUsed ? null : intent?.tool}
+          initialSignatureTab={intentUsed ? undefined : intent?.signatureTab}
         />
       )}
 

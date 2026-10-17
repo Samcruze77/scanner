@@ -111,6 +111,7 @@ export const TOOLS: ToolDef[] = [
   editor("add-date", "Add Date", "Place today's date on a page, then edit, move or resize it.", "date", "Upload a document, tap a page, then tap where the date should go."),
   editor("checkmark", "Checkmark", "Place check marks on forms and lists.", "check", "Upload a document, tap a page, then tap to place check marks."),
   editor("x-mark", "X Mark", "Place X marks to cross things out or tick boxes.", "cross", "Upload a document, tap a page, then tap to place X marks."),
+  editor("add-image", "Add Image", "Insert a passport photograph, logo, stamp or any picture into a PDF or scan. Move, resize and crop it, then download.", "image", "Upload a document, tap a page, then choose a picture to place on it."),
   editor("sign-pdf", "Sign PDF", "Sign a PDF with a drawn or uploaded signature. Free, no account needed.", "signature", "Upload your PDF, tap the page to sign, then draw your signature or upload an image of it.", "edit.sign"),
   editor("add-signature", "Add Signature", "Draw your signature and place it on any document.", "signature", "Upload a document, tap a page, then draw your signature and drag it into place.", "edit.sign", "draw"),
   editor("upload-signature", "Upload Signature", "Use a picture of your signature. PNG keeps its transparent background.", "signature", "Upload a document, tap a page, then choose an image of your signature.", "edit.sign", "upload"),

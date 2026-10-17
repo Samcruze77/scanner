@@ -19,6 +19,8 @@
     "test:protect": "node tests/protect/run.mjs",
     "test:compress": "node tests/compress/run.mjs",
     "test:compress:readability": "node tests/compress/readability.mjs",
+    "test:images": "node --no-warnings tests/images/geometry.mjs",
+    "test:images:e2e": "node tests/images/e2e.mjs",
     "test:print": "node tests/print/verify.mjs",
     "test:zoom": "node tests/zoom/verify.mjs",
     "test:auth": "node tests/auth/verify.mjs",

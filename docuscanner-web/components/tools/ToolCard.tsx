@@ -11,6 +11,7 @@ const TOOL_ICONS: Record<string, IconName> = {
   "add-date": "history",
   checkmark: "check",
   "x-mark": "x",
+  "add-image": "image",
   "sign-pdf": "signature",
   "add-signature": "signature",
   "upload-signature": "upload",

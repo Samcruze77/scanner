@@ -197,6 +197,7 @@ export function remapAnnotations(
       case "text":
       case "check":
       case "cross":
+      case "image":
       case "signature": {
         const b = boundsOf(annotation, src.width, src.height);
         const cx = b.x + b.w / 2;

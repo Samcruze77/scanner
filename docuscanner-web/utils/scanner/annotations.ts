@@ -19,7 +19,8 @@ export type AnnotationTool =
   | "check"
   | "cross"
   | "date"
-  | "signature";
+  | "signature"
+  | "image";
 
 export interface TextAnnotation {
   id: string;
@@ -77,12 +78,27 @@ export interface SignatureAnnotation {
   dataUrl: string;
 }
 
+// A picture placed on the page (a passport photograph, logo, stamp, scan...).
+// Crop and rotation are baked into the pixels when it is placed, so the box
+// always shows the whole image and resizing never distorts it.
+export interface ImageAnnotation {
+  id: string;
+  type: "image";
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  // PNG (transparency kept) or JPEG.
+  dataUrl: string;
+}
+
 export type Annotation =
   | TextAnnotation
   | InkAnnotation
   | HighlightAnnotation
   | StampAnnotation
-  | SignatureAnnotation;
+  | SignatureAnnotation
+  | ImageAnnotation;
 
 export interface Bounds {
   x: number;
@@ -211,6 +227,41 @@ export function createSignature(
   };
 }
 
+// Placed near the middle of the page at a sensible size, keeping the picture's
+// own proportions and always inside the page.
+export function createImage(
+  dataUrl: string,
+  imageWidth: number,
+  imageHeight: number,
+  pageWidth: number,
+  pageHeight: number,
+  size?: { w: number; h: number },
+): ImageAnnotation {
+  let w: number;
+  let h: number;
+  if (size) {
+    ({ w, h } = size);
+  } else {
+    w = 0.3;
+    h = (w * pageWidth * (imageHeight / imageWidth)) / pageHeight;
+    if (h > 0.6) {
+      h = 0.6;
+      w = (h * pageHeight * (imageWidth / imageHeight)) / pageWidth;
+    }
+  }
+  w = Math.min(w, 1);
+  h = Math.min(h, 1);
+  return {
+    id: newAnnotationId(),
+    type: "image",
+    x: clamp(0.5 - w / 2, 0, 1 - w),
+    y: clamp(0.4 - h / 2, 0, 1 - h),
+    w,
+    h,
+    dataUrl,
+  };
+}
+
 // ---- editing -------------------------------------------------------------------
 
 export function translateAnnotation<T extends Annotation>(annotation: T, dx: number, dy: number): T {
@@ -241,9 +292,10 @@ export function resizeAnnotation(
       };
     case "check":
     case "cross":
+    case "image":
     case "signature": {
       const shape = (annotation.h * pageHeight) / (annotation.w * pageWidth);
-      const minW = annotation.type === "signature" ? MIN_SIGNATURE_WIDTH : MIN_BOX;
+      const minW = annotation.type === "signature" || annotation.type === "image" ? MIN_SIGNATURE_WIDTH : MIN_BOX;
       const maxW = Math.min(1 - annotation.x, (1 - annotation.y) / ((shape * pageWidth) / pageHeight));
       const w = clamp(annotation.w + dx, minW, Math.max(minW, maxW));
       return { ...annotation, w, h: (w * pageWidth * shape) / pageHeight };

@@ -10,6 +10,7 @@ import { Icon, type IconName } from "@/components/ui/icons";
 import { useEffect, useRef, useState } from "react";
 import {
   clamp,
+  createImage,
   createSignature,
   DEFAULT_TEXT_PT,
   HIGHLIGHT_PALETTE,
@@ -23,9 +24,12 @@ import {
   type AnnotationTool,
 } from "@/utils/scanner/annotations";
 import { loadAnnotationImage } from "@/utils/scanner/annotationRender";
+import { getPreset, moveInStack, PHOTO_PRESETS, presetFractions, rotatedBox, stackPosition } from "@/utils/scanner/imagePlacement";
+import { cropInsertImage, rotateInsertImage } from "@/utils/scanner/imageInsert";
 import type { ScannerPage } from "@/utils/scanner/page";
 import type { SignatureImage } from "@/utils/scanner/signature";
 import { AnnotationCanvas, type AnnotationDefaults } from "./AnnotationCanvas";
+import { ImageDialog, type ImageChoice } from "./ImageDialog";
 import { SignatureDialog, type Tab as SignatureTab } from "./SignatureDialog";
 import { useZoom, ZoomControls, ZoomFrame, ZoomViewport } from "./zoom";
 
@@ -38,6 +42,7 @@ const TOOLS: { value: AnnotationTool; label: string; icon: IconName }[] = [
   { value: "cross", label: "X", icon: "x" },
   { value: "date", label: "Date", icon: "calendar" },
   { value: "signature", label: "Signature", icon: "signature" },
+  { value: "image", label: "Add image", icon: "image" },
 ];
 
 const HINTS: Record<AnnotationTool, string> = {
@@ -49,6 +54,7 @@ const HINTS: Record<AnnotationTool, string> = {
   cross: "Tap the page to place an X.",
   date: "Tap the page to place today's date.",
   signature: "",
+  image: "",
 };
 
 const MAX_HISTORY = 100;
@@ -83,10 +89,13 @@ export function AnnotationEditor({
   // A gesture or text edit in progress. Shown, but not in the history until it
   // ends, so undo steps over whole actions rather than every pen sample.
   const [live, setLive] = useState<Annotation[] | null>(null);
-  const [tool, setTool] = useState<AnnotationTool>(initialTool && initialTool !== "signature" ? initialTool : "select");
+  const [tool, setTool] = useState<AnnotationTool>(initialTool && initialTool !== "signature" && initialTool !== "image" ? initialTool : "select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [signatureOpen, setSignatureOpen] = useState(initialTool === "signature");
+  // The picture dialog: placing a new picture, or swapping the selected one.
+  const [imageDialog, setImageDialog] = useState<"insert" | "replace" | null>(initialTool === "image" ? "insert" : null);
+  const [imageNotice, setImageNotice] = useState<string | null>(null);
 
   const [color, setColor] = useState<string>(PALETTE[0]);
   const [highlightColor, setHighlightColor] = useState<string>(HIGHLIGHT_PALETTE[0]);
@@ -175,6 +184,11 @@ export function AnnotationEditor({
       setSignatureOpen(true);
       return;
     }
+    if (next === "image") {
+      setImageNotice(null);
+      setImageDialog("insert");
+      return;
+    }
     setTool(next);
     if (next !== "select") setSelectedId(null);
   }
@@ -240,6 +254,100 @@ export function AnnotationEditor({
     if (method) onTrack(method === "draw" ? "signature_drawn" : method === "upload" ? "signature_uploaded" : "signature_typed");
   }
 
+  // ---- pictures ------------------------------------------------------------------
+
+  async function placeImage(choice: ImageChoice) {
+    const mode = imageDialog;
+    setImageDialog(null);
+    try {
+      await loadAnnotationImage(choice.image.dataUrl);
+    } catch {
+      setImageNotice("That picture couldn't be shown. Try a different one.");
+      return;
+    }
+    const preset = getPreset(choice.presetId);
+    const size = preset ? presetFractions(preset, page.processedWidth, page.processedHeight) ?? undefined : undefined;
+    const fresh = createImage(choice.image.dataUrl, choice.image.width, choice.image.height, page.processedWidth, page.processedHeight, size);
+    const current = selected?.type === "image" ? selected : null;
+    if (mode === "replace" && current) {
+      // Same spot, same width (or the preset's size); the new picture's own shape.
+      const cx = current.x + current.w / 2;
+      const cy = current.y + current.h / 2;
+      let w = size ? size.w : current.w;
+      let h = size ? size.h : (w * page.processedWidth * (choice.image.height / choice.image.width)) / page.processedHeight;
+      if (!size && h > 0.9) {
+        h = 0.9;
+        w = (h * page.processedHeight * (choice.image.width / choice.image.height)) / page.processedWidth;
+      }
+      const replaced = { ...fresh, id: current.id, w, h, x: clamp(cx - w / 2, 0, 1 - w), y: clamp(cy - h / 2, 0, 1 - h) };
+      commit(annotations.map((a) => (a.id === current.id ? replaced : a)));
+      setSelectedId(current.id);
+    } else {
+      commit([...annotations, fresh]);
+      setSelectedId(fresh.id);
+    }
+    setTool("select");
+    setImageNotice(null);
+  }
+
+  // Turns the selected picture a quarter turn. The turned pixels replace the
+  // old ones, so Undo brings the previous orientation straight back.
+  async function rotateSelectedImage(turns: 1 | -1) {
+    if (selected?.type !== "image") return;
+    const current = selected;
+    try {
+      const turned = await rotateInsertImage({ dataUrl: current.dataUrl }, turns);
+      await loadAnnotationImage(turned.dataUrl);
+      const box = rotatedBox(current, page.processedWidth, page.processedHeight);
+      commit(annotations.map((a) => (a.id === current.id ? { ...current, ...box, dataUrl: turned.dataUrl } : a)));
+    } catch {
+      setImageNotice("That picture couldn't be turned. Try again.");
+    }
+  }
+
+  // Gives the selected picture a stated real-world size, trimming (never
+  // stretching) it to that shape around its centre.
+  async function sizeSelectedImage(presetId: string) {
+    if (selected?.type !== "image") return;
+    const current = selected;
+    const preset = getPreset(presetId);
+    if (!preset) return;
+    const size = presetFractions(preset, page.processedWidth, page.processedHeight);
+    if (!size) {
+      setImageNotice("That size doesn't fit on this page.");
+      return;
+    }
+    try {
+      const img = await loadAnnotationImage(current.dataUrl);
+      const aspect = preset.widthMm / preset.heightMm;
+      const imageAspect = img.naturalWidth / img.naturalHeight;
+      const rect =
+        imageAspect > aspect
+          ? { x: (1 - aspect / imageAspect) / 2, y: 0, w: aspect / imageAspect, h: 1 }
+          : { x: 0, y: (1 - imageAspect / aspect) / 2, w: 1, h: imageAspect / aspect };
+      const cropped = Math.abs(imageAspect - aspect) < 0.005 ? { dataUrl: current.dataUrl } : await cropInsertImage({ dataUrl: current.dataUrl }, rect);
+      await loadAnnotationImage(cropped.dataUrl);
+      const cx = current.x + current.w / 2;
+      const cy = current.y + current.h / 2;
+      commit(
+        annotations.map((a) =>
+          a.id === current.id
+            ? { ...current, dataUrl: cropped.dataUrl, w: size.w, h: size.h, x: clamp(cx - size.w / 2, 0, 1 - size.w), y: clamp(cy - size.h / 2, 0, 1 - size.h) }
+            : a,
+        ),
+      );
+      setImageNotice(null);
+    } catch {
+      setImageNotice("That picture couldn't be resized. Try again.");
+    }
+  }
+
+  function moveSelectedInStack(move: "forward" | "backward" | "front" | "back") {
+    if (!selectedId) return;
+    const next = moveInStack(annotations, selectedId, move);
+    if (next !== annotations) commit(next);
+  }
+
   // ---- keyboard -----------------------------------------------------------------
 
   useEffect(() => {
@@ -250,7 +358,7 @@ export function AnnotationEditor({
     // Capture phase, so Escape and undo here don't also reach the page editor
     // underneath (which closes on Escape).
     function onKeyDown(e: KeyboardEvent) {
-      if (signatureOpen) return;
+      if (signatureOpen || imageDialog) return;
       const inField = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
       if (e.key === "Escape") {
@@ -346,11 +454,12 @@ export function AnnotationEditor({
           <button
             key={t.value}
             ref={i === 0 ? firstToolRef : undefined}
+            data-assistant-id={`annotation-tool-${t.value}`}
             type="button"
-            aria-pressed={tool === t.value && t.value !== "signature"}
+            aria-pressed={tool === t.value && t.value !== "signature" && t.value !== "image"}
             onClick={() => chooseTool(t.value)}
             className={`${chip} gap-1.5 whitespace-nowrap ${
-              tool === t.value && t.value !== "signature"
+              tool === t.value && t.value !== "signature" && t.value !== "image"
                 ? "border-blue-600 bg-blue-600 text-white"
                 : "border-zinc-300 dark:border-zinc-700"
             }`}
@@ -450,6 +559,53 @@ export function AnnotationEditor({
             </button>
           ))}
 
+        {selected?.type === "image" && (
+          <>
+            <button type="button" data-assistant-id="image-replace" onClick={() => { setImageNotice(null); setImageDialog("replace"); }} className={`${chip} whitespace-nowrap border-zinc-300 dark:border-zinc-700`}>
+              Replace
+            </button>
+            <button type="button" aria-label="Rotate picture left" onClick={() => void rotateSelectedImage(-1)} className={`${chip} border-zinc-300 dark:border-zinc-700`}>
+              ↺
+            </button>
+            <button type="button" aria-label="Rotate picture right" onClick={() => void rotateSelectedImage(1)} className={`${chip} border-zinc-300 dark:border-zinc-700`}>
+              ↻
+            </button>
+            <button
+              type="button"
+              aria-label="Bring forward"
+              title="Move above other items"
+              disabled={!stackPosition(annotations, selected.id).canForward}
+              onClick={() => moveSelectedInStack("forward")}
+              className={`${chip} whitespace-nowrap border-zinc-300 disabled:opacity-40 dark:border-zinc-700`}
+            >
+              Forward
+            </button>
+            <button
+              type="button"
+              aria-label="Send backward"
+              title="Move below other items"
+              disabled={!stackPosition(annotations, selected.id).canBackward}
+              onClick={() => moveSelectedInStack("backward")}
+              className={`${chip} whitespace-nowrap border-zinc-300 disabled:opacity-40 dark:border-zinc-700`}
+            >
+              Backward
+            </button>
+            <select
+              aria-label="Photo size"
+              value=""
+              onChange={(e) => void sizeSelectedImage(e.target.value)}
+              className="h-11 shrink-0 rounded-lg border border-zinc-300 bg-surface px-2 text-sm dark:border-zinc-700"
+            >
+              <option value="">Photo size…</option>
+              {PHOTO_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
         {selected?.type === "text" && !editingId && (
           <button
             type="button"
@@ -472,6 +628,12 @@ export function AnnotationEditor({
           >
             Delete
           </button>
+        )}
+
+        {imageNotice && (
+          <p role="alert" className="whitespace-nowrap text-sm text-red-700 dark:text-red-400">
+            {imageNotice}
+          </p>
         )}
 
         {!showText && !showColor && !showHighlightColors && !showPen && !selected && (
@@ -508,7 +670,9 @@ export function AnnotationEditor({
             <p className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
               {tool === "select" && selected?.type === "signature"
                 ? "Drag to move your signature. Drag the corner dot to resize it."
-                : HINTS[tool]}
+                : tool === "select" && selected?.type === "image"
+                  ? "Drag to move your picture. Drag the corner dot to resize it without stretching it."
+                  : HINTS[tool]}
             </p>
           )}
           {zoom.zoom > 1 && (
@@ -519,6 +683,16 @@ export function AnnotationEditor({
         </ZoomViewport>
         <ZoomControls api={zoom} className="absolute bottom-3 right-3 z-10 rounded-lg bg-surface/90 p-1 shadow-md" />
       </div>
+
+      {imageDialog && (
+        <ImageDialog
+          mode={imageDialog}
+          pageWidthPx={page.processedWidth}
+          pageHeightPx={page.processedHeight}
+          onApply={(choice) => void placeImage(choice)}
+          onCancel={() => setImageDialog(null)}
+        />
+      )}
 
       {signatureOpen && (
         <SignatureDialog lastSignature={lastSignature} initialTab={initialSignatureTab} onApply={(s, method) => void placeSignature(s, method)} onCancel={() => setSignatureOpen(false)} />

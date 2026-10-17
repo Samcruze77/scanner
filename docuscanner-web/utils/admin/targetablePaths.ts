@@ -23,6 +23,7 @@ export const TARGETABLE_PATHS: { path: string; label: string }[] = [
   { path: "/tools/add-date", label: "Add Date" },
   { path: "/tools/checkmark", label: "Checkmark" },
   { path: "/tools/x-mark", label: "X Mark" },
+  { path: "/tools/add-image", label: "Add Image" },
   { path: "/tools/sign-pdf", label: "Sign PDF" },
   { path: "/tools/add-signature", label: "Add Signature" },
   { path: "/tools/upload-signature", label: "Upload Signature" },

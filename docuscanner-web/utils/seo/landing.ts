@@ -205,6 +205,49 @@ export const LANDING_PAGES: LandingPage[] = [
     related: [LINKS.editor, LINKS.annotate, LINKS.scan, LINKS.compressPdf],
   },
   {
+    path: "/tools/add-image",
+    title: "Add an Image to a PDF: Passport Photo, Logo or Stamp",
+    description:
+      "Insert a passport photograph, logo, stamp or any picture into a PDF or scanned document. Move, resize, crop and rotate it, then download. Free, in your browser.",
+    h1: "Add an image to a PDF",
+    intro:
+      "Place a passport photograph, company logo, stamp or any other picture on a page of your PDF, scan or document. Drag it into position, resize it, crop it, then download the finished PDF.",
+    crumbs: [TOOLS_CRUMB, { name: "Add Image", path: "/tools/add-image" }],
+    appName: "FreePDFScanner image inserter",
+    features: [
+      "Add JPG, PNG and WebP pictures",
+      "Add several pictures to one document",
+      "Drag to move, drag the corner to resize without stretching",
+      "Crop and rotate before or after placing",
+      "Photo sizes in millimetres, such as 35 x 45 mm",
+      "Replace, remove, undo and redo",
+    ],
+    how: [
+      "Upload your PDF, Word or Excel file, or a photo of the document, and open the page that needs the picture.",
+      "Choose Add image, then choose the picture from your device.",
+      "Rotate or crop it if needed. For a photo with a set size, pick the size and drag the box over the face.",
+      "Place it, drag it into position and resize it, then create and download the PDF.",
+    ],
+    goodFor:
+      "CVs and job applications, school and visa forms, ID and membership forms, letterheads with a logo, and any form that needs a photo stuck on it.",
+    formats: "JPG, PNG and WebP pictures up to 20 MB each. The document can be a PDF, a Word (.docx) or Excel (.xlsx) file, a CSV or an image.",
+    limits: [
+      "Pictures are placed on top of the page. Existing text in the document is not rewritten.",
+      "The result is a PDF. A Word or Excel file is converted to PDF first, so the picture is added to that PDF and your original .docx or .xlsx is not changed.",
+      "The saved PDF is created from page images, so its text is not selectable.",
+      "Passport and ID photo sizes are different for every country and application. Check the size you need; the sizes offered are exact when the PDF is printed at 100%.",
+      "HEIC, GIF, SVG and BMP pictures are not supported. Save them as JPG or PNG first.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "How do I insert my passport photograph into a PDF?", a: "Upload the form, open the page, choose Add image, pick your photograph, choose the photo size your application asks for, then place it and drag it into position." },
+      { q: "Can I add more than one picture?", a: "Yes. Choose Add image again for each one. Each picture can be moved, resized, replaced or removed on its own." },
+      { q: "Can I put a picture in a Word document and keep it as a Word file?", a: "Not here. A Word document is turned into a PDF first, and the picture is added to that PDF. The finished file is a PDF." },
+      { q: "Is my picture uploaded?", a: "No. The picture is read and placed in your browser and is never sent to FreePDFScanner's servers." },
+    ],
+    related: [LINKS.sign, LINKS.editor, LINKS.annotate, LINKS.compressPdf, LINKS.scan],
+  },
+  {
     path: "/tools/annotate",
     title: "Annotate PDF: Add Text, Highlight & Draw",
     description:

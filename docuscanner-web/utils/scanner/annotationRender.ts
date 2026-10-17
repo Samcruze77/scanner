@@ -191,7 +191,7 @@ export function findAnnotationAt(
 
 // ---- images --------------------------------------------------------------------
 
-// Signature images are decoded once and reused across redraws.
+// Signature and picture images are decoded once and reused across redraws.
 const imageCache = new Map<string, HTMLImageElement>();
 
 export function loadAnnotationImage(dataUrl: string): Promise<HTMLImageElement> {
@@ -209,12 +209,12 @@ export function loadAnnotationImage(dataUrl: string): Promise<HTMLImageElement> 
 }
 
 export function hasUnloadedImages(annotations: Annotation[]): boolean {
-  return annotations.some((a) => a.type === "signature" && !imageCache.has(a.dataUrl));
+  return annotations.some((a) => (a.type === "signature" || a.type === "image") && !imageCache.has(a.dataUrl));
 }
 
 export async function ensureAnnotationImages(annotations: Annotation[]): Promise<void> {
   await Promise.all(
-    annotations.flatMap((a) => (a.type === "signature" ? [loadAnnotationImage(a.dataUrl).catch(() => undefined)] : [])),
+    annotations.flatMap((a) => (a.type === "signature" || a.type === "image" ? [loadAnnotationImage(a.dataUrl).catch(() => undefined)] : [])),
   );
 }
 
@@ -327,9 +327,11 @@ export function renderAnnotations(
       case "cross":
         drawStamp(ctx, annotation, pageW, pageH);
         break;
-      case "signature": {
+      case "signature":
+      case "image": {
         const img = imageCache.get(annotation.dataUrl);
         if (img) {
+          ctx.imageSmoothingQuality = "high";
           ctx.drawImage(img, annotation.x * pageW, annotation.y * pageH, annotation.w * pageW, annotation.h * pageH);
         }
         break;
