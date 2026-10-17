@@ -68,6 +68,7 @@ for (const o of OS_OPTIONS) {
       const g = guideFor(o.id, b);
       assert.ok(g.title && g.steps.length >= 3, "has steps");
       assert.ok(g.trouble.length >= 2, "has troubleshooting");
+      assert.ok(/bookmark/i.test(g.trouble.join(" ") + g.steps.join(" ")), "offers a bookmark when the stated option is missing");
       assert.ok(g.steps.every((s) => s.length > 5 && !/offline/i.test(s)), "no offline claim in steps");
     });
   }

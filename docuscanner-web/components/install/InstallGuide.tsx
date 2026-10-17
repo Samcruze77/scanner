@@ -170,6 +170,9 @@ export function InstallGuide({ onClose }: { onClose: () => void }) {
                 ))}
               </ol>
               {guide.note && <p className="muted mt-3 text-xs">{guide.note}</p>}
+              <p data-guide-uncertainty className="muted mt-2 text-xs">
+                These steps follow each browser maker&apos;s help pages. Menu names change between versions, and we have not checked every version on a real device. If yours looks different, use &ldquo;I can&apos;t find it&rdquo; below.
+              </p>
 
               <details className="mt-4 rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
                 <summary className="cursor-pointer font-medium">I can&apos;t find it</summary>
