@@ -88,8 +88,24 @@ export interface ImageAnnotation {
   y: number;
   w: number;
   h: number;
-  // PNG (transparency kept) or JPEG.
+  // What is drawn and exported: PNG (transparency kept) or JPEG.
   dataUrl: string;
+  // Pixel size of dataUrl, used to warn when a picture is too small for the size it is placed at.
+  pxW?: number;
+  pxH?: number;
+  // The untouched original and the edits applied to it, so turning or cropping again always
+  // starts from the original pixels (see imagePlacement.ts).
+  original?: ImageOriginal;
+}
+
+export interface ImageOriginal {
+  dataUrl: string;
+  width: number;
+  height: number;
+  mime: "image/png" | "image/jpeg";
+  turns: 0 | 1 | 2 | 3;
+  // Crop of the turned picture, as fractions; null = whole picture.
+  crop: Bounds | null;
 }
 
 export type Annotation =
@@ -236,6 +252,7 @@ export function createImage(
   pageWidth: number,
   pageHeight: number,
   size?: { w: number; h: number },
+  extra?: { original?: ImageOriginal },
 ): ImageAnnotation {
   let w: number;
   let h: number;
@@ -259,6 +276,9 @@ export function createImage(
     w,
     h,
     dataUrl,
+    pxW: imageWidth,
+    pxH: imageHeight,
+    ...(extra?.original ? { original: extra.original } : {}),
   };
 }
 

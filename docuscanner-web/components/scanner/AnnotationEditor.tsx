@@ -24,8 +24,21 @@ import {
   type AnnotationTool,
 } from "@/utils/scanner/annotations";
 import { loadAnnotationImage } from "@/utils/scanner/annotationRender";
-import { getPreset, moveInStack, PHOTO_PRESETS, presetFractions, rotatedBox, stackPosition } from "@/utils/scanner/imagePlacement";
-import { cropInsertImage, rotateInsertImage } from "@/utils/scanner/imageInsert";
+import {
+  aspectRectWithin,
+  effectiveDpi,
+  getPreset,
+  LOW_DPI,
+  moveInStack,
+  PHOTO_PRESETS,
+  presetFractions,
+  rotatedBox,
+  rotateRect,
+  SOFT_DPI,
+  stackPosition,
+  type Rect,
+} from "@/utils/scanner/imagePlacement";
+import { renderEdit } from "@/utils/scanner/imageInsert";
 import type { ScannerPage } from "@/utils/scanner/page";
 import type { SignatureImage } from "@/utils/scanner/signature";
 import { AnnotationCanvas, type AnnotationDefaults } from "./AnnotationCanvas";
@@ -267,7 +280,7 @@ export function AnnotationEditor({
     }
     const preset = getPreset(choice.presetId);
     const size = preset ? presetFractions(preset, page.processedWidth, page.processedHeight) ?? undefined : undefined;
-    const fresh = createImage(choice.image.dataUrl, choice.image.width, choice.image.height, page.processedWidth, page.processedHeight, size);
+    const fresh = createImage(choice.image.dataUrl, choice.image.width, choice.image.height, page.processedWidth, page.processedHeight, size, { original: choice.original });
     const current = selected?.type === "image" ? selected : null;
     if (mode === "replace" && current) {
       // Same spot, same width (or the preset's size); the new picture's own shape.
@@ -290,23 +303,41 @@ export function AnnotationEditor({
     setImageNotice(null);
   }
 
-  // Turns the selected picture a quarter turn. The turned pixels replace the
-  // old ones, so Undo brings the previous orientation straight back.
-  async function rotateSelectedImage(turns: 1 | -1) {
+  // The original behind a placed picture, and its current edits. A picture placed before this
+  // existed has none, so its own pixels count as the original.
+  function editStateOf(image: Extract<Annotation, { type: "image" }>) {
+    const o = image.original;
+    if (o) return o;
+    return { dataUrl: image.dataUrl, width: image.pxW ?? 0, height: image.pxH ?? 0, mime: (image.dataUrl.startsWith("data:image/png") ? "image/png" : "image/jpeg") as "image/png" | "image/jpeg", turns: 0 as const, crop: null };
+  }
+
+  // Draws the picture again from its ORIGINAL pixels with new edits, in one pass, so turning
+  // or resizing repeatedly never compounds loss.
+  async function rerender(image: Extract<Annotation, { type: "image" }>, turns: 0 | 1 | 2 | 3, crop: Rect | null) {
+    const o = editStateOf(image);
+    const out = await renderEdit(o, turns, crop);
+    await loadAnnotationImage(out.dataUrl);
+    return { out, original: { ...o, turns, crop } };
+  }
+
+  // Turns the selected picture a quarter turn.
+  async function rotateSelectedImage(direction: 1 | -1) {
     if (selected?.type !== "image") return;
     const current = selected;
     try {
-      const turned = await rotateInsertImage({ dataUrl: current.dataUrl }, turns);
-      await loadAnnotationImage(turned.dataUrl);
+      const o = editStateOf(current);
+      const turns = ((o.turns + direction + 4) % 4) as 0 | 1 | 2 | 3;
+      const crop = o.crop ? rotateRect(o.crop, direction) : null;
+      const { out, original } = await rerender(current, turns, crop);
       const box = rotatedBox(current, page.processedWidth, page.processedHeight);
-      commit(annotations.map((a) => (a.id === current.id ? { ...current, ...box, dataUrl: turned.dataUrl } : a)));
+      commit(annotations.map((a) => (a.id === current.id ? { ...current, ...box, dataUrl: out.dataUrl, pxW: out.width, pxH: out.height, original } : a)));
     } catch {
       setImageNotice("That picture couldn't be turned. Try again.");
     }
   }
 
-  // Gives the selected picture a stated real-world size, trimming (never
-  // stretching) it to that shape around its centre.
+  // Gives the selected picture a stated real-world size, trimming (never stretching) the
+  // original to that shape inside what was already chosen.
   async function sizeSelectedImage(presetId: string) {
     if (selected?.type !== "image") return;
     const current = selected;
@@ -318,21 +349,18 @@ export function AnnotationEditor({
       return;
     }
     try {
-      const img = await loadAnnotationImage(current.dataUrl);
-      const aspect = preset.widthMm / preset.heightMm;
-      const imageAspect = img.naturalWidth / img.naturalHeight;
-      const rect =
-        imageAspect > aspect
-          ? { x: (1 - aspect / imageAspect) / 2, y: 0, w: aspect / imageAspect, h: 1 }
-          : { x: 0, y: (1 - imageAspect / aspect) / 2, w: 1, h: imageAspect / aspect };
-      const cropped = Math.abs(imageAspect - aspect) < 0.005 ? { dataUrl: current.dataUrl } : await cropInsertImage({ dataUrl: current.dataUrl }, rect);
-      await loadAnnotationImage(cropped.dataUrl);
+      const o = editStateOf(current);
+      const turned = o.turns % 2 === 1;
+      const sw = turned ? o.height : o.width;
+      const sh = turned ? o.width : o.height;
+      const crop = aspectRectWithin(o.crop ?? { x: 0, y: 0, w: 1, h: 1 }, sw, sh, preset.widthMm / preset.heightMm);
+      const { out, original } = await rerender(current, o.turns, crop);
       const cx = current.x + current.w / 2;
       const cy = current.y + current.h / 2;
       commit(
         annotations.map((a) =>
           a.id === current.id
-            ? { ...current, dataUrl: cropped.dataUrl, w: size.w, h: size.h, x: clamp(cx - size.w / 2, 0, 1 - size.w), y: clamp(cy - size.h / 2, 0, 1 - size.h) }
+            ? { ...current, dataUrl: out.dataUrl, pxW: out.width, pxH: out.height, original, w: size.w, h: size.h, x: clamp(cx - size.w / 2, 0, 1 - size.w), y: clamp(cy - size.h / 2, 0, 1 - size.h) }
             : a,
         ),
       );
@@ -341,6 +369,9 @@ export function AnnotationEditor({
       setImageNotice("That picture couldn't be resized. Try again.");
     }
   }
+
+  // How sharp the selected picture will be when printed at the size it is placed at.
+  const imageDpi = selected?.type === "image" ? effectiveDpi(selected.pxW, selected.w, page.processedWidth, page.processedHeight) : null;
 
   function moveSelectedInStack(move: "forward" | "backward" | "front" | "back") {
     if (!selectedId) return;
@@ -628,6 +659,12 @@ export function AnnotationEditor({
           >
             Delete
           </button>
+        )}
+
+        {imageDpi !== null && imageDpi < SOFT_DPI && (
+          <p role="status" className="whitespace-nowrap text-sm text-amber-700 dark:text-amber-400">
+            {imageDpi < LOW_DPI ? "Low resolution" : "Soft when printed"}: about {imageDpi} dpi at this size. A larger original picture or a smaller size looks sharper.
+          </p>
         )}
 
         {imageNotice && (

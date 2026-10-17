@@ -165,9 +165,9 @@ export function isImageAnnotation(a: Annotation | null | undefined): a is ImageA
 export type InsertImageKind = "jpeg" | "png" | "webp";
 
 export const MAX_INSERT_IMAGE_BYTES = 20 * 1024 * 1024;
-// Pictures are scaled to this on their longest side: sharp at any size the page
-// can show them, and small enough that several fit in memory on a phone.
-export const MAX_INSERT_IMAGE_SIDE_PX = 2400;
+// Pictures larger than this on their longest side are scaled down once (4000 px is about
+// 340 dpi across a whole A4 page), so several still fit in memory on a phone.
+export const MAX_INSERT_IMAGE_SIDE_PX = 4000;
 // Refuses decoding anything bigger than this many pixels (a decompression-bomb guard).
 export const MAX_INSERT_IMAGE_PIXELS = 100_000_000;
 
@@ -227,3 +227,77 @@ export function describeUnsupportedImage(bytes: Uint8Array, name: string): strin
   }
   return "That file isn't a picture we can use. Choose a JPG, PNG or WebP image.";
 }
+
+// ---- quality: orientation, non-destructive edits, resolution ------------------------------
+
+// The EXIF orientation (1-8) stored in a JPEG, or 1 when there is none. A browser applies
+// it when it draws the picture, but a JPEG embedded as-is in a PDF would ignore it, so any
+// orientation other than 1 means the pixels have to be re-drawn.
+export function jpegOrientation(bytes: Uint8Array): number {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return 1;
+  let i = 2;
+  while (i + 4 < bytes.length) {
+    if (bytes[i] !== 0xff) return 1;
+    const marker = bytes[i + 1];
+    if (marker === 0xda || marker === 0xd9) return 1;
+    const len = (bytes[i + 2] << 8) | bytes[i + 3];
+    if (marker === 0xe1 && len >= 14 && String.fromCharCode(...bytes.slice(i + 4, i + 8)) === "Exif") {
+      const t = i + 10; // start of the TIFF header
+      const little = bytes[t] === 0x49;
+      const u16 = (o: number) => (little ? bytes[o] | (bytes[o + 1] << 8) : (bytes[o] << 8) | bytes[o + 1]);
+      const u32 = (o: number) =>
+        little
+          ? (bytes[o] | (bytes[o + 1] << 8) | (bytes[o + 2] << 16) | (bytes[o + 3] << 24)) >>> 0
+          : ((bytes[o] << 24) | (bytes[o + 1] << 16) | (bytes[o + 2] << 8) | bytes[o + 3]) >>> 0;
+      const ifd = t + u32(t + 4);
+      if (ifd + 2 > bytes.length) return 1;
+      const entries = u16(ifd);
+      for (let n = 0; n < entries; n++) {
+        const e = ifd + 2 + n * 12;
+        if (e + 12 > bytes.length) return 1;
+        if (u16(e) === 0x0112) {
+          const v = u16(e + 8);
+          return v >= 1 && v <= 8 ? v : 1;
+        }
+      }
+      return 1;
+    }
+    i += 2 + len;
+  }
+  return 1;
+}
+
+// A picture keeps its untouched original and the edits made to it (quarter turns, then a
+// crop of the turned picture). The pixels that are drawn and exported are produced from the
+// original in ONE step each time, so turning or cropping again never compounds loss.
+export type Turns = 0 | 1 | 2 | 3;
+
+// Where a crop of a turned picture sits after one more quarter turn (fractions of the picture).
+export function rotateRect(rect: Rect, direction: 1 | -1): Rect {
+  return direction === 1
+    ? { x: 1 - (rect.y + rect.h), y: rect.x, w: rect.h, h: rect.w }
+    : { x: rect.y, y: 1 - (rect.x + rect.w), w: rect.h, h: rect.w };
+}
+
+// The largest rectangle of the given pixel aspect (width / height) that fits centred inside
+// `rect`, where `rect` is a fraction of a picture that is sw x sh pixels.
+export function aspectRectWithin(rect: Rect, sw: number, sh: number, aspect: number): Rect {
+  const current = (rect.w * sw) / (rect.h * sh);
+  let w = rect.w;
+  let h = rect.h;
+  if (current > aspect) w = (aspect * rect.h * sh) / sw;
+  else h = (rect.w * sw) / (aspect * sh);
+  return { x: rect.x + (rect.w - w) / 2, y: rect.y + (rect.h - h) / 2, w, h };
+}
+
+// Dots per inch a picture of `pxWidth` pixels gets when it fills `fractionOfPage` of the
+// page width as printed. Null when it cannot be worked out.
+export function effectiveDpi(pxWidth: number | undefined, fractionOfPage: number, pageWidthPx: number, pageHeightPx: number): number | null {
+  if (!pxWidth || !(fractionOfPage > 0)) return null;
+  const widthInches = (fractionOfPage * pageSizeMm(pageWidthPx, pageHeightPx).w) / 25.4;
+  return Math.round(pxWidth / widthInches);
+}
+
+// Below this a printed picture starts to look soft; below LOW it is clearly pixelated.
+export const SOFT_DPI = 150;
+export const LOW_DPI = 100;

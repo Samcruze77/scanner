@@ -15,10 +15,17 @@ import {
   rectFromPoints,
   type Rect,
 } from "@/utils/scanner/imagePlacement";
-import { cropInsertImage, InsertImageError, readInsertImage, rotateInsertImage, type InsertImage } from "@/utils/scanner/imageInsert";
+import { InsertImageError, readInsertImage, renderEdit, type InsertImage } from "@/utils/scanner/imageInsert";
+import type { ImageOriginal } from "@/utils/scanner/annotations";
+
+// The editing preview is a small copy; the picture that is placed is always made from the
+// untouched original (see renderEdit), so the preview's size never limits export quality.
+const PREVIEW_SIDE_PX = 1200;
 
 export interface ImageChoice {
+  // The picture to draw and export, and the untouched original it came from.
   image: InsertImage;
+  original: ImageOriginal;
   // A preset size the picture was cropped to; the page is told its real size.
   presetId: string | null;
 }
@@ -38,7 +45,11 @@ export function ImageDialog({
   onApply: (choice: ImageChoice) => void;
   onCancel: () => void;
 }) {
+  // `source` describes the picture as it is shown: the preview copy's pixels, but the
+  // full turned size of the original (for crop shapes). `original` is never changed.
   const [source, setSource] = useState<InsertImage | null>(null);
+  const [original, setOriginal] = useState<InsertImage | null>(null);
+  const [turns, setTurns] = useState<0 | 1 | 2 | 3>(0);
   const [presetId, setPresetId] = useState<string>("");
   const [crop, setCrop] = useState<Rect | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -79,8 +90,11 @@ export function ImageDialog({
     setError(null);
     try {
       const image = await readInsertImage(file);
+      const preview = await renderEdit(image, 0, null, PREVIEW_SIDE_PX);
       if (token !== tokenRef.current) return;
-      setSource(image);
+      setOriginal(image);
+      setTurns(0);
+      setSource({ dataUrl: preview.dataUrl, width: image.width, height: image.height, mime: image.mime });
       setCrop(null);
       setZoom(1);
     } catch (err) {
@@ -114,14 +128,17 @@ export function ImageDialog({
     setCrop(aspectCropRect(source.width, source.height, presetAspect, value, base.x + base.w / 2, base.y + base.h / 2));
   }
 
-  async function rotate(turns: 1 | -1) {
-    if (!source) return;
+  async function rotate(direction: 1 | -1) {
+    if (!source || !original) return;
     const token = ++tokenRef.current;
     setBusy(true);
     try {
-      const turned = await rotateInsertImage(source, turns);
+      const next = ((turns + direction + 4) % 4) as 0 | 1 | 2 | 3;
+      const preview = await renderEdit(original, next, null, PREVIEW_SIDE_PX);
       if (token !== tokenRef.current) return;
-      setSource(turned);
+      setTurns(next);
+      const swapped = next % 2 === 1;
+      setSource({ dataUrl: preview.dataUrl, width: swapped ? original.height : original.width, height: swapped ? original.width : original.height, mime: original.mime });
       setCrop(null);
       setZoom(1);
     } catch {
@@ -181,19 +198,24 @@ export function ImageDialog({
   }
 
   async function apply() {
-    if (!source) return;
+    if (!source || !original) return;
     setBusy(true);
     setError(null);
     try {
-      let result = source;
-      const rect = activeCrop;
-      const isWhole = !rect || (rect.w > 0.995 && rect.h > 0.995);
-      if (rect && !isWhole && rect.w >= MIN_CROP && rect.h >= MIN_CROP) result = await cropInsertImage(source, rect);
       if (preset && !presetSize) {
         setError("That size doesn't fit on this page. Choose a smaller size, or \"Keep the picture's shape\".");
         return;
       }
-      onApply({ image: result, presetId: preset ? preset.id : null });
+      const rect = activeCrop;
+      const isWhole = !rect || (rect.w > 0.995 && rect.h > 0.995);
+      const crop = rect && !isWhole && rect.w >= MIN_CROP && rect.h >= MIN_CROP ? rect : null;
+      // One pass from the original pixels: turn, then crop. No earlier edit is re-encoded.
+      const result = await renderEdit(original, turns, crop);
+      onApply({
+        image: result,
+        original: { dataUrl: original.dataUrl, width: original.width, height: original.height, mime: original.mime, turns, crop },
+        presetId: preset ? preset.id : null,
+      });
     } catch {
       setError("The picture couldn't be prepared. Try a smaller picture.");
     } finally {

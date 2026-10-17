@@ -1,6 +1,6 @@
 "use client";
 
-import { flattenPageToJpeg } from "./annotationRender";
+import { buildPageLayers, flattenPageToJpeg } from "./annotationRender";
 import { dataUrlBytes, debugLog, isScannerDebug } from "./debugLog";
 import type { ScannerPage } from "./page";
 
@@ -24,12 +24,21 @@ export async function createPdfFromPages(pages: ScannerPage[]): Promise<Blob> {
   for (let index = 0; index < pages.length; index++) {
     const page = pages[index];
     if (index > 0) doc.addPage();
-    const imageData = page.annotations.length > 0 ? await flattenPageToJpeg(page) : page.processedDataUrl;
     const scale = Math.min(pageWidth / page.processedWidth, pageHeight / page.processedHeight);
     const w = page.processedWidth * scale;
     const h = page.processedHeight * scale;
     const x = (pageWidth - w) / 2;
     const y = (pageHeight - h) / 2;
+    // Pages with inserted pictures are exported as layers, so each picture keeps its own
+    // resolution instead of being painted into the page-sized raster (see buildPageLayers).
+    const layers = await buildPageLayers(page);
+    if (layers) {
+      for (const layer of layers) {
+        doc.addImage(layer.dataUrl, layer.format, x + layer.x * w, y + layer.y * h, layer.w * w, layer.h * h, undefined, layer.format === "PNG" ? "FAST" : "NONE");
+      }
+      continue;
+    }
+    const imageData = page.annotations.length > 0 ? await flattenPageToJpeg(page) : page.processedDataUrl;
     doc.addImage(imageData, "JPEG", x, y, w, h);
   }
 

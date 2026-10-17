@@ -379,3 +379,80 @@ export async function flattenPageToJpeg(page: ScannerPage): Promise<string> {
   canvas.width = canvas.height = 0;
   return dataUrl;
 }
+
+// ---- layered export ---------------------------------------------------------------------
+
+// A pictured page is NOT flattened into one page-sized raster: that would shrink a 35 mm
+// passport photo to the page raster's ~170 dpi and re-encode the whole page. Instead the PDF
+// gets separate layers: the untouched page image, each inserted picture at its own full
+// resolution (an unedited JPEG is embedded byte-for-byte), and transparent overlays for the
+// text, pen and marks between them, so stacking order is kept.
+export interface PageLayer {
+  kind: "base" | "overlay" | "image";
+  dataUrl: string;
+  format: "JPEG" | "PNG";
+  // Fractions of the page image (0..1).
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function formatOf(dataUrl: string): "JPEG" | "PNG" {
+  return dataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
+}
+
+// Null when the page has no pictures: the caller keeps the plain flatten path.
+// Highlights are blended into the page image (they multiply with it), so a highlight is
+// always under any picture, whatever its place in the editor's stacking order.
+export async function buildPageLayers(page: ScannerPage): Promise<PageLayer[] | null> {
+  if (!page.annotations.some((a) => a.type === "image")) return null;
+  const width = page.processedWidth;
+  const height = page.processedHeight;
+  const highlights = page.annotations.filter((a) => a.type === "highlight");
+  const rest = page.annotations.filter((a) => a.type !== "highlight");
+
+  const layers: PageLayer[] = [];
+  if (highlights.length > 0) {
+    const base = await loadPageImage(page.processedDataUrl);
+    const canvas = document.createElement("canvas");
+    canvas.width = base.naturalWidth || width;
+    canvas.height = base.naturalHeight || height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas_unavailable");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
+    renderAnnotations(ctx, canvas.width, canvas.height, highlights);
+    const dataUrl = canvas.toDataURL("image/jpeg", FLATTEN_JPEG_QUALITY);
+    canvas.width = canvas.height = 0;
+    layers.push({ kind: "base", dataUrl, format: "JPEG", x: 0, y: 0, w: 1, h: 1 });
+  } else {
+    layers.push({ kind: "base", dataUrl: page.processedDataUrl, format: formatOf(page.processedDataUrl), x: 0, y: 0, w: 1, h: 1 });
+  }
+
+  let run: Annotation[] = [];
+  const flushRun = async () => {
+    if (run.length === 0) return;
+    await ensureAnnotationImages(run);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas_unavailable");
+    renderAnnotations(ctx, width, height, run);
+    layers.push({ kind: "overlay", dataUrl: canvas.toDataURL("image/png"), format: "PNG", x: 0, y: 0, w: 1, h: 1 });
+    canvas.width = canvas.height = 0;
+    run = [];
+  };
+  for (const a of rest) {
+    if (a.type === "image") {
+      await flushRun();
+      layers.push({ kind: "image", dataUrl: a.dataUrl, format: formatOf(a.dataUrl), x: a.x, y: a.y, w: a.w, h: a.h });
+    } else {
+      run.push(a);
+    }
+  }
+  await flushRun();
+  return layers;
+}
