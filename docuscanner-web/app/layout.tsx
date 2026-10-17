@@ -4,6 +4,7 @@ import { AnalyticsListener } from "@/components/analytics/AnalyticsListener";
 import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { PresenceHeartbeat } from "@/components/presence/PresenceHeartbeat";
+import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Footer } from "@/components/layout/Footer";
@@ -82,6 +83,7 @@ export default function RootLayout({
           <Footer />
           <MobileActionBar />
           <AuthModal />
+          <AssistantLauncher />
           <ConsentBanner />
         </AuthProvider>
       </body>

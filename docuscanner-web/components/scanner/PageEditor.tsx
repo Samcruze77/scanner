@@ -246,7 +246,7 @@ export function PageEditor({
 
             <div>
               <p className="panel-title mb-2">Annotate</p>
-              <button type="button" onClick={onAnnotate} disabled={processing} className="btn btn-secondary">
+              <button type="button" onClick={onAnnotate} disabled={processing} data-assistant-id="page-annotate" className="btn btn-secondary">
                 <Icon name="signature" size={18} />
                 {page.annotations.length > 0
                   ? `Edit text, signature & marks (${page.annotations.length})`

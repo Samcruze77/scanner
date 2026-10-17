@@ -232,6 +232,7 @@ export function WordToPdfTool() {
             <button
               type="button"
               onClick={handleDownload}
+                  data-assistant-id="convert-download"
               className="btn btn-primary"
             >
               Download PDF

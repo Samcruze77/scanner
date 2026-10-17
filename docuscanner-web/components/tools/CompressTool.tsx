@@ -348,6 +348,7 @@ export function CompressTool({ kind }: { kind: CompressKind }) {
               <button
                 type="button"
                 onClick={() => void run(stage.file, false)}
+                data-assistant-id="compress-start"
                 className="btn btn-primary btn-lg w-full sm:w-auto"
               >
                 Compress {copy.noun}
@@ -505,6 +506,7 @@ function Result({
         <button
           type="button"
           onClick={() => onDownload(report)}
+          data-assistant-id="compress-download"
           className={report.meaningful ? "btn btn-primary btn-lg" : "btn btn-secondary btn-lg"}
         >
           {report.meaningful ? "Download compressed file" : "Download original file"}

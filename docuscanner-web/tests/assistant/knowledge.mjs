@@ -1,0 +1,221 @@
+// Checks that the help assistant only says true things about FreePDFScanner:
+//  - every route it links to is a real page (from the same registries the site uses)
+//  - every control it can point at (data-assistant-id) really exists in the source
+//  - every suggested question has a real answer behind it
+//  - representative questions get the right tool, tailored to the page, with honest limits
+//  - the model-answer sanitizer and input validator behave
+//   node tests/assistant/knowledge.mjs
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { buildGuideAnswer, rankEntries } from "../../utils/assistant/guide.ts";
+import {
+  allRoutes,
+  describePage,
+  ENTRY_LIST,
+  entriesToPrompt,
+  getEntry,
+  isKnownRoute,
+  stepsFor,
+  suggestionsFor,
+} from "../../utils/assistant/knowledge.ts";
+import { sanitizeAnswer, scrub, validateChatRequest } from "../../utils/assistant/sanitize.ts";
+import { CONVERT_TOOLS } from "../../components/convert/tools.ts";
+import { TOOLS } from "../../utils/tools/registry.ts";
+
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+let pass = 0;
+const test = (name, fn) => {
+  fn();
+  pass++;
+  console.log("  ok  " + name);
+};
+
+// ---- ids present in the source ---------------------------------------------------------
+function walk(dir, out = []) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (["node_modules", ".next", "tests"].includes(e.name)) continue;
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) walk(p, out);
+    else if (/\.tsx$/.test(e.name)) out.push(p);
+  }
+  return out;
+}
+const sourceIds = new Set();
+for (const dir of ["app", "components"]) {
+  for (const file of walk(path.join(root, dir))) {
+    const text = fs.readFileSync(file, "utf8");
+    for (const m of text.matchAll(/data-assistant-id="([a-z0-9-]+)"/g)) sourceIds.add(m[1]);
+  }
+}
+// Ids built from a template in the source.
+for (const item of ["scan", "convert", "tools", "history"]) sourceIds.add(`nav-${item}`);
+sourceIds.add("nav-home");
+const editorSource = fs.readFileSync(path.join(root, "components/scanner/AnnotationEditor.tsx"), "utf8");
+for (const m of editorSource.matchAll(/\{ value: "([a-z]+)", label:/g)) sourceIds.add(`annotation-tool-${m[1]}`);
+
+console.log("Product knowledge matches the product");
+test("every entry has an id, title and summary, and ids are unique", () => {
+  const ids = ENTRY_LIST.map((e) => e.id);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const e of ENTRY_LIST) assert.ok(e.id && e.title && e.summary, e.id);
+});
+test("every route an entry links to is a real page", () => {
+  for (const e of ENTRY_LIST) if (e.route) assert.ok(isKnownRoute(e.route), `${e.id}: ${e.route}`);
+});
+test("every control the assistant can point at exists in the source", () => {
+  for (const e of ENTRY_LIST) {
+    const all = [...(e.steps ?? []), ...(e.variants ?? []).flatMap((v) => v.steps)];
+    for (const s of all) if (s.target) assert.ok(sourceIds.has(s.target), `${e.id}: control "${s.target}" is not in the source`);
+  }
+});
+test("variants only name real pages", () => {
+  for (const e of ENTRY_LIST)
+    for (const v of e.variants ?? [])
+      for (const p of v.pages) {
+        const known = isKnownRoute(p) || ["/word-to-pdf", "/protect-pdf", "/lock-pdf", "/password-protect-pdf", "/edit-pdf", "/scan-to-pdf", "/jpg-to-pdf", "/png-to-pdf"].includes(p);
+        assert.ok(known, `${e.id}: ${p}`);
+      }
+});
+test("the tool list the assistant knows is the real registry", () => {
+  const catalog = getEntry("all-tools").notes.join(" ");
+  for (const t of TOOLS) assert.ok(catalog.includes(`/tools/${t.slug}`), t.slug);
+  for (const c of CONVERT_TOOLS) assert.ok(catalog.includes(c.href), c.href);
+  assert.ok(allRoutes().length >= TOOLS.length + CONVERT_TOOLS.length);
+});
+test("the Add Image tool the assistant sends people to is real", () => {
+  assert.ok(TOOLS.some((t) => t.slug === "add-image"));
+  assert.equal(getEntry("insert-image").route, "/tools/add-image");
+});
+
+console.log("Suggestions");
+test("the six example questions exist and each leads to a real answer", () => {
+  const asked = suggestionsFor("/").map((s) => s.text);
+  for (const q of [
+    "How do I convert a Word document to PDF?",
+    "How do I insert my passport photograph?",
+    "How do I combine multiple PDFs?",
+    "How do I protect a PDF with a password?",
+    "Where can I find my download?",
+    "How do I use the scanner?",
+  ]) assert.ok(asked.includes(q), q);
+});
+test("every suggestion on every kind of page maps to an entry that answers it", () => {
+  const pages = ["/", "/scan", "/tools", "/convert", "/tools/pdf-editor", "/tools/add-image", "/tools/protect-pdf", "/convert/word-to-pdf", "/convert/image-to-pdf", "/history", "/privacy"];
+  for (const p of pages)
+    for (const s of suggestionsFor(p)) {
+      assert.ok(getEntry(s.entryId), `${p}: ${s.text}`);
+      assert.equal(rankEntries(s.text, p, 1)[0]?.entry.id === s.entryId || buildGuideAnswer(s.text, p).matched, true, `${p}: "${s.text}" has no answer`);
+    }
+});
+
+console.log("Answers to representative questions");
+const top = (q, p = "/") => rankEntries(q, p, 1)[0]?.entry.id;
+test("tools and tasks go to the right entry", () => {
+  assert.equal(top("How do I convert a Word document to PDF?"), "convert-word-to-pdf");
+  assert.equal(top("how do i turn a pdf into word"), "convert-pdf-to-word");
+  assert.equal(top("How do I insert my passport photograph?"), "insert-image");
+  assert.equal(top("how do I put my logo on a pdf"), "insert-image");
+  assert.equal(top("How do I combine multiple PDFs?"), "combine-pdfs");
+  assert.equal(top("merge two pdf files"), "combine-pdfs");
+  assert.equal(top("How do I protect a PDF with a password?"), "protect-pdf");
+  assert.equal(top("Where can I find my download?"), "find-download");
+  assert.equal(top("How do I use the scanner?"), "use-scanner");
+  assert.equal(top("how to sign a pdf"), "sign-pdf");
+  assert.equal(top("my pdf file is too big to email"), "compress-pdf");
+  assert.equal(top("how do I extract text from a scanned page"), "ocr");
+  assert.equal(top("camera permission denied"), "troubleshoot-camera");
+  assert.equal(top("is my document uploaded anywhere"), "privacy");
+  assert.equal(top("how do I switch to dark mode"), "themes");
+});
+test("answers link to the tool and give steps", () => {
+  const a = buildGuideAnswer("How do I convert a Word document to PDF?", "/");
+  assert.ok(a.matched);
+  assert.ok(a.links.some((l) => l.href === "/convert/word-to-pdf"));
+  assert.ok(a.steps.length >= 3);
+  assert.match(a.steps.map((s) => s.text).join(" "), /Download PDF/);
+});
+test("the current page changes the instructions", () => {
+  const elsewhere = stepsFor(getEntry("convert-word-to-pdf"), "/").steps;
+  const here = stepsFor(getEntry("convert-word-to-pdf"), "/convert/word-to-pdf");
+  assert.equal(here.onThisPage, true);
+  assert.ok(here.steps.length < elsewhere.length, "on the converter the 'open the tool' step is dropped");
+  assert.doesNotMatch(here.steps[0].text, /^Open the Word to PDF/);
+  const editor = stepsFor(getEntry("insert-image"), "/tools/pdf-editor");
+  assert.equal(editor.onThisPage, true);
+  assert.doesNotMatch(editor.steps[0].text, /^Open the Add Image/);
+  const a = buildGuideAnswer("how do I protect with a password", "/tools/protect-pdf");
+  assert.match(a.intro, /already on/);
+});
+test("the page the visitor is on is recognised", () => {
+  assert.equal(describePage("/tools/protect-pdf").label, "Protect PDF");
+  assert.equal(describePage("/convert/word-to-pdf").area, "convert");
+  assert.equal(describePage("/scan?x=1").area, "scan");
+  assert.equal(describePage("/").area, "home");
+});
+
+console.log("Honesty about what is not supported");
+test("unsupported things are explained, not instructed", () => {
+  for (const [q, id] of [
+    ["can I edit the existing text in my pdf", "limit-edit-existing-text"],
+    ["how do I remove the password from a pdf", "limit-unlock"],
+    ["how do I split a pdf", "limit-split"],
+    ["how do I insert a picture in a word document and keep it as word", "limit-word-excel-output"],
+  ]) {
+    assert.equal(top(q), id, q);
+  }
+  assert.match(getEntry("limit-unlock").summary, /cannot/i);
+  assert.match(getEntry("limit-edit-existing-text").summary, /^No\./);
+  assert.match(getEntry("limit-word-excel-output").summary, /PDF/);
+});
+test("an unknown question says so instead of inventing an answer", () => {
+  const a = buildGuideAnswer("how do I book a flight to Paris", "/");
+  assert.equal(a.matched, false);
+  assert.match(a.intro, /not sure/i);
+  assert.equal(a.steps.length, 0);
+  for (const l of a.links) assert.ok(isKnownRoute(l.href));
+  assert.equal(buildGuideAnswer("", "/").matched, false);
+});
+test("nothing claims an action was performed", () => {
+  const text = ENTRY_LIST.map((e) => entriesToPrompt([e], "/")).join("\n");
+  assert.doesNotMatch(text, /\b(I have|I've|I will) (downloaded|submitted|deleted|sent|uploaded)/i);
+  assert.doesNotMatch(text, /AI-powered|machine learning|premium plan/i);
+});
+test("signing is not described as a certified digital signature", () => {
+  assert.match(getEntry("sign-pdf").notes.join(" "), /not a certificate-based digital signature/);
+});
+
+console.log("Input and output safety");
+test("model answers cannot show invented pages, links or markup", () => {
+  const out = sanitizeAnswer("Open /tools/protect-pdf now. Also try /tools/secret-vault and [click](https://evil.example/x) <b>here</b> https://evil.example/y or https://www.freepdfscanner.com/scan");
+  assert.match(out, /\/tools\/protect-pdf/);
+  assert.doesNotMatch(out, /secret-vault/);
+  assert.doesNotMatch(out, /evil\.example/);
+  assert.doesNotMatch(out, /<b>/);
+  assert.match(out, /freepdfscanner\.com\/scan/);
+  assert.ok(sanitizeAnswer("x".repeat(5000)).length < 1900);
+});
+test("contact details and long numbers are scrubbed before a question reaches the model", () => {
+  const s = scrub("mail me at jo.bloggs@example.com or call +44 7700 900123, card 4111 1111 1111 1111");
+  assert.doesNotMatch(s, /example\.com|7700|4111/);
+});
+test("requests are validated", () => {
+  assert.equal(validateChatRequest(null).ok, false);
+  assert.equal(validateChatRequest({ messages: [] }).ok, false);
+  assert.equal(validateChatRequest({ messages: [{ role: "system", content: "x" }] }).ok, false);
+  assert.equal(validateChatRequest({ messages: [{ role: "assistant", content: "x" }] }).ok, false);
+  assert.equal(validateChatRequest({ messages: [{ role: "user", content: "a".repeat(501) }] }).ok, false);
+  const good = validateChatRequest({ messages: [{ role: "user", content: "hi" }], path: "/tools/x?secret=1" });
+  assert.equal(good.ok, true);
+  assert.equal(good.value.path, "/tools/x");
+  assert.equal(validateChatRequest({ messages: [{ role: "user", content: "hi" }], path: "https://evil" }).value.path, "/");
+  const long = Array.from({ length: 20 }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: "q" + i }));
+  long.push({ role: "user", content: "last" });
+  const trimmed = validateChatRequest({ messages: long });
+  assert.equal(trimmed.ok, true);
+  assert.ok(trimmed.value.messages.length <= 6);
+  assert.equal(trimmed.value.messages[0].role, "user");
+});
+
+console.log(`\n${pass} checks passed`);

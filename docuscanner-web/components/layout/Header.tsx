@@ -30,6 +30,7 @@ export function Header() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                data-assistant-id={`nav-${item.href.slice(1)}`}
                 className={`inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium transition-colors ${
                   active
                     ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white"
@@ -48,10 +49,10 @@ export function Header() {
             <AccountMenu />
           ) : (
             <>
-              <button type="button" onClick={() => openAuthModal("login")} className="btn btn-ghost px-3">
+              <button type="button" onClick={() => openAuthModal("login")} data-assistant-id="account-login" className="btn btn-ghost px-3">
                 Log in
               </button>
-              <button type="button" onClick={() => openAuthModal("signup")} className="btn btn-primary px-3 sm:px-4">
+              <button type="button" onClick={() => openAuthModal("signup")} data-assistant-id="account-signup" className="btn btn-primary px-3 sm:px-4">
                 <span className="sm:hidden">Sign up</span>
                 <span className="hidden sm:inline">Sign up free</span>
               </button>

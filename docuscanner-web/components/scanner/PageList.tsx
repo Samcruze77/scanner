@@ -15,7 +15,7 @@ export function PageList({
   if (pages.length === 0) return null;
 
   return (
-    <ul aria-label="Pages" className="flex gap-2 overflow-x-auto pb-2">
+    <ul aria-label="Pages" data-assistant-id="scan-page-list" className="flex gap-2 overflow-x-auto pb-2">
       {pages.map((page, index) => (
         <PageThumbnail
           key={page.id}

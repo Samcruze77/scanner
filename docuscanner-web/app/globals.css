@@ -508,3 +508,22 @@ summary:focus-visible,
 .password-input::-ms-clear {
   display: none;
 }
+
+/* The help assistant's "show me" ring (utils/assistant/highlight.ts). Amber reads on
+   the light, warm beige and dark themes alike; motion is skipped when reduced. */
+.assistant-highlight {
+  outline: 4px solid #f59e0b;
+  outline-offset: 3px;
+  border-radius: 0.5rem;
+  position: relative;
+  z-index: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .assistant-highlight {
+    animation: assistant-pulse 1.1s ease-in-out 5;
+  }
+  @keyframes assistant-pulse {
+    0%, 100% { outline-color: #f59e0b; outline-offset: 3px; }
+    50% { outline-color: #fcd34d; outline-offset: 7px; }
+  }
+}

@@ -28,6 +28,7 @@ export function MobileActionBar() {
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
+            data-assistant-id={`nav-${item.href === "/" ? "home" : item.href.slice(1)}`}
             className={`relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
               active ? "text-blue-700 dark:text-blue-400" : "text-zinc-500 dark:text-zinc-400"
             }`}

@@ -21,6 +21,8 @@
     "test:compress:readability": "node tests/compress/readability.mjs",
     "test:images": "node --no-warnings tests/images/geometry.mjs",
     "test:images:e2e": "node tests/images/e2e.mjs",
+    "test:assistant": "node --no-warnings tests/assistant/knowledge.mjs && node --no-warnings tests/assistant/api.mjs",
+    "test:assistant:browser": "node tests/assistant/browser.mjs",
     "test:print": "node tests/print/verify.mjs",
     "test:zoom": "node tests/zoom/verify.mjs",
     "test:auth": "node tests/auth/verify.mjs",

@@ -327,7 +327,7 @@ export function ProtectTool({ focus = "pdf" }: { focus?: Focus }) {
 
           {stage.name === "ready" ? (
             <div className="space-y-1">
-              <button type="submit" className="btn btn-primary btn-lg w-full sm:w-auto">
+              <button type="submit" data-assistant-id="protect-submit" className="btn btn-primary btn-lg w-full sm:w-auto">
                 <Icon name="lock" size={18} /> {cta}
               </button>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Your original file is never changed. You download the protected copy separately.</p>
@@ -361,7 +361,7 @@ export function ProtectTool({ focus = "pdf" }: { focus?: Focus }) {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => download(stage)} className="btn btn-primary btn-lg">
+            <button type="button" onClick={() => download(stage)} data-assistant-id="protect-download" className="btn btn-primary btn-lg">
               <Icon name="download" size={18} /> Download protected {stage.kind === "office" ? stage.noun : "PDF"}
             </button>
             <button type="button" onClick={reset} className="btn btn-secondary btn-lg">

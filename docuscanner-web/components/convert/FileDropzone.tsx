@@ -54,6 +54,7 @@ export function FileDropzone({
         type="button"
         disabled={disabled}
         onClick={() => inputRef.current?.click()}
+        data-assistant-id="file-dropzone"
         className={`flex min-h-40 w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors disabled:opacity-50 ${
           dragging
             ? "border-blue-600 bg-blue-50 dark:bg-blue-950"

@@ -52,6 +52,7 @@ export function ThemeMenu() {
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
+        data-assistant-id="theme-menu"
         aria-label={`Theme: ${active.label}`}
         aria-haspopup="true"
         aria-expanded={open}

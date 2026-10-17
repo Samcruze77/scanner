@@ -164,6 +164,7 @@ export function PdfToWordTool() {
                 <button
                   type="button"
                   onClick={handleDownload}
+                  data-assistant-id="convert-download"
                   className="btn btn-primary"
                 >
                   Download Word file
