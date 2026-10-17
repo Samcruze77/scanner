@@ -21,6 +21,7 @@
     "test:compress:readability": "node tests/compress/readability.mjs",
     "test:quality-fixes": "node tests/audit/verify-fixes.mjs",
     "test:pdf-edit": "node tests/audit/verify-pdf-edit.mjs",
+    "test:print-quality": "node tests/audit/verify-print.mjs",
     "test:docx:tables": "node --no-warnings tests/docx/table-widths.mjs",
     "test:images": "node --no-warnings tests/images/geometry.mjs && node --no-warnings tests/images/quality-unit.mjs",
     "test:images:e2e": "node tests/images/e2e.mjs",

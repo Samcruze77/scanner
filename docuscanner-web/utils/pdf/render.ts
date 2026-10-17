@@ -21,10 +21,14 @@ export async function renderPdfPage(
   page: PDFPageProxy,
   longSidePx: number,
   jpegQuality = 0.85,
+  // Extra clockwise quarter turns (0, 90, 180, 270) on top of the page's own /Rotate.
+  extraRotation = 0,
+  // Allow magnifying a page up to this much (the default suits on-screen import; printing needs more).
+  maxScale = MAX_SCALE,
 ): Promise<RenderedPdfPage> {
-  const base = page.getViewport({ scale: 1 });
-  const scale = Math.min(MAX_SCALE, longSidePx / Math.max(base.width, base.height));
-  const viewport = page.getViewport({ scale });
+  const base = page.getViewport({ scale: 1, rotation: (page.rotate + extraRotation) % 360 });
+  const scale = Math.min(maxScale, longSidePx / Math.max(base.width, base.height));
+  const viewport = page.getViewport({ scale, rotation: (page.rotate + extraRotation) % 360 });
 
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(viewport.width));

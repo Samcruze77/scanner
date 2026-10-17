@@ -3,3 +3,4 @@ corpus/
 out-*.png
 visual-*.png
 results-*.json
+out-print/
