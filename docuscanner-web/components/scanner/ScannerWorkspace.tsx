@@ -114,6 +114,8 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
   // A Tools entry opens the annotator by itself for a single-page document, once;
   // after that (or with several pages) the person picks a page as usual.
   const [intentUsed, setIntentUsed] = useState(false);
+  // Pages whose suggested crop the person has answered (accepted, or chose to keep the full image).
+  const [cropAnswered, setCropAnswered] = useState<string[]>([]);
   // The most recent signature, kept in memory only so it can be placed on more
   // pages without redrawing. Never stored or uploaded; gone on reload.
   const [lastSignature, setLastSignature] = useState<SignatureImage | null>(null);
@@ -165,8 +167,12 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
   }, []);
 
   // Runs detection then the render pipeline for a freshly-added page.
+  // Camera captures are cropped to the detected document automatically (that is what scanning is for).
+  // An uploaded file is NEVER cropped without the person's say-so: detection still runs, but its
+  // result is only offered as a suggestion (see the "Suggested crop" card), because a photograph or an
+  // already-clean page can be confidently, and wrongly, "detected".
   const runDetectionAndRender = useCallback(
-    async (page: ScannerPage) => {
+    async (page: ScannerPage, options: { autoCrop: boolean }) => {
       let quad: ScannerPage["quad"] = null;
       let confidence = 0;
       try {
@@ -180,7 +186,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
         confidence = 0;
       }
 
-      const cropEnabled = confidence >= AUTO_CROP_CONFIDENCE_THRESHOLD;
+      const cropEnabled = options.autoCrop && confidence >= AUTO_CROP_CONFIDENCE_THRESHOLD;
       const withDetection: ScannerPage = { ...page, quad, detectedQuad: quad, quadConfidence: confidence, cropEnabled };
       updatePageFields(page.id, {
         quad,
@@ -291,7 +297,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     setPages((prev) => [...prev, initial]);
     // Show what was just captured.
     setSelectedPageId(initial.id);
-    void runDetectionAndRender(initial);
+    void runDetectionAndRender(initial, { autoCrop: true });
     // One capture per camera session: closing the camera here unmounts
     // CameraCapture (which has already released the stream) and brings the editor
     // back with the new page appended. "Scan another page" opens a fresh session.
@@ -390,9 +396,12 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
       const initial = createInitialPage(captured);
       setPdfBlob(null);
       setPages((prev) => [...prev, initial]);
+      if (captured.flattenedTransparency) {
+        setNotice("This picture has transparent areas, which are filled with white on a scanned page. To keep transparency (a logo or signature on top of a document), use Add image instead.");
+      }
       markScanStarted("upload");
       void trackDocumentUploaded(file.type, file.size);
-      void runDetectionAndRender(initial);
+      void runDetectionAndRender(initial, { autoCrop: false });
     } catch {
       setError(uploadErrorMessage("image_decode_failed"));
       void trackError("upload", "image_decode_failed");
@@ -457,6 +466,14 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     const rotation = ((((editingPage.rotation + delta) % 360) + 360) % 360) as PageRotation;
     void trackFeatureUsed("rotate_page");
     void reprocessPage(editingPage, { rotation, annotations: annotationsForChange(editingPage, { rotation }) });
+  }
+
+  // A suggested crop (detected from an uploaded file) is applied only when asked for.
+  function handleAcceptSuggestedCrop(page: ScannerPage) {
+    setCropAnswered((prev) => [...prev, page.id]);
+    void trackFeatureUsed("auto_crop");
+    void trackFeatureUsed("perspective_correction");
+    void reprocessPage(page, { cropEnabled: true, annotations: annotationsForChange(page, { cropEnabled: true }) });
   }
 
   function handleEditorToggleCrop() {
@@ -790,6 +807,36 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
                 Edit page
               </button>
               <p className="muted text-xs">Crop, rotate, enhance, add text or sign.</p>
+              {selectedPage.status === "ready" &&
+                !selectedPage.cropEnabled &&
+                selectedPage.detectedQuad &&
+                selectedPage.quadConfidence >= AUTO_CROP_CONFIDENCE_THRESHOLD &&
+                !cropAnswered.includes(selectedPage.id) && (
+                  <div role="group" aria-label="Suggested crop" data-assistant-id="scan-suggested-crop" className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-900 dark:bg-blue-950">
+                    <p className="font-medium">Suggested crop</p>
+                    <p className="text-xs leading-5">
+                      This looks like it has a document edge. Your full image is kept unless you crop it, so nothing is cut off by surprise.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => handleAcceptSuggestedCrop(selectedPage)} className="btn btn-primary px-3">
+                        Use suggested crop
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCropAnswered((prev) => [...prev, selectedPage.id]);
+                          setCroppingPageId(selectedPage.id);
+                        }}
+                        className="btn btn-secondary px-3"
+                      >
+                        Adjust crop
+                      </button>
+                      <button type="button" onClick={() => setCropAnswered((prev) => [...prev, selectedPage.id])} className="btn btn-ghost px-3">
+                        Keep full image
+                      </button>
+                    </div>
+                  </div>
+                )}
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
