@@ -12,10 +12,15 @@
 import { convexHull, boxBlur, dilate, otsuThreshold, sobelMagnitude, toGrayscale } from "./pixels";
 import { orderQuadCorners, polygonArea, type Point, type Quad } from "./geometry";
 import { MAX_DETECTABLE_AREA_RATIO, MIN_DETECTABLE_AREA_RATIO } from "./framing";
+import { assessCropSafety } from "./cropSafety";
 
 export interface DetectionResult {
   quad: Quad;
   confidence: number; // 0..1
+  // True only when a genuine page edge was found on every side of the quad (see cropSafety.ts). Anything else may be
+  // offered as a suggestion but must not be applied without the person agreeing.
+  safe: boolean;
+  safetyReason: string;
 }
 
 const WORK_MAX_DIM = 500;
@@ -127,5 +132,12 @@ export function detectDocumentQuad(sourceCanvas: HTMLCanvasElement): DetectionRe
   // are more likely to be noise or a false full-frame match.
   const confidence = Math.max(0.3, Math.min(0.95, 1 - Math.abs(areaRatio - 0.6) * 1.4));
 
-  return { quad: ordered, confidence };
+  const safety = assessCropSafety(
+    blurred,
+    w,
+    h,
+    ordered.map((p) => ({ x: p.x * scale, y: p.y * scale })),
+  );
+
+  return { quad: ordered, confidence, safe: safety.safe, safetyReason: safety.reason };
 }

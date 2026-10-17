@@ -169,32 +169,38 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
   }, []);
 
   // Runs detection then the render pipeline for a freshly-added page.
-  // Camera captures are cropped to the detected document automatically (that is what scanning is for).
-  // An uploaded file is NEVER cropped without the person's say-so: detection still runs, but its
-  // result is only offered as a suggestion (see the "Suggested crop" card), because a photograph or an
-  // already-clean page can be confidently, and wrongly, "detected".
+  // A camera capture is cropped automatically only when the crop is PROVEN safe: the detector must be confident
+  // AND the crop-safety check (cropSafety.ts) must see a genuine page edge on every side, so a page filling the
+  // frame, a pale page on a pale table, a photograph, or a page running off the frame is never cut unasked.
+  // Anything else, and every uploaded file, is only offered as a suggestion (the "Suggested crop" card): the full
+  // original stays, and the person can accept, adjust, or keep the full image. An automatic crop can be undone
+  // with "Keep full image".
   const runDetectionAndRender = useCallback(
     async (page: ScannerPage, options: { autoCrop: boolean }) => {
       let quad: ScannerPage["quad"] = null;
       let confidence = 0;
+      let safe = false;
       try {
         const detection = await detectPageQuad(page, (label) => updatePageFields(page.id, { statusLabel: label }));
         quad = detection?.quad ?? null;
         confidence = detection?.confidence ?? 0;
+        safe = detection?.safe ?? false;
       } catch {
         // Detection failure is treated the same as "no confident detection"
         // -- fall back to the original image, not an error state.
         quad = null;
         confidence = 0;
+        safe = false;
       }
 
-      const cropEnabled = options.autoCrop && confidence >= AUTO_CROP_CONFIDENCE_THRESHOLD;
-      const withDetection: ScannerPage = { ...page, quad, detectedQuad: quad, quadConfidence: confidence, cropEnabled };
+      const cropEnabled = options.autoCrop && confidence >= AUTO_CROP_CONFIDENCE_THRESHOLD && safe;
+      const withDetection: ScannerPage = { ...page, quad, detectedQuad: quad, quadConfidence: confidence, cropEnabled, autoCropped: cropEnabled };
       updatePageFields(page.id, {
         quad,
         detectedQuad: quad,
         quadConfidence: confidence,
         cropEnabled,
+        autoCropped: cropEnabled,
         status: "processing",
         statusLabel: "Preparing page…",
       });
@@ -209,7 +215,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
           statusLabel: null,
         });
         if (result.perspectiveFailed) {
-          updatePageFields(page.id, { cropEnabled: false });
+          updatePageFields(page.id, { cropEnabled: false, autoCropped: false });
           void trackError("perspective_correction", "correction_failed");
         }
       } catch {
@@ -478,6 +484,12 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     void reprocessPage(page, { cropEnabled: true, annotations: annotationsForChange(page, { cropEnabled: true }) });
   }
 
+  // Undoes an automatic crop: the page goes back to the full original (which was never replaced).
+  function handleKeepFullImage(page: ScannerPage) {
+    setCropAnswered((prev) => [...prev, page.id]);
+    void reprocessPage(page, { cropEnabled: false, autoCropped: false, annotations: annotationsForChange(page, { cropEnabled: false }) });
+  }
+
   function handleEditorToggleCrop() {
     if (!editingPage) return;
     const cropEnabled = !editingPage.cropEnabled;
@@ -485,7 +497,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
       void trackFeatureUsed("auto_crop");
       void trackFeatureUsed("perspective_correction");
     }
-    void reprocessPage(editingPage, { cropEnabled, annotations: annotationsForChange(editingPage, { cropEnabled }) });
+    void reprocessPage(editingPage, { cropEnabled, autoCropped: false, annotations: annotationsForChange(editingPage, { cropEnabled }) });
   }
 
   function handleEditorEnhancementChange(enhancement: EnhancementMode) {
@@ -504,6 +516,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     if (!editingPage) return;
     const reset = {
       cropEnabled: false,
+      autoCropped: false,
       cropPermanent: false,
       // Back to what auto-detection found, discarding any manual crop.
       quad: editingPage.detectedQuad,
@@ -525,7 +538,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     const page = croppingPage;
     setCroppingPageId(null);
     void trackFeatureUsed("manual_crop");
-    void reprocessPage(page, { quad, cropEnabled: true, cropPermanent: options.permanent, annotations: annotationsForChange(page, { quad, cropEnabled: true }) });
+    void reprocessPage(page, { quad, cropEnabled: true, autoCropped: false, cropPermanent: options.permanent, annotations: annotationsForChange(page, { quad, cropEnabled: true }) });
   }
 
   const autoOpenId =
@@ -812,6 +825,20 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
               </button>
               <p className="muted text-xs">Crop, rotate, enhance, add text or sign.</p>
               <FlattenNotice page={selectedPage} />
+              {selectedPage.status === "ready" && selectedPage.autoCropped && selectedPage.cropEnabled && (
+                <div role="group" aria-label="Automatic crop" data-assistant-id="scan-auto-crop" className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-900 dark:bg-blue-950">
+                  <p className="font-medium">Cropped to the page edges</p>
+                  <p className="text-xs leading-5">A clear page edge was found on every side. If anything looks cut off, keep the full image; nothing was deleted.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => handleKeepFullImage(selectedPage)} className="btn btn-secondary px-3">
+                      Keep full image
+                    </button>
+                    <button type="button" onClick={() => setCroppingPageId(selectedPage.id)} className="btn btn-ghost px-3">
+                      Adjust crop
+                    </button>
+                  </div>
+                </div>
+              )}
               {selectedPage.status === "ready" &&
                 !selectedPage.cropEnabled &&
                 selectedPage.detectedQuad &&

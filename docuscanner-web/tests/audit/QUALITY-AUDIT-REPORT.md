@@ -309,3 +309,59 @@ Type check clean; lint 0 errors (17 existing warnings); production build succeed
 
 ### Status of the output-quality audit
 The PDF-editing limitation is **accepted for this release with the conditions above met and verified**, and a related defect it exposed (Auto and Black & White tones differing between preview and export) is fixed. The remaining ranked defects are those in sections 11 and 12 (direct print scaling, OCR O/0 ambiguity, camera and suggested-crop quality, complex PDF-to-Word layouts) plus the untested items above. The audit is not claimed to be free of defects: its highest-priority document-quality issues are fixed or accepted, with measurements.
+
+
+## 14. Camera capture and crop safety (2026-10-18)
+
+All camera results below are **SIMULATED**: Chrome's fake video device played synthetic frames through the real getUserMedia, capture, detection, crop and export code. No physical phone or camera was used.
+
+### The camera path, stage by stage, and what each can do to the picture
+| Stage | What happens | Can it remove content, distort, lose resolution or change orientation? |
+|---|---|---|
+| Camera acquisition (`CameraCapture.tsx`) | asks for the rear camera at up to 4096x3072, then tops up to the sensor's best mode (long side at most 4096) | resolution depends on what the browser gives; nothing is removed |
+| Frame capture (`image.ts`, `captureVideoFrame`) | the video frame is drawn at its own size (only shrunk above 4096 px, about 350 dpi on A4), filled white, encoded once as JPEG 0.92. This is the immutable original | one JPEG encode. Camera frames arrive upright. Uploaded photos are decoded by the browser, which applies the EXIF orientation: an EXIF-6 file of 1600x1200 stored pixels came out upright as 1200x1600 (tested) |
+| Boundary detection (`detection.ts`) | works on a 500 px copy: takes the outline of every strong edge, and the four extreme points of that outline become the crop. Confidence comes only from how much of the frame the quad covers | **This is the stage that could remove content.** It has no evidence that the quad is the page edge. When a page fills the frame the quad is the bounds of the printing; for a photograph it is arbitrary; the four extreme points can cut wedges off a turned page; a page running off the frame is cut along a straight line |
+| Crop (`pageProcessing.ts`, perspective warp) | output size = the quad's own edge lengths, so no enlarging or shrinking; capped at 4096 px | removes what lies outside the quad, by design; re-derived from the original each time |
+| Enhancement / adjust / rotate | always recomputed from the untouched original | no cumulative loss (measured, below) |
+| PDF export (`pdf.ts`) | scanner pictures have no physical size, so each is fitted, centred and never stretched on an A4 sheet matching its orientation; an unannotated page is embedded as the existing JPEG | effective dpi = picture pixels / sheet inches, which is a property of the camera, not a loss |
+| Download | the saved blob | none |
+
+### Defect found and fixed
+Camera captures were cropped automatically whenever the detector's area-based confidence reached 0.55, without any check that the quad matched a real page edge.
+Measured on the app's real detector with synthetic scenes of known page outlines and edge markers (`tests/scanner/detection-safety.mjs`):
+- hand-made scenes (18): the old rule applied a damaging crop (page coverage under 97% or an edge marker lost) in **3** (a pale page on a white table, a white page on a near-white surface, a photograph);
+- 80 random desk scenes (page size, turn, desk and paper brightness, shadows, lighting, pages running off the frame): the old rule cropped 55 and **9 of those were damaging**;
+- the audit's own `scan.jpg`: the old rule would crop it and lose **2.66% of its ink** (the "cut off at the right edge" report); `photo-std.jpg` 3.32% and `photo-hi.jpg` 3.46%.
+
+Fix (`utils/scanner/cropSafety.ts`, used by `detection.ts` and `ScannerWorkspace.tsx`): a camera crop is applied automatically only if, besides the confidence, the crop passes a **page-edge proof**: across each of its four sides there must be a consistent brightness step of at least 25 grey levels (page against surface), the same direction on all sides, with paper-like content inside; a side that lies on the frame itself removes nothing, but a corner touching the frame (page running off it) is not accepted. Everything else becomes the existing **Suggested crop** card (accept, Adjust crop, or Keep full image), exactly as for uploads. The original capture is never replaced. When a crop is applied automatically a card says "Cropped to the page edges", offers **Keep full image** and **Adjust crop**, and says nothing was deleted.
+
+After the fix: hand-made scenes 0 of 18 damaging (still 10 auto-cropped: pages on a desk, rotated 5, 30 and -4 degrees, landscape and portrait, edge printing, shadows, a blurred frame, a black header band, a dark page); random scenes **0 of 80 damaging** (28 cropped automatically, the rest left to the person, which includes 18 of the 46 sound crops the old rule would have made: those now need one click); `scan.jpg` and both large photos are kept whole and only suggested.
+
+### Measured end to end (simulated camera frames, real downloaded PDFs)
+| Case | Result |
+|---|---|
+| Desk page, 5 degrees, auto-cropped | 210x297 mm portrait; picture 828x1032 px for a page that is 800x1000 px in the frame (no resolution lost; 1.2% safety margin); aspect 0.802 vs 0.800; 4 of 4 edge markers kept |
+| After "Keep full image" | the whole capture again: 1600x1200 px on a 297x210 mm landscape sheet, 4 of 4 markers |
+| Portrait frame, portrait page | portrait sheet, 827x1162 px for an 800x1130 page, 4 of 4 markers |
+| Landscape page in a landscape frame | landscape sheet, 1220x859 px for a 1180x830 page, 4 of 4 markers |
+| Photograph, pale-on-white page, page running off the frame, white-on-near-white page | no automatic crop; suggestion offered; export is the full 1600x1200 frame with every visible marker |
+| Accept a suggestion / Adjust by hand / Keep full image / Reset to original | accepted crop exported (734x912), manual crop exported as set (575x931), kept-full exports 1600x1200, Reset restores 1600x1200 |
+| 7 mode changes, 4 slider moves, two rotations, back to Original | equals the first export, PSNR 99.0 dB (the original does not degrade) |
+| Three pages with three decisions (accepted 828x1032, kept full 1600x1200, adjusted 1320x1178) | each decision is in the export, order and orientations kept; changing page 3 left pages 1 and 2 equal in content (PSNR >= 45 dB) |
+| EXIF-rotated photo (EXIF 6) | decoded upright, 1200x1600 px, portrait sheet |
+
+Effective dpi in these runs is about 100 to 145 only because the synthetic frames are small (1200x1600 and 1600x1200). A 12 MP phone frame (4032x3024) fills an A4 page at about 350 dpi; nothing in the app lowers it (the long side is capped at 4096 px).
+
+### Limitations
+- The page-edge proof is a brightness-step rule, not geometry. It can still be fooled (for example a sharp lighting or shadow edge that is not the page edge, a dark page on a dark desk is refused but a sharp shadow line crossing a pale page is not specially detected). In 80 random scenes and 18 hand-made ones it never cut anything, but that is a synthetic sample, not a proof.
+- It is conservative: pages with a weak edge, a pale desk or a bright surface now get a suggestion instead of an automatic crop.
+- Receipts: detection still ignores objects under 15% of the frame; the receipt scene (22% wide) was detected only weakly (confidence 0.39), so no crop is offered. Capturing it manually keeps the whole frame.
+- Orientation of a camera frame is whatever the browser delivers; an EXIF-rotated upload was verified in Chrome only.
+- NOT TESTED: a real phone or webcam, Safari/iOS camera behaviour, very large sensors (above 4096 px they are downscaled), live camera guidance, and any lighting that the synthetic scenes do not model.
+
+### Final test results (production build; exact)
+Type check clean; lint 0 errors (17 existing warnings); production build succeeds.
+
+**Ran and passed:** scanner detection safety (strict), camera browser 14, multi-page/EXIF 5; crop geometry 18; `verify-pdf-quality` 18; `verify-pdf-auto` 13; `test:pdf-edit` 11; `test:quality-fixes` 23; `test:print-quality` 3; install unit 71, install browser 56, install final 35 PASS / 0 FAIL / 3 NOT TESTED; assistant unit 19 + 17, browser 31, launcher 16; `test:images` 15 + 4, e2e 27, quality 11; `test:compress` 38; Excel to PDF 5; PDF to Word 8 + 9; PDF to Excel 11 + 7; DOCX tables 9; DOCX robust 12; OCR 7 + UI 6.
+
+**Known failures identical to the clean base commit:** zoom 4 passed / 14 failed; theme 21 / 1; print 27 / 6; consent 65 / 1.

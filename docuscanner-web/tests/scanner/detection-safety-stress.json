@@ -1,0 +1,802 @@
+[
+  {
+    "i": 0,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6950613333333334,
+    "coverage": 0.9967629046369204,
+    "markers": "4/4"
+  },
+  {
+    "i": 1,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.47961813333333336,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 2,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7900224,
+    "coverage": 0.9904252950345135,
+    "markers": "4/4"
+  },
+  {
+    "i": 3,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5517610666666667,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 4,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.9058602666666666,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 5,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6359701333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 6,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6735274666666666,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 7,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5490581333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 8,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7069184000000001,
+    "coverage": 0.9917134225291325,
+    "markers": "4/4"
+  },
+  {
+    "i": 9,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.46262400000000015,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 10,
+    "old": true,
+    "now": false,
+    "oldDamages": true,
+    "newDamages": false,
+    "conf": 0.7266752000000001,
+    "coverage": 0.9806609547123623,
+    "markers": "3/4"
+  },
+  {
+    "i": 11,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.4921920000000001,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 12,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7875285333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 13,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.4425834666666667,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 14,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7497322666666668,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 15,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5113365333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 16,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.854176,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 17,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5855104,
+    "coverage": 0.9935434449551324,
+    "markers": "4/4"
+  },
+  {
+    "i": 18,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.95,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 19,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6676736000000001,
+    "coverage": 0.9826420610268591,
+    "markers": "4/4"
+  },
+  {
+    "i": 20,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.9151786666666667,
+    "coverage": 0.9707680203352902,
+    "markers": "3/3"
+  },
+  {
+    "i": 21,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6414506666666667,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 22,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.409984,
+    "coverage": 0.9996204933586338,
+    "markers": "4/4"
+  },
+  {
+    "i": 23,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6759616,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 24,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.4368192000000001,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 25,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7074112000000001,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 26,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.4621162666666667,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 27,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7497322666666668,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 28,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7975338666666667,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 29,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5548821333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 30,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.9023808,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 31,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6400768000000001,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 32,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.42768000000000017,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 33,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7304234666666667,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 34,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.4951637333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 35,
+    "old": true,
+    "now": false,
+    "oldDamages": true,
+    "newDamages": false,
+    "conf": 0.797728,
+    "coverage": 0.9493931289858054,
+    "markers": "3/3"
+  },
+  {
+    "i": 36,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6108672,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 37,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.8697514666666668,
+    "coverage": 0.9932316993034565,
+    "markers": "4/4"
+  },
+  {
+    "i": 38,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6286378666666668,
+    "coverage": 0.9904376971608833,
+    "markers": "4/4"
+  },
+  {
+    "i": 39,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.41273173333333335,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 40,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6777386666666667,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 41,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.4328917333333334,
+    "coverage": 0.998447740600207,
+    "markers": "4/4"
+  },
+  {
+    "i": 42,
+    "old": true,
+    "now": false,
+    "oldDamages": true,
+    "newDamages": false,
+    "conf": 0.8240704,
+    "coverage": 0.9680268382856361,
+    "markers": "4/4"
+  },
+  {
+    "i": 43,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.59904,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 44,
+    "old": true,
+    "now": false,
+    "oldDamages": true,
+    "newDamages": false,
+    "conf": 0.9208384000000001,
+    "coverage": 0.9605410833481008,
+    "markers": "2/3"
+  },
+  {
+    "i": 45,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6859669333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 46,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.46471466666666683,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 47,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7670848000000001,
+    "coverage": 0.994066882416397,
+    "markers": "3/3"
+  },
+  {
+    "i": 48,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5377834666666668,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 49,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5461610666666668,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 50,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.8037909333333334,
+    "coverage": 0.9724196158446493,
+    "markers": "3/3"
+  },
+  {
+    "i": 51,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5803136,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 52,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.8644949333333334,
+    "coverage": 1,
+    "markers": "3/3"
+  },
+  {
+    "i": 53,
+    "old": true,
+    "now": false,
+    "oldDamages": true,
+    "newDamages": false,
+    "conf": 0.6003392000000001,
+    "coverage": 0.9936601859678783,
+    "markers": "3/4"
+  },
+  {
+    "i": 54,
+    "old": true,
+    "now": false,
+    "oldDamages": true,
+    "newDamages": false,
+    "conf": 0.8463360000000001,
+    "coverage": 0.9642105263157895,
+    "markers": "4/4"
+  },
+  {
+    "i": 55,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6396437333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 56,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.4112384000000001,
+    "coverage": 0.9982941622441244,
+    "markers": "4/4"
+  },
+  {
+    "i": 57,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6421077333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 58,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.4341760000000001,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 59,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7074560000000001,
+    "coverage": 0.9768728004022121,
+    "markers": "3/3"
+  },
+  {
+    "i": 60,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.49832960000000004,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 61,
+    "old": true,
+    "now": false,
+    "oldDamages": true,
+    "newDamages": false,
+    "conf": 0.7784789333333333,
+    "coverage": 0.9569745726188766,
+    "markers": "2/2"
+  },
+  {
+    "i": 62,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5779989333333333,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 63,
+    "old": true,
+    "now": false,
+    "oldDamages": true,
+    "newDamages": false,
+    "conf": 0.8118400000000001,
+    "coverage": 0.95071702686326,
+    "markers": "2/3"
+  },
+  {
+    "i": 64,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5177280000000001,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 65,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.825728,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 66,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5488042666666667,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 67,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.8615381333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 68,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5787605333333333,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 69,
+    "old": true,
+    "now": false,
+    "oldDamages": true,
+    "newDamages": false,
+    "conf": 0.8128853333333335,
+    "coverage": 0.9493404052767578,
+    "markers": "2/2"
+  },
+  {
+    "i": 70,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6098965333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 71,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6724224000000001,
+    "coverage": 0.9852622061482821,
+    "markers": "3/3"
+  },
+  {
+    "i": 72,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.4649536000000001,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 73,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7854976,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 74,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.5333930666666667,
+    "coverage": 0.999749498997996,
+    "markers": "4/4"
+  },
+  {
+    "i": 75,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.8885674666666667,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 76,
+    "old": true,
+    "now": true,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.6222165333333334,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 77,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.4176896000000001,
+    "coverage": 1,
+    "markers": "4/4"
+  },
+  {
+    "i": 78,
+    "old": true,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.7218517333333334,
+    "coverage": 0.9738397991414919,
+    "markers": "2/2"
+  },
+  {
+    "i": 79,
+    "old": false,
+    "now": false,
+    "oldDamages": false,
+    "newDamages": false,
+    "conf": 0.49056426666666675,
+    "coverage": 1,
+    "markers": "4/4"
+  }
+]

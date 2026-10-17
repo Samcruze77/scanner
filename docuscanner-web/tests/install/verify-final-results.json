@@ -153,7 +153,7 @@
     "PASS",
     "2 Reminders",
     "storage holds only the intended preferences; nothing about reminders is sent to analytics",
-    "local ds_session_last_seen,ds_consent,ds_install_reminder,ds_visitor_id; session ds_session_id; reminder {\"v\":1,\"quietUntil\":1793487526166,\"dismissals\":1}; 2 ordinary analytics requests, none about reminders"
+    "local ds_session_last_seen,ds_consent,ds_install_reminder,ds_visitor_id; session ds_session_id; reminder {\"v\":1,\"quietUntil\":1793490080088,\"dismissals\":1}; 2 ordinary analytics requests, none about reminders"
   ],
   [
     "PASS",

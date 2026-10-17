@@ -37,6 +37,7 @@
     "test:auth": "node tests/auth/verify.mjs",
     "test:consent": "node tests/consent/consent.mjs",
     "test:pdf-quality": "node --no-warnings tests/pdf/crop-math.mjs && node tests/audit/verify-pdf-quality.mjs && node tests/audit/verify-pdf-auto.mjs",
+    "test:scanner": "node --no-warnings --import ./tests/scanner/register.mjs tests/scanner/detection-safety.mjs --strict && node tests/scanner/camera-browser.mjs && node tests/scanner/multipage-browser.mjs",
     "test:install": "node --no-warnings tests/install/unit.mjs",
     "test:install:browser": "node tests/install/browser.mjs",
     "test:consent:browser": "node tests/consent/browser.mjs",

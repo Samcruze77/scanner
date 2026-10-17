@@ -172,6 +172,8 @@ export async function renderPage(page: ScannerPage, onProgress?: ProgressCallbac
 export interface DetectResult {
   quad: Quad;
   confidence: number;
+  safe: boolean;
+  safetyReason: string;
 }
 
 export async function detectPageQuad(page: ScannerPage, onProgress?: ProgressCallback): Promise<DetectResult | null> {

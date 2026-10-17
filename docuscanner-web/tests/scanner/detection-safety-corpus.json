@@ -1,0 +1,57 @@
+[
+  {
+    "file": "scan.jpg",
+    "size": "1654x2339",
+    "detected": true,
+    "confidence": 0.62,
+    "safe": false,
+    "why": "no clear page edge on side 2",
+    "inkLostIfApplied": 2.66,
+    "oldApplies": true,
+    "newApplies": false
+  },
+  {
+    "file": "photo-std.jpg",
+    "size": "1600x1200",
+    "detected": true,
+    "confidence": 0.73,
+    "safe": false,
+    "why": "the page runs to the edge of the frame",
+    "inkLostIfApplied": 3.32,
+    "oldApplies": true,
+    "newApplies": false
+  },
+  {
+    "file": "photo-landscape.jpg",
+    "size": "3000x2000",
+    "detected": true,
+    "confidence": 0.48,
+    "safe": true,
+    "why": "a clear page edge on every side",
+    "inkLostIfApplied": 1.28,
+    "oldApplies": false,
+    "newApplies": false
+  },
+  {
+    "file": "portrait-photo.jpg",
+    "size": "3000x4000",
+    "detected": false,
+    "confidence": 0,
+    "safe": false,
+    "why": "not detected",
+    "inkLostIfApplied": 0,
+    "oldApplies": false,
+    "newApplies": false
+  },
+  {
+    "file": "photo-hi.jpg",
+    "size": "4000x3000",
+    "detected": true,
+    "confidence": 0.73,
+    "safe": false,
+    "why": "the page runs to the edge of the frame",
+    "inkLostIfApplied": 3.46,
+    "oldApplies": true,
+    "newApplies": false
+  }
+]

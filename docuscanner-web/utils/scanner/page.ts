@@ -25,6 +25,8 @@ export interface ScannerPage {
   detectedQuad: Quad | null;
   quadConfidence: number;
   cropEnabled: boolean;
+  // The crop was applied automatically (a camera capture with a proven page edge), so the page offers "Keep full image".
+  autoCropped?: boolean;
   // For a page of an imported PDF: the person chose to remove the cropped-away area for good (the page
   // becomes a picture). Otherwise the crop only hides it and the page keeps its text. See pdfExport.ts.
   cropPermanent?: boolean;
