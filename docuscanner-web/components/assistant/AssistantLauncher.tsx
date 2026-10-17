@@ -5,7 +5,7 @@
 // that is only fetched the first time the button is pressed (or when it is about to be, on
 // hover/focus), so the assistant costs the document workflows nothing.
 //
-// Look: closed, it is a compact, translucent pill that blends into the page (about 30 px
+// Look: closed, it is a compact, light-blue translucent pill that stays visible without shouting (36 px
 // tall, drawn from the theme's own surface, text and line colours, so Light, Warm Beige and
 // Dark each get a matching version). Hover and keyboard focus make it more opaque with a
 // focus ring; while the chat is open it turns solid, bold and blue so it is obvious the
@@ -123,13 +123,13 @@ export function AssistantLauncher() {
         className="group fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] right-1 z-30 flex min-h-11 min-w-11 items-center justify-center rounded-full transition-transform duration-150 focus-visible:outline-none sm:bottom-3 sm:right-3"
       >
         <span
-          className={`flex h-[30px] items-center gap-1 rounded-full border px-2.5 text-xs transition-[opacity,background-color,box-shadow] duration-150 group-focus-visible:ring-2 group-focus-visible:ring-blue-600 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-[color:var(--page)] ${
+          className={`flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] transition-[opacity,background-color,box-shadow] duration-150 group-focus-visible:ring-2 group-focus-visible:ring-blue-600 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-[color:var(--page)] ${
             open
               ? "border-blue-700 bg-blue-600 font-bold text-white opacity-100 shadow-md"
-              : "border-line bg-[color:color-mix(in_srgb,var(--surface)_72%,transparent)] font-medium text-[color:var(--text)] opacity-75 backdrop-blur-sm group-hover:bg-[color:color-mix(in_srgb,var(--surface)_92%,transparent)] group-hover:opacity-100 group-hover:shadow-sm group-focus-visible:opacity-100"
+              : "border-blue-500/60 bg-[color:color-mix(in_srgb,color-mix(in_srgb,#3b82f6_20%,var(--surface))_92%,transparent)] font-semibold text-blue-900 opacity-95 shadow-sm backdrop-blur-sm group-hover:bg-[color:color-mix(in_srgb,color-mix(in_srgb,#3b82f6_26%,var(--surface))_96%,transparent)] group-hover:opacity-100 group-hover:shadow-md group-focus-visible:opacity-100 dark:border-blue-400/60 dark:text-blue-200"
           }`}
         >
-          <Icon name="info" size={14} />
+          <Icon name="info" size={16} />
           <span>{open ? "Close" : "Ask me"}</span>
         </span>
       </button>

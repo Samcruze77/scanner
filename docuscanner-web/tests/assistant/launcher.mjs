@@ -82,13 +82,14 @@ try {
     await page.mouse.move(5, 5);
     await settle(page);
     const idle = await look(page);
-    assert.ok(idle.h <= 32, `idle pill is compact: ${idle.h}px tall`);
-    assert.ok(idle.w <= 90, `idle pill is narrow: ${idle.w}px wide`);
-    assert.ok(idle.opacity < 1 && idle.opacity >= 0.6, `idle is translucent but findable (opacity ${idle.opacity})`);
-    assert.ok(idle.bgAlpha < 1 && idle.bgAlpha > 0.4, `idle background is translucent (alpha ${idle.bgAlpha})`);
+    assert.ok(idle.h <= 38, `idle pill is compact: ${idle.h}px tall`);
+    assert.ok(idle.w <= 110, `idle pill is narrow: ${idle.w}px wide`);
+    assert.ok(idle.opacity < 1 && idle.opacity >= 0.85, `idle is translucent but findable (opacity ${idle.opacity})`);
+    assert.ok(idle.bgAlpha < 1 && idle.bgAlpha > 0.6, `idle background is translucent (alpha ${idle.bgAlpha})`);
     assert.equal(idle.text, "Ask me");
     assert.ok(idle.btnW >= 44 && idle.btnH >= 44, `the clickable area is ${idle.btnW}x${idle.btnH} (at least 44 px)`);
-    assert.ok(idle.weight <= 500);
+    assert.ok(idle.weight <= 600);
+    assert.ok(idle.rgba[2] > idle.rgba[0] + 10, "idle background is light blue, not grey: " + idle.rgba);
     ok(`closed: ${Math.round(idle.w)}x${Math.round(idle.h)} px pill, opacity ${idle.opacity}, background alpha ${idle.bgAlpha.toFixed(2)}, ${Math.round(idle.btnW)}x${Math.round(idle.btnH)} px hit area`);
 
     // Previous design for comparison: a 48 px tall, solid blue button with a long label.
@@ -133,7 +134,7 @@ try {
     await page.mouse.move(5, 5);
     await settle(page);
     const closed = await look(page);
-    assert.ok(closed.opacity < 1 && closed.bgAlpha < 1 && closed.weight <= 500 && closed.text === "Ask me", JSON.stringify(closed));
+    assert.ok(closed.opacity < 1 && closed.bgAlpha < 1 && closed.weight <= 600 && closed.text === "Ask me", JSON.stringify(closed));
     assert.equal(await launcher(page).getAttribute("aria-expanded"), "false");
     ok("clicking it again closes the chat and returns to the small translucent look");
 
