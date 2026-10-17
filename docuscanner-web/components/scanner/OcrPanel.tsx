@@ -6,6 +6,7 @@ import type { ScannerPage } from "@/utils/scanner/page";
 import { OCR_LOW_CONFIDENCE_THRESHOLD } from "@/utils/ocr/config";
 import { isRetryableOcrError, ocrErrorMessage } from "@/utils/ocr/messages";
 import type { OcrDocumentResult, OcrErrorCode, OcrProgress } from "@/utils/ocr/types";
+import { OcrCodeFormat } from "./OcrCodeFormat";
 import { OcrTextEditor } from "./OcrTextEditor";
 import type { OcrController } from "./useOcr";
 
@@ -267,6 +268,7 @@ export function OcrPanel({ ocr, pages }: { ocr: OcrController; pages: ScannerPag
                   {notice}
                 </p>
               ))}
+              <OcrCodeFormat text={text} onTextChange={ocr.setText} />
               <OcrTextEditor
                 text={text}
                 edited={text !== done.result.documentText}

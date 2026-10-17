@@ -24,6 +24,8 @@
     "test:print-quality": "node tests/audit/verify-print.mjs",
     "test:excel-pdf": "node tests/audit/verify-excel.mjs",
     "test:pdf-word": "node tests/audit/verify-pdf2word.mjs",
+    "test:ocr": "node --no-warnings tests/ocr/identifiers.mjs",
+    "test:ocr:ui": "node tests/audit/verify-ocr-ui.mjs",
     "test:docx:tables": "node --no-warnings tests/docx/table-widths.mjs",
     "test:images": "node --no-warnings tests/images/geometry.mjs && node --no-warnings tests/images/quality-unit.mjs",
     "test:images:e2e": "node tests/images/e2e.mjs",
