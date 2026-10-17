@@ -24,7 +24,9 @@ import { Icon } from "@/components/ui/icons";
 
 const AssistantPanel = dynamic(() => import("./AssistantPanel").then((m) => m.AssistantPanel), { ssr: false });
 
-const HIDDEN_ON = ["/admin", "/reset-password"];
+export const OPEN_ASSISTANT_EVENT = "ds-open-assistant";
+
+const HIDDEN_ON =["/admin", "/reset-password"];
 
 export function AssistantLauncher() {
   const pathname = usePathname() || "/";
@@ -37,6 +39,16 @@ export function AssistantLauncher() {
   // into its corner. Ads are never covered; the launcher moves instead.
   const [lift, setLift] = useState(0);
   const liftRef = useRef(0);
+
+  // Lets other parts of the page (the "Still working?" help card) open the chat.
+  useEffect(() => {
+    const openFromEvent = () => {
+      setEverOpened(true);
+      setOpen(true);
+    };
+    window.addEventListener(OPEN_ASSISTANT_EVENT, openFromEvent);
+    return () => window.removeEventListener(OPEN_ASSISTANT_EVENT, openFromEvent);
+  }, []);
 
   useEffect(() => {
     if (open) return;

@@ -13,6 +13,8 @@
 //  - The temporary URL is revoked late. Revoking right after `click()` can
 //    cancel the download in Safari before it has started.
 
+import { announceTaskComplete } from "../install/reminder";
+
 const REVOKE_DELAY_MS = 30_000;
 
 export function downloadBlob(blob: Blob, filename: string): void {
@@ -29,6 +31,8 @@ export function downloadBlob(blob: Blob, filename: string): void {
   a.remove();
 
   setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
+  // Reached only when the save was started without an error. Lets the "install" card pick a calm moment.
+  announceTaskComplete();
 }
 
 // "Q3 report.xlsx" -> "Q3 report.pdf". Strips characters that are awkward in

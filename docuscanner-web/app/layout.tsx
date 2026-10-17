@@ -5,6 +5,7 @@ import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { PresenceHeartbeat } from "@/components/presence/PresenceHeartbeat";
 import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
+import { InstallReminder } from "@/components/install/InstallReminder";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Footer } from "@/components/layout/Footer";
@@ -35,6 +36,8 @@ const geistMono = Geist_Mono({
 // what a page falls back to only if it defines none of its own (none currently do).
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
+  // Lets iPhone/iPad open the Home Screen shortcut as a web app and name it correctly.
+  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "default" },
   title: `${SITE_NAME} - Free document scanning`,
   description: SITE_DESCRIPTION,
   openGraph: {
@@ -84,6 +87,7 @@ export default function RootLayout({
           <MobileActionBar />
           <AuthModal />
           <AssistantLauncher />
+          <InstallReminder />
           <ConsentBanner />
         </AuthProvider>
       </body>
