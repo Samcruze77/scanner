@@ -17,6 +17,7 @@ import { buildXlsxFromOcrPages } from "@/utils/convert/ocrToXlsx";
 import { ocrTextToCsv } from "@/utils/convert/toCsv";
 import { downloadTextFile } from "@/utils/ocr/export";
 import { PRINT_FIT_NOTE } from "@/utils/print/printPages";
+import { clearSourcePdfs } from "@/utils/scanner/sourcePdfs";
 import { scannerPagesToPrintPages } from "@/utils/print/sources";
 import { importPdfPages } from "@/utils/scanner/pdfImport";
 import type { Annotation, AnnotationTool } from "@/utils/scanner/annotations";
@@ -671,6 +672,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
   }
 
   function handleStartOver() {
+    clearSourcePdfs();
     ocr.reset();
     setPages([]);
     setSelectedPageId(null);

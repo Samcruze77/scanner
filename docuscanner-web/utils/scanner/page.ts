@@ -40,6 +40,8 @@ export interface ScannerPage {
   // Points per image pixel, for a page that came from a PDF (its true physical scale). Absent for
   // photos and scans, which are fitted onto an A4 sheet. See pageLayout.ts.
   ptPerPx?: number;
+  // Where a PDF page came from (see sourcePdfs.ts and pdfExport.ts).
+  source?: { fileId: string; pageIndex: number };
 
   // Text, pen, highlights, stamps and signatures drawn on top of the page, in
   // coordinates normalized to the processed image (see annotations.ts). They
@@ -69,6 +71,7 @@ export function createInitialPage(captured: CapturedImage, options: { skipDetect
     processedWidth: captured.width,
     processedHeight: captured.height,
     ...(captured.widthPt && captured.width ? { ptPerPx: captured.widthPt / captured.width } : {}),
+    ...(captured.source ? { source: captured.source } : {}),
     annotations: [],
     // Pages rendered from a PDF are already flat and square-on, so there is
     // no perspective to detect; they go straight to "ready" (the user can

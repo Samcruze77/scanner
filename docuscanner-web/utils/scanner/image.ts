@@ -18,6 +18,9 @@ export interface CapturedImage {
   // For a page rendered from a PDF: its real size in points, so the exported PDF can keep it.
   widthPt?: number;
   heightPt?: number;
+  // For a page rendered from a PDF: which page of which opened PDF (see sourcePdfs.ts), so the
+  // export can keep the original page's content.
+  source?: { fileId: string; pageIndex: number };
 }
 
 // Only a memory guard: a 12MP phone frame (4032x3024) is kept at native size.

@@ -6,7 +6,8 @@
 // exact same pipeline as a scanned photo. Pages are handed over one at a time
 // as they finish, so the UI fills in progressively and memory stays flat.
 
-import { openPdf } from "@/utils/pdf/pdfjs";
+import { MAX_PDF_FILE_BYTES, openPdfData, PdfError } from "@/utils/pdf/pdfjs";
+import { registerSourcePdf } from "./sourcePdfs";
 import { renderPdfPage } from "@/utils/pdf/render";
 import type { CapturedImage } from "./image";
 
@@ -22,7 +23,12 @@ export interface ImportPdfOptions {
 }
 
 export async function importPdfPages(file: File, options: ImportPdfOptions): Promise<number> {
-  const { doc, destroy } = await openPdf(file, { maxPages: MAX_IMPORT_PAGES });
+  if (file.size > MAX_PDF_FILE_BYTES) throw new PdfError("pdf_too_large");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  // pdf.js takes ownership of the buffer it is given, so keep our own copy: the export re-uses the
+  // original pages (see pdfExport.ts).
+  const fileId = registerSourcePdf(bytes.slice());
+  const { doc, destroy } = await openPdfData(bytes, { maxPages: MAX_IMPORT_PAGES });
   let imported = 0;
   try {
     for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
@@ -30,7 +36,7 @@ export async function importPdfPages(file: File, options: ImportPdfOptions): Pro
       const page = await doc.getPage(pageNumber);
       try {
         const rendered = await renderPdfPage(page, TARGET_LONG_SIDE_PX);
-        options.onPage({ id: crypto.randomUUID(), ...rendered }, pageNumber, doc.numPages);
+        options.onPage({ id: crypto.randomUUID(), ...rendered, source: { fileId, pageIndex: pageNumber - 1 } }, pageNumber, doc.numPages);
         imported++;
       } finally {
         page.cleanup();

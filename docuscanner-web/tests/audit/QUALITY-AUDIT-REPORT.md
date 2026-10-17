@@ -151,3 +151,16 @@ resolution (Add image proves the pattern); where a conversion is necessarily los
 3. F5 (Word table widths) with Word-reference tests.
 4. F3 staged: UI warning + higher import resolution first, then original-PDF overlay editing.
 5. F6-F8.
+
+## 10. Resolution status (fixes made after this audit, local commits on `web-only`)
+
+| Finding | Status | How it was verified (real downloaded PDFs) |
+|---|---|---|
+| F1 auto-crop of uploads | Fixed: uploads are never cropped without consent; detection is a "Suggested crop" card | `npm run test:quality-fixes`: 8 images export at full size (3000x4000, 4000x3000, 1654x2339 ...), corner markers intact, suggested crop still crops on request, manual crop editor opens |
+| F2 transparency to black | Fixed for scanner pages: flattened onto white and the person is told; Add image keeps real transparency | 4 transparent fixtures: 0 black pixels where the source was transparent (was 100%), colour difference 0.4-8; opaque PNG/JPEG unchanged (PSNR 47-48 dB) |
+| F4 page size/orientation | Fixed: PDF pages keep size and orientation; pictures get A4 portrait or landscape | A4 P/L, Letter, mixed 4-page file: sizes equal the input (Letter 215.9x279.4 mm); landscape photo 297x198 mm on an A4 landscape sheet |
+| F5 Word table widths | Fixed: a placeholder grid is replaced by the cells' own widths | 5 fixtures vs Word's own PDF: column positions within 0.1 pt, equal page counts; `npm run test:docx:tables` |
+| F3 PDF edit rasterizes everything | Fixed for pages whose pixels are not edited: original page re-embedded, additions drawn as real PDF content | `npm run test:pdf-edit`: text 1029/1029 chars + added text selectable, vector ops 54 (source 50), photo bytes identical, page order/rotation correct; text.pdf 9758 -> 9758 chars (was 0) |
+| F6-F8 | Not changed | - |
+
+Remaining limits of F3: a page that is cropped or enhanced (Auto, Grayscale, Black and White, brightness, contrast) is still exported as a picture (at its true physical size); links, form fields and bookmarks of an edited PDF page are not carried over; text the standard fonts cannot write (other alphabets, emoji) is added as a picture; the Print button still prints page pictures (about 170 dpi).

@@ -138,8 +138,9 @@ async function placements(pdfFile, pageNumber) {
 
 // Page 2's images without the page's own background image (which is the same size as page 1's).
 async function pictures(pdfFile) {
-  const base = (await embeddedImages(pdfFile, 0))[0];
-  return (await embeddedImages(pdfFile, 1)).filter((i) => !(i.width === base.width && i.height === base.height));
+  // The pages of the test document are real PDF pages now (no page-sized pictures); a page-sized picture
+  // (the old picture-based export) is still filtered out so the helper means the same thing either way.
+  return (await embeddedImages(pdfFile, 1)).filter((i) => !(i.width === 1414 && i.height === 2000));
 }
 
 // Mean absolute difference between horizontal neighbours: a measure of fine detail.
@@ -248,7 +249,7 @@ try {
     assert.ok(exported >= source * 0.93, `300 dpi render keeps the detail (export ${exported.toFixed(1)} vs source ${source.toFixed(1)})`);
     // jsPDF lists every image in each page's resources, so count the whole document: two page
     // images plus the one photograph, nothing else.
-    assert.equal((await embeddedImages(pdf, 0)).length, 3, "two page images and the photograph");
+    assert.equal((await pictures(pdf)).length, 1, "only the photograph is a picture: the pages themselves are original PDF pages");
     // Physical size inside the downloaded PDF, from its drawing instructions.
     const placed = (await placements(pdf, 2)).find((p) => p.px[0] >= 2990);
     assert.ok(placed, "the photograph is drawn on page 2");

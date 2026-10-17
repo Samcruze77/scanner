@@ -297,3 +297,25 @@ console.log(fs.readdirSync(dir).map((f) => `${f} ${(fs.statSync(path.join(dir, f
   await pdfOf("letter.pdf", [[612, 792, "LETTER"]]);
   await pdfOf("mixed.pdf", [[595.28, 841.89, "A4P"], [841.89, 595.28, "A4L"], [612, 792, "LETTER"], [792, 612, "LETTERL"]]);
 }
+
+// ---- rich.pdf: the Phase 5 acceptance fixture (text, vectors, small text, embedded photo, landscape page) ----
+{
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const photo = await pdf.embedJpg(fs.readFileSync(out("photo-std.jpg")));
+  const p1 = pdf.addPage([595.28, 841.89]);
+  p1.drawText("RICH-P1 Edit-preservation fixture", { x: 50, y: 800, size: 16, font });
+  for (let i = 1; i <= 14; i++) p1.drawText(`RICH-P1-L${String(i).padStart(2, "0")} The quick brown fox jumps over the lazy dog 0123456789`, { x: 50, y: 780 - i * 13, size: [7, 9, 11][i % 3], font });
+  for (let i = 0; i < 40; i++) p1.drawLine({ start: { x: 50 + i * 12, y: 560 }, end: { x: 50 + i * 12, y: 620 }, thickness: 0.25, color: rgb(0, 0, 0.6) });
+  for (let r = 8; r < 56; r += 5) p1.drawCircle({ x: 400, y: 590, size: r, borderWidth: 0.3, borderColor: rgb(0.7, 0, 0) });
+  p1.drawImage(photo, { x: 50, y: 300, width: 283, height: 212 });
+  p1.drawText("RICH-P1-SMALL six point caption 0123456789", { x: 50, y: 280, size: 6, font });
+  const p2 = pdf.addPage([841.89, 595.28]);
+  p2.drawText("RICH-P2 landscape page", { x: 50, y: 550, size: 16, font });
+  for (let r = 0; r <= 8; r++) p2.drawLine({ start: { x: 50, y: 500 - r * 25 }, end: { x: 790, y: 500 - r * 25 }, thickness: 0.4, color: rgb(0, 0, 0) });
+  p2.drawText("RICH-P2-SMALL 6 pt text in the table 0123456789", { x: 54, y: 480, size: 6, font });
+  const p3 = pdf.addPage([595.28, 841.89]);
+  p3.drawText("RICH-P3 third page", { x: 50, y: 800, size: 16, font });
+  for (let i = 1; i <= 20; i++) p3.drawText(`RICH-P3-L${String(i).padStart(2, "0")} Pack my box with five dozen liquor jugs`, { x: 50, y: 780 - i * 16, size: 10, font });
+  fs.writeFileSync(out("rich.pdf"), await pdf.save());
+}

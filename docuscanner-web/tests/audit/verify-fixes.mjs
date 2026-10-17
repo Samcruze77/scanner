@@ -170,10 +170,10 @@ for (const [fixture, expected] of [["a4-portrait.pdf", [[210, 297]]], ["a4-lands
   expected.forEach(([w, h], i) => {
     const p = rep.pages[i];
     assert.ok(near(p.widthMm, w) && near(p.heightMm, h), `${fixture} page ${i + 1}: ${p.widthMm}x${p.heightMm} mm, expected ${w}x${h}`);
-    const im = p.images[0];
-    assert.ok(near(im.wMm, w) && near(im.hMm, h), `${fixture} page ${i + 1}: picture fills the sheet (${im.wMm}x${im.hMm})`);
+    // PDF pages are re-embedded from the original now (Phase 5): real text and vector lines, not a picture.
+    assert.ok(p.textChars > 0 && p.pathOps > 0, `${fixture} page ${i + 1}: original text (${p.textChars} chars) and vector drawing (${p.pathOps} ops) kept`);
   });
-  ok(`${fixture}: ${rep.pages.map((p) => `${p.widthMm}x${p.heightMm}`).join(", ")} mm (same as the input), content fills each page`);
+  ok(`${fixture}: ${rep.pages.map((p) => `${p.widthMm}x${p.heightMm}`).join(", ")} mm (same as the input), original content kept on each page`);
 }
 for (const [fixture, orient] of [["photo-landscape.jpg", "landscape"], ["portrait-photo.jpg", "portrait"]]) {
   const r = await exportScan([C(fixture)], `p3-${fixture}.pdf`, async (page) => { await page.waitForTimeout(0); });

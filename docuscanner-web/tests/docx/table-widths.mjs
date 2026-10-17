@@ -74,7 +74,8 @@ const para = (t) => new Paragraph({ children: [new TextRun({ text: t, font: "Ari
 const cell = (text, w, extra = {}) => new TableCell({ width: { size: w, type: WidthType.DXA }, children: [para(text)], ...extra });
 async function write(name, children) {
   const file = path.join(dir, name + ".docx");
-  fs.writeFileSync(file, await Packer.toBuffer(new Document({ sections: [{ children }] })));
+  // Written once: the committed fixtures stay byte-identical to the ones Word exported the reference PDFs from.
+  if (!fs.existsSync(file)) fs.writeFileSync(file, await Packer.toBuffer(new Document({ sections: [{ children }] })));
   return file;
 }
 const intro = [para("INTRO table follows.")];

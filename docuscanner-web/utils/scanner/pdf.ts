@@ -2,6 +2,7 @@
 
 import { buildPageLayers, flattenPageToJpeg } from "./annotationRender";
 import { exportPageLayout } from "./pageLayout";
+import { createPdfPreservingSource } from "./pdfExport";
 import { dataUrlBytes, debugLog, isScannerDebug } from "./debugLog";
 import type { ScannerPage } from "./page";
 
@@ -16,6 +17,15 @@ import type { ScannerPage } from "./page";
 // as before.
 export async function createPdfFromPages(pages: ScannerPage[]): Promise<Blob> {
   if (pages.length === 0) throw new Error("no_pages");
+
+  // Pages that came from a PDF keep their original content (text, vectors, fonts); see pdfExport.ts.
+  // If that path cannot be used for any reason the picture-based writer below produces the PDF.
+  try {
+    const preserved = await createPdfPreservingSource(pages);
+    if (preserved) return preserved;
+  } catch (error) {
+    console.warn("pdf-export: keeping the original pages failed, exporting page pictures instead", error instanceof Error ? error.name : "");
+  }
 
   const { jsPDF } = await import("jspdf");
   // Each page gets a sheet of its own size and orientation (see pageLayout.ts): a PDF page keeps
