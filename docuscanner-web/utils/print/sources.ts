@@ -5,7 +5,7 @@
 // enhancement done); PDFs are drawn with the PDF.js the app already ships; a
 // picture is a single page. Nothing here leaves the device.
 
-import { flattenPageToJpeg } from "@/utils/scanner/annotationRender";
+import { buildPageLayers, flattenPageToJpeg } from "@/utils/scanner/annotationRender";
 import type { ScannerPage } from "@/utils/scanner/page";
 import { openPdfData, PdfError } from "@/utils/pdf/pdfjs";
 import { renderPdfPage } from "@/utils/pdf/render";
@@ -26,6 +26,14 @@ export function printTitle(fileName: string): string {
 export async function scannerPagesToPrintPages(pages: ScannerPage[]): Promise<PrintPage[]> {
   const out: PrintPage[] = [];
   for (const page of pages) {
+    // Pages with inserted pictures print as layers (the page image plus each picture at its
+    // own resolution), the same way the PDF is made; others are flattened as before.
+    const layers = await buildPageLayers(page);
+    if (layers) {
+      const [base, ...rest] = layers;
+      out.push({ src: base.dataUrl, width: page.processedWidth, height: page.processedHeight, layers: rest.map((l) => ({ src: l.dataUrl, x: l.x, y: l.y, w: l.w, h: l.h })) });
+      continue;
+    }
     const src = page.annotations.length > 0 ? await flattenPageToJpeg(page) : page.processedDataUrl;
     out.push({ src, width: page.processedWidth, height: page.processedHeight });
   }

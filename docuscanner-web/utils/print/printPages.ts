@@ -33,6 +33,10 @@ export interface PrintPage {
   // of a PDF. Such a page prints at its true size, shrunk only if it doesn't fit.
   widthPt?: number;
   heightPt?: number;
+  // Pictures and overlays drawn over `src`, each at its own resolution (fractions of the
+  // page). Used for pages with inserted pictures so they are not flattened into the page
+  // image's lower resolution; drawn in order, as in the exported PDF.
+  layers?: { src: string; x: number; y: number; w: number; h: number }[];
 }
 
 export type PrintErrorCode = "unsupported" | "empty" | "too_many_pages" | "password" | "render_failed";
@@ -97,6 +101,35 @@ function mount(pages: PrintPage[], standing: boolean): Mounted {
       sheet.dataset.sized = "true";
       sheet.style.setProperty("--print-w", `${page.widthPt}pt`);
       sheet.style.setProperty("--print-h", `${page.heightPt}pt`);
+    }
+    if (page.layers && page.layers.length > 0) {
+      // One SVG in page coordinates: it letterboxes exactly like a plain page image, and
+      // each <image> inside keeps its own full resolution when printed.
+      const ns = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(ns, "svg");
+      svg.setAttribute("viewBox", `0 0 ${page.width} ${page.height}`);
+      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      svg.setAttribute("role", "img");
+      svg.setAttribute("aria-label", `Page ${index + 1}`);
+      const all = [{ src: page.src, x: 0, y: 0, w: 1, h: 1 }, ...page.layers];
+      for (const layer of all) {
+        const node = document.createElementNS(ns, "image");
+        node.setAttribute("href", layer.src);
+        node.setAttribute("x", String(layer.x * page.width));
+        node.setAttribute("y", String(layer.y * page.height));
+        node.setAttribute("width", String(layer.w * page.width));
+        node.setAttribute("height", String(layer.h * page.height));
+        node.setAttribute("preserveAspectRatio", "none");
+        svg.appendChild(node);
+        // Readiness is checked on a decoded copy: SVG images have no decode() of their own.
+        const probe = new Image();
+        probe.decoding = "sync";
+        probe.src = layer.src;
+        images.push(probe);
+      }
+      sheet.appendChild(svg);
+      root.appendChild(sheet);
+      return;
     }
     const img = document.createElement("img");
     img.alt = `Page ${index + 1}`;

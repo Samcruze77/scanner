@@ -189,8 +189,8 @@ async function exportPdf(page, name) {
   await (await download).saveAs(file);
   return file;
 }
-async function renderPage2(pdfFile) {
-  const pages = await renderPdf(pdfFile, path.join(work, "r-" + path.basename(pdfFile, ".pdf")), SCALE_300DPI);
+async function renderPage2(pdfFile, scale = SCALE_300DPI) {
+  const pages = await renderPdf(pdfFile, path.join(work, "r-" + path.basename(pdfFile, ".pdf")), scale);
   assert.equal(pages.length, 2, "page count unchanged");
   return pages[1].canvas;
 }
@@ -314,6 +314,96 @@ try {
     const warning = await page.getByText(/(Soft when printed|Low resolution): about \d+ dpi/).first().innerText();
     assert.match(warning, /dpi/);
     ok(`warns instead of pretending: "${warning.slice(0, 60)}..."`);
+    await context.close();
+  }
+
+  // ---- the editor's Print button / Ctrl+P: the browser's own print output saved as PDF ----------
+  // Chromium's print pipeline (page.pdf) prints the armed document exactly as the print dialog
+  // would; the resulting PDF is then inspected like the downloaded one.
+  async function printedPdf(page, name) {
+    await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done", exact: true }).click();
+    await page.getByRole("button", { name: "Done", exact: true }).click();
+    // The open document is kept ready for printing; wait for page 2 with its picture layers.
+    await page.waitForFunction(
+      () => document.querySelectorAll(".print-root[data-standing] .print-page").length === 2 && !!document.querySelector(".print-root[data-standing] .print-page:nth-child(2) svg"),
+      null,
+      { timeout: 60000 },
+    );
+    await page.waitForFunction(() => [...document.querySelectorAll(".print-root[data-standing] img")].every((i) => i.complete), null, { timeout: 30000 });
+    const file = path.join(work, name);
+    fs.writeFileSync(file, await page.pdf({ preferCSSPageSize: true, printBackground: true }));
+    return file;
+  }
+  // The pale-yellow page's own rectangle inside a rendered sheet (the print adds a margin).
+  function pageRect(canvas) {
+    const b = detailBox(canvas, (r, g, bl) => r < 245 || g < 245 || bl < 245);
+    return b;
+  }
+  function detailBox(canvas, pred) {
+    const { width: w, height: h } = canvas;
+    const d = canvas.getContext("2d").getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) {
+      const i = (y * w + x) * 4;
+      if (pred(d[i], d[i + 1], d[i + 2])) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    return { x: x0 / w, y: y0 / h, w: (x1 - x0) / w, h: (y1 - y0) / h };
+  }
+
+  console.log("\nPrint (browser print output saved as PDF)");
+  {
+    const { context, page } = await openEditor();
+    await addImage(page, files.passport, "35x45mm");
+    const box = await selection(page);
+    const pdf = await printedPdf(page, "print-passport.pdf");
+    const doc = await PDFDocument.load(fs.readFileSync(pdf));
+    assert.equal(doc.getPageCount(), 2, "printed page count and order unchanged");
+    const imgs = await embeddedImages(pdf, 1);
+    const photo = imgs.filter((i) => /DCT/.test(i.filter)).sort((a, b) => b.width * b.height - a.width * a.height)[0];
+    assert.ok(photo && photo.width >= 2990 && photo.height >= 3800, `printed PDF holds the photograph at full size: ${photo?.width}x${photo?.height} (source 3000x4000, cropped 3000x3857)`);
+    const canvas = await renderPage2(pdf, 600 / 72);
+    // Where the page sits on the printed sheet, so the editor's fractions can be mapped onto it.
+    const sheet = pageRect(canvas);
+    const printedBox = { x: sheet.x + box.x * sheet.w, y: sheet.y + box.y * sheet.h, w: box.w * sheet.w, h: box.h * sheet.h };
+    const crop = { x: 0, y: (1 - 3857 / 4000) / 2, w: 1, h: 3857 / 4000 };
+    const { exported, source } = await sharpness(canvas, printedBox, files.passport, crop);
+    assert.ok(exported >= source * 0.93, `printed output keeps fine detail (print ${exported.toFixed(1)} vs source ${source.toFixed(1)})`);
+    // Physical size: the print fits the page inside the sheet's margin, so every page (and the
+    // photo on it) is scaled by the same factor; relative to the page it is exactly as placed.
+    const pageWmm = sheet.w * 210;
+    const photoMm = box.w * pageWmm;
+    assert.ok(Math.abs(photoMm / 35 - sheet.w * 210 / 210) < 0.03, `photo is ${photoMm.toFixed(1)} mm wide on paper (page printed at ${(sheet.w * 100).toFixed(0)}% of the sheet)`);
+    // The photograph is cropped to the passport shape, not stretched: no blue bars, right shape.
+    const body = detailBox(canvas, (r, g, b) => b > 150 && r < 60 && g < 60);
+    ok(`printed PDF: photograph embedded ${photo.width}x${photo.height}; detail ${(exported / source * 100).toFixed(0)}% of source; ${photoMm.toFixed(1)} mm wide (${(sheet.w * 100).toFixed(0)}% scale)`);
+    void body;
+    await context.close();
+  }
+
+  console.log("\nPrint: transparent logo and a low-resolution picture");
+  {
+    const { context, page } = await openEditor();
+    await addImage(page, files.logo);
+    const box = await selection(page);
+    const pdf = await printedPdf(page, "print-logo.pdf");
+    const imgs = await embeddedImages(pdf, 1);
+    assert.ok(imgs.some((i) => i.width === 1200 && i.height === 1200), "logo printed at its full 1200 x 1200: " + JSON.stringify(imgs.map((i) => [i.width, i.height])));
+    const canvas = await renderPage2(pdf);
+    const sheet = pageRect(canvas);
+    const px = canvas.getContext("2d").getImageData(Math.round((sheet.x + (box.x + 0.003) * sheet.w) * canvas.width), Math.round((sheet.y + (box.y + 0.003) * sheet.h) * canvas.height), 1, 1).data;
+    assert.ok(px[0] > 240 && px[1] > 225 && px[2] < 215, `printed transparent corner shows the page, not white (${px[0]},${px[1]},${px[2]})`);
+    ok("printed logo: full resolution, transparent background kept");
+    await context.close();
+  }
+  {
+    const { context, page } = await openEditor();
+    await addImage(page, files.tiny, "35x45mm");
+    assert.ok(await page.getByText(/(Soft when printed|Low resolution): about \d+ dpi/).first().isVisible(), "warning still shown");
+    const pdf = await printedPdf(page, "print-tiny.pdf");
+    const imgs = await embeddedImages(pdf, 1);
+    assert.ok(imgs.some((i) => i.width === 200 && i.height >= 255 && i.height <= 260), "the printed picture is the original 200 px wide (cropped to 35:45 = 200x257), not an upscaled copy: " + JSON.stringify(imgs.map((i) => [i.width, i.height])));
+    assert.ok(!imgs.some((i) => i.width > 200 && i.width < 1000 && i.height > 260 && i.height < 1300 && i.width !== 200), "no artificially enlarged version");
+    ok("low-resolution picture: warning shown, printed at its real 200x257 pixels with no invented detail");
     await context.close();
   }
 
