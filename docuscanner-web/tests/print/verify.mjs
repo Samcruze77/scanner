@@ -537,11 +537,28 @@ await test("Create PDF -> Download PDF still saves a PDF, and Print, Save and St
   const labels = await evaluate(`[...document.querySelectorAll('button')].map(b => b.innerText.trim()).filter(t => ['Print', 'Download PDF', 'Save to account', 'Start new scan'].includes(t))`);
   assert.deepEqual(labels.sort(), ["Download PDF", "Print", "Save to account", "Start new scan"]);
   await clickButton("Download PDF");
-  const size = await evaluate(`(async () => { const d = window.__downloads[0]; const b = await (await fetch(d.href)).blob(); const head = new TextDecoder().decode(new Uint8Array(await b.arrayBuffer()).slice(0, 5)); return { name: d.name, size: b.size, head }; })()`);
-  log(JSON.stringify(size));
-  assert.equal(size.name, "document.pdf");
-  assert.equal(size.head, "%PDF-");
-  assert.ok(size.size > 10000);
+  // Take the real downloaded bytes and check that they are a valid PDF with the right pages and content. (A minimum byte
+  // size used to stand in for this, but an unchanged vector PDF is re-embedded as vector content and is only a few KB.)
+  const saved = await evaluate(`(async () => { const d = window.__downloads[0]; const b = await (await fetch(d.href)).blob(); const bytes = new Uint8Array(await b.arrayBuffer()); let bin = ''; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192)); return { name: d.name, size: b.size, base64: btoa(bin) }; })()`);
+  log(`downloaded ${saved.name}, ${saved.size} bytes`);
+  assert.equal(saved.name, "document.pdf");
+  const bytes = Buffer.from(saved.base64, "base64");
+  assert.equal(bytes.length, saved.size);
+  assert.equal(bytes.subarray(0, 5).toString("latin1"), "%PDF-");
+  assert.ok(bytes.subarray(-1024).toString("latin1").includes("%%EOF"), "the file is complete (ends with %%EOF)");
+  const reopened = await PDFDocument.load(bytes);
+  assert.deepEqual(
+    reopened.getPages().map((p) => p.getSize()).map((z) => [Math.round(z.width), Math.round(z.height)]),
+    [A4, A4, A4L, LETTER, A5],
+    "five pages, each with its own size, in order",
+  );
+  const downloadedFile = path.join(work, "downloaded-document.pdf");
+  fs.writeFileSync(downloadedFile, bytes);
+  const { pdfReport } = await import("../audit/lib.mjs");
+  const report = await pdfReport(downloadedFile, []);
+  assert.equal(report.pageCount, 5);
+  assert.equal(report.pages.length, 5);
+  assert.ok(report.pages.every((p) => p.textChars >= 40), "every page keeps its text (as text, not a picture)");
   // Printing after creating the PDF still prints the pages, and one press is still one event.
   await clickButton("Print");
   await waitFor("window.__printCalls.length === 1", "print");
