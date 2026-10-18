@@ -365,3 +365,57 @@ Type check clean; lint 0 errors (17 existing warnings); production build succeed
 **Ran and passed:** scanner detection safety (strict), camera browser 14, multi-page/EXIF 5; crop geometry 18; `verify-pdf-quality` 18; `verify-pdf-auto` 13; `test:pdf-edit` 11; `test:quality-fixes` 23; `test:print-quality` 3; install unit 71, install browser 56, install final 35 PASS / 0 FAIL / 3 NOT TESTED; assistant unit 19 + 17, browser 31, launcher 16; `test:images` 15 + 4, e2e 27, quality 11; `test:compress` 38; Excel to PDF 5; PDF to Word 8 + 9; PDF to Excel 11 + 7; DOCX tables 9; DOCX robust 12; OCR 7 + UI 6.
 
 **Known failures identical to the clean base commit:** zoom 4 passed / 14 failed; theme 21 / 1; print 27 / 6; consent 65 / 1.
+
+
+## 15. Final testing sign-off (2026-10-18)
+
+Code under test: `web-only` at `e9b42a9` (15 commits ahead of origin), freshly built (`rm -rf .next && npx next build`, exit 0) and served with `npx next start -p 3117`. Everything marked "simulated" used synthetic frames or injected events, not a physical device.
+
+### Commands and results (each run once on the fresh build; exit code and counts are from the run)
+| Command | Exit | Result |
+|---|---|---|
+| `npx tsc --noEmit` | 0 | clean |
+| `npx eslint .` | 0 | 0 errors, 17 existing warnings |
+| `npx next build` | 0 | compiled successfully |
+| `node --no-warnings --import ./tests/scanner/register.mjs tests/scanner/detection-safety.mjs --strict` | 0 | passed (simulated frames, real detector) |
+| `node tests/scanner/camera-browser.mjs` | 0 | 14 passed (simulated camera) |
+| `node tests/scanner/multipage-browser.mjs` | 0 | 5 passed |
+| `node --no-warnings tests/pdf/crop-math.mjs` | 0 | 18 passed |
+| `node tests/audit/verify-pdf-quality.mjs` | 0 | 18 passed |
+| `node tests/audit/verify-pdf-auto.mjs` | 0 | 13 passed |
+| `node tests/audit/verify-pdf-edit.mjs` (`test:pdf-edit`) | 0 | 11 passed |
+| `node tests/audit/verify-fixes.mjs` (`test:quality-fixes`) | 0 | 23 passed |
+| `node tests/audit/verify-print.mjs` (`test:print-quality`) | 0 | 3 passed |
+| `npm run test:images` / `test:images:e2e` / `test:images:quality` | 0 | 15 + 4 / 27 / 11 passed |
+| `npm run test:compress` | 0 | 38 passed, 0 failed |
+| `npm run test:protect` | 1 | 55 passed, 1 failed (see below) |
+| `npm run test:docx` | 1 | 18 variants match Word, 2 differ (see below) |
+| `npm run test:docx:tables` / `test:docx:robust` | 0 | 9 / 12 passed |
+| `node tests/audit/verify-excel.mjs` / `verify-pdf2word.mjs` | 0 | 5 / 8 + 9 passed |
+| `npm run test:pdf2excel` | 0 | 11 + 7 passed |
+| `npm run test:ocr` / `node tests/audit/verify-ocr-ui.mjs` | 0 | 7 / 6 passed |
+| `npm run test:install` / `node tests/install/browser.mjs` | 0 | 71 / 56 passed |
+| `node tests/install/verify-final.mjs` | 0 | 35 PASS, 0 FAIL, 3 NOT TESTED |
+| `npm run test:assistant` / `tests/assistant/browser.mjs` / `launcher.mjs` | 0 | 19 + 17 / 31 / 16 passed |
+| `node tests/zoom/verify.mjs` | 1 | 4 passed, 14 failed (pre-existing) |
+| `node tests/ui/theme.mjs` | 1 | 21 passed, 1 failed (pre-existing) |
+| `node tests/print/verify.mjs` | 1 | 27 passed, 6 failed (pre-existing, see below) |
+| `node tests/consent/consent.mjs` | 1 | 65 passed, 1 failed (pre-existing) |
+
+### The previously omitted suites, compared with a clean base
+A temporary git worktree of the clean base `bb5a966` (before any of this work) was built and served, then removed (its directory had to be emptied with robocopy because of long paths; `git worktree list` shows only the two original worktrees).
+- **`test:protect`**: current 55 ok / 1 fail; clean base 55 ok / 1 fail; the test names are identical. The one failure, "policy: Protect is public...", is a regular expression written with `\n` against `utils/tools/registry.ts`, which has CRLF line endings in this Windows checkout. A line-ending assumption in the test, not a product defect; unchanged.
+- **`test:docx`**: current 18 matching / 2 differing (`04-tables`, `05-images`); clean base: the same two, with identical figures (04-tables: 5 lines off by more than 1 pt, 93 text mismatches, max x offset 170.5 pt; 05-images: 1 line off, max x offset 13.1 pt) and every other line of the output identical. Pre-existing.
+- **zoom 14, theme 1, consent 1**: failure names identical to the clean-base lists recorded earlier.
+- **print (`tests/print/verify.mjs`)**: 6 failures now. On the clean base this suite is slower and fails more: the run was cut off by a 25-minute limit after only 19 tests, with 13 failures, most of them "timed out waiting for ..." in tests that pass on the current build (Word import, Excel to PDF, compress, one-page, multi-page, Letter). Of the current 6 failures, 4 also fail on the clean base ("Create PDF -> Download PDF still saves a PDF" (the size check), "converted document: Word -> PDF result prints", "that browser print counts as ONE print event", "the Print button does not also count as a browser print"). The other 2 ("one Print press = exactly one print analytics event" and "a second press replaces the first job...") count analytics requests, which the test reads from the `/api/analytics/track` fetch without ever opting in to analytics; analytics is gated behind consent, so the count is always 0. They are the same mechanism as the two analytics tests that fail on the base, so they encode a requirement that predates consent gating; the clean base run ended before it reached them, so their base result is not directly observed. The current build's failure set was identical across two runs. No print behaviour regression: `test:print-quality` passes and the current build passes far more of this suite than the base.
+
+New regressions found in this pass: none.
+
+### Remaining limitations and items that need a real device (not claimed as verified)
+- **Real-device validation still needed:** camera capture and the live guidance on a physical phone or webcam; Safari and iOS (camera, install steps, EXIF); the native PWA install prompt and the real `appinstalled` event (Chrome's installability check reported 0 errors, but automation never receives `beforeinstallprompt`); the guide steps on real iPhone, iPad, Android, Samsung, Mac and Firefox devices.
+- **Simulated and labelled as such:** all camera results (Chrome fake video device, synthetic frames), install prompt states (dispatched events), device guides (spoofed user agents).
+- **Product limitations:** Auto, Grayscale, Black & White, brightness and contrast make that one PDF page a picture (300 dpi, lower on very large pages); a rectangle crop only hides the cut-away area unless "remove for good" is chosen; links, form fields and bookmarks of an edited PDF page are not carried over; printing sends page pictures to the browser's print layer; direct Print fits to the paper; OCR still reads some O/0 and I/1/l from context (opt-in code-format control only); PDF to Word loses columns and wrapped pictures; automatic camera crop is limited to pages with a proven edge and everything else is a suggestion.
+- **Still NOT TESTED anywhere:** XLSX charts, Word/Excel compression, Office-file protection, a real phone photograph, Safari/iOS memory behaviour, PDFs with encryption, form fields or links on an edited page.
+
+### Git state at sign-off
+Branch `web-only`, HEAD `e9b42a9`, 15 commits ahead of origin (none pushed). The 15 commits contain no backend, `.env`, handover, `.DS_Store` or `.claude` files, and a scan of their added lines for key, token and secret patterns found nothing. The pre-existing backend working-tree modifications (7 files) and the untracked handover, `.DS_Store`, `.claude` and other files are untouched.
