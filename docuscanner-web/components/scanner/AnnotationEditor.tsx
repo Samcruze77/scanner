@@ -396,7 +396,8 @@ export function AnnotationEditor({
         h = 0.9;
         w = (h * page.processedHeight * (choice.image.width / choice.image.height)) / page.processedWidth;
       }
-      const replaced = { ...fresh, id: current.id, w, h, x: clamp(cx - w / 2, 0, 1 - w), y: clamp(cy - h / 2, 0, 1 - h) };
+      // placedScale follows the size it is really placed at, so Reset size / Restore original return to it.
+      const replaced = { ...fresh, id: current.id, w, h, placedScale: w / choice.image.width, x: clamp(cx - w / 2, 0, 1 - w), y: clamp(cy - h / 2, 0, 1 - h) };
       commit(annotations.map((a) => (a.id === current.id ? replaced : a)));
       setSelectedId(current.id);
     } else {

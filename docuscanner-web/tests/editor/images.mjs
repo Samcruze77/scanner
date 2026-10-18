@@ -286,6 +286,29 @@ ok("physical size on the page in the PDF equals the size shown in the editor");
   ok(`a 35 x 45 mm picture is exactly that size in the PDF with ${imgs[0].width} x ${imgs[0].height} pixels (${Math.round(imgs[0].dpiX)} dpi)`);
 }
 
+// ---- 10b. Replace image, then Restore original returns to the REPLACEMENT's placed size ---------------------------------
+{
+  await openWorkspace(page, pdf, 2);
+  await openAnnotator(page, 1);
+  await addImage(page, logo);
+  for (let i = 0; i < 3; i++) await editor().getByRole("button", { name: "Make the picture larger" }).click();
+  await editor().locator('[data-assistant-id="image-replace"]').click();
+  await page.locator('[data-assistant-id="image-file-input"]').setInputFiles(hires);
+  await page.getByAltText("Your picture, ready to place on the page").waitFor({ timeout: 20000 });
+  await page.getByRole("button", { name: "Replace picture" }).click();
+  await page.waitForTimeout(300);
+  const replacedAt = await shape();
+  await openEdit();
+  await dialog().getByRole("button", { name: "1:1 (square)" }).click();
+  await apply();
+  await editor().locator('[data-assistant-id="image-restore"]').click();
+  await page.waitForTimeout(300);
+  const back = await shape();
+  near(back.w, replacedAt.w, 0.004, "Restore original after Replace image returns to the replacement's own size");
+  near(back.ratio, 4 / 3, 0.01, "…and its original shape");
+  ok("Replace image, edit, Restore original: back to the replacement picture at the size it was placed");
+}
+
 // ---- 11. sharpness: a crop is the original's own pixels, not a resampled preview ----------------------------------
 {
   const { loadImage } = (await import("node:module")).createRequire(import.meta.url)("@napi-rs/canvas");
