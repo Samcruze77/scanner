@@ -9,18 +9,22 @@
 // Quality rules:
 //  - A JPEG or PNG that needs no pixel change is kept byte-for-byte (the data URL is the
 //    file itself), so the exported PDF can embed the original data.
-//  - Pixels are redrawn only when they must be: the picture is larger than the safe size,
-//    its EXIF orientation is not "normal", it is WebP (a PDF cannot embed it), or the
-//    person turned/cropped it. Each such result is made from the original in one pass,
-//    never from an earlier edit.
+//  - Pixels are redrawn only when they must be: its EXIF orientation is not "normal", it is
+//    WebP (a PDF cannot embed it), it is beyond the sizes that can be kept (see imagePlacement.ts),
+//    or the person turned/cropped it. Each such result is made from the original in one pass,
+//    never from an earlier edit. Nothing is ever redrawn from the screen-sized editing preview.
 //  - JPEG redraws use quality 0.95; PNG stays PNG (lossless, keeps transparency).
 
 import {
   describeUnsupportedImage,
   jpegOrientation,
+  MAX_CANVAS_PIXELS,
+  MAX_CANVAS_PIXELS_IOS,
   MAX_INSERT_IMAGE_BYTES,
   MAX_INSERT_IMAGE_PIXELS,
   MAX_INSERT_IMAGE_SIDE_PX,
+  MAX_KEEP_IMAGE_PIXELS,
+  MAX_KEEP_IMAGE_SIDE_PX,
   sniffImageKind,
   type InsertImageKind,
   type Rect,
@@ -43,6 +47,11 @@ export class InsertImageError extends Error {
 }
 
 const JPEG_QUALITY = 0.95;
+
+function isIosLike(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
 
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -72,6 +81,8 @@ function usesTransparency(ctx: CanvasRenderingContext2D, width: number, height: 
 
 function encode(canvas: HTMLCanvasElement, mime: InsertImage["mime"]): InsertImage {
   const dataUrl = canvas.toDataURL(mime, mime === "image/jpeg" ? JPEG_QUALITY : undefined);
+  // A canvas the device could not really make gives an empty result ("data:,"): say so instead of embedding nothing.
+  if (dataUrl.length < 64) throw new InsertImageError("Your device couldn't draw that picture at this size. Try a smaller picture.");
   const result: InsertImage = { dataUrl, width: canvas.width, height: canvas.height, mime };
   // Free the backing store promptly (matters on iOS Safari).
   canvas.width = canvas.height = 0;
@@ -113,10 +124,10 @@ export async function readInsertImage(file: File): Promise<InsertImage> {
       throw new InsertImageError("That picture has too many pixels to open safely. Resize it and try again.");
     }
 
-    const oversized = Math.max(w, h) > MAX_INSERT_IMAGE_SIDE_PX;
+    const tooBigToKeep = Math.max(w, h) > MAX_KEEP_IMAGE_SIDE_PX || w * h > MAX_KEEP_IMAGE_PIXELS;
     const rotatedByCamera = kind === "jpeg" && jpegOrientation(head) !== 1;
-    // The file itself, untouched, whenever no pixel has to change.
-    if (!oversized && !rotatedByCamera && kind !== "webp") {
+    // The file itself, untouched, at its own size, whenever no pixel has to change.
+    if (!tooBigToKeep && !rotatedByCamera && kind !== "webp") {
       return { dataUrl: await fileToDataUrl(file), width: w, height: h, mime: kind === "png" ? "image/png" : "image/jpeg" };
     }
 
@@ -165,7 +176,10 @@ export async function renderEdit(
   const sy = Math.round(r.y * fullH);
   const sw = Math.max(1, Math.min(fullW - sx, Math.round(r.w * fullW)));
   const sh = Math.max(1, Math.min(fullH - sy, Math.round(r.h * fullH)));
-  const scale = maxSide ? Math.min(1, maxSide / Math.max(sw, sh)) : 1;
+  let scale = maxSide ? Math.min(1, maxSide / Math.max(sw, sh)) : 1;
+  // Never ask a phone for a canvas it cannot make (it would come out blank): draw at the largest it can.
+  const limit = isIosLike() ? MAX_CANVAS_PIXELS_IOS : MAX_CANVAS_PIXELS;
+  if (sw * sh * scale * scale > limit) scale = Math.sqrt(limit / (sw * sh));
   const [canvas, ctx] = makeCanvas(sw * scale, sh * scale);
   if (original.mime === "image/jpeg") {
     ctx.fillStyle = "#ffffff";

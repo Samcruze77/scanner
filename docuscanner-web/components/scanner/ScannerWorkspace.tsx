@@ -50,6 +50,7 @@ import { ScannerDebugPanel } from "./ScannerDebugPanel";
 import { PageList } from "./PageList";
 import { PageEditor } from "./PageEditor";
 import { PagePreview } from "./PagePreview";
+import { ContextTip } from "@/components/guidance/ContextTip";
 import { WorkspaceStepper, type WorkspaceStep } from "./WorkspaceStepper";
 import { CropEditor } from "./CropEditor";
 import { FlattenNotice } from "./FlattenNotice";
@@ -128,6 +129,11 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
   const [error, setError] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [creatingPdf, setCreatingPdf] = useState(false);
+  // The person pressed Done editing (in the page editor or the annotation editor) at least once.
+  const [editsDone, setEditsDone] = useState(false);
+  // The browser was asked to save the PDF without an error. This is the start of the download, not proof
+  // that the file reached the disk, and the wording says so.
+  const [downloadStarted, setDownloadStarted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   // Which non-PDF export format is currently being built, if any -- pages
@@ -557,6 +563,8 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     if (annotations === page.annotations) return;
     // The PDF made earlier no longer matches this page.
     setPdfBlob(null);
+    setDownloadStarted(false);
+    setEditsDone(true);
     updatePageFields(page.id, { annotations });
   }
 
@@ -592,6 +600,7 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     try {
       const blob = await createPdfFromPages(pages);
       setPdfBlob(blob);
+      setDownloadStarted(false);
       void trackDocumentCreated(pages.length);
       const signatures = pages.reduce((n, p) => n + p.annotations.filter((a) => a.type === "signature").length, 0);
       if (signatures > 0) void trackSignPdf(signatures);
@@ -607,7 +616,14 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
 
   function handleDownload() {
     if (!pdfBlob) return;
-    downloadBlob(pdfBlob, "document.pdf");
+    try {
+      downloadBlob(pdfBlob, "document.pdf");
+    } catch {
+      setDownloadStarted(false);
+      setError("Couldn't start the download. Please try again.");
+      return;
+    }
+    setDownloadStarted(true);
     void trackDocumentDownloaded("pdf");
   }
 
@@ -697,6 +713,8 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     setIntentUsed(false);
     setNotice(null);
     setPdfBlob(null);
+    setEditsDone(false);
+    setDownloadStarted(false);
     setSaveNotice(null);
     setError(null);
     scanStartedRef.current = false;
@@ -727,7 +745,9 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     </>
   );
 
-  const step: WorkspaceStep = pages.length === 0 ? 0 : pdfBlob ? 2 : 1;
+  const step: WorkspaceStep =
+    pages.length === 0 ? 0 : pdfBlob ? (downloadStarted ? 4 : 3) : editsDone && !editingPageId && !annotatingPageId ? 2 : 1;
+  const goToExport = () => exportRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   const busyMessage = importStage
     ? importStage
     : pdfImport
@@ -749,6 +769,24 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
       />
 
       <WorkspaceStepper current={step} />
+
+      {/* One short hint per meaningful moment, never a modal. Each can be closed, is retired once the
+          person has moved past it, and none shows if they chose "No thanks" to tips. */}
+      {mode !== "camera" && step === 1 && !error && (
+        <ContextTip id="workflow-edit" title="Edit your document">
+          Choose Edit page to add text, a signature or a picture. When you finish, choose Done editing, then Create PDF.
+        </ContextTip>
+      )}
+      {mode !== "camera" && step === 2 && !error && (
+        <ContextTip id="workflow-create" title="Your changes are ready" action={{ label: "Take me there", describe: "Go to the Create PDF button", onClick: goToExport }}>
+          Next, choose Create PDF to build the finished file.
+        </ContextTip>
+      )}
+      {step === 3 && !error && (
+        <ContextTip id="workflow-download" title="Your PDF is ready" action={{ label: "Take me there", describe: "Go to the Download PDF button", onClick: goToExport }}>
+          Choose Download PDF to save it to your device.
+        </ContextTip>
+      )}
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
       {notice && (
@@ -910,13 +948,24 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
                   <Icon name="check" size={18} className="mt-0.5" />
                   <span>
                     <strong className="block">Your PDF is ready</strong>
-                    {pages.length} page{pages.length === 1 ? "" : "s"}. Download it, print it or save it to your account.
+                    {pages.length} page{pages.length === 1 ? "" : "s"}. Choose Download PDF to save it to your device, or print it or save it to your account.
                   </span>
                 </div>
               )}
+              {pdfBlob && downloadStarted && (
+                <p role="status" data-download-started className="notice notice-success text-sm">
+                  Download started. Look for document.pdf in your Downloads folder or your browser&apos;s downloads list. If nothing arrives, choose Download PDF again.
+                </p>
+              )}
 
               {pdfBlob ? (
-                <button type="button" onClick={handleDownload} data-assistant-id="scan-download-pdf" className="btn btn-primary btn-lg w-full">
+                <button
+                  type="button"
+                  onClick={handleDownload}
+                  data-assistant-id="scan-download-pdf"
+                  data-next-step={downloadStarted ? undefined : "true"}
+                  className={`btn btn-primary btn-lg w-full ${downloadStarted ? "" : "ring-4 ring-blue-300 ring-offset-2 dark:ring-blue-700"}`}
+                >
                   <Icon name="download" size={20} />
                   Download PDF
                 </button>
@@ -926,7 +975,8 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
                   onClick={handleCreatePdf}
                   data-assistant-id="scan-create-pdf"
                   disabled={pages.length === 0 || creatingPdf || anyPageProcessing}
-                  className="btn btn-primary btn-lg w-full"
+                  data-next-step={step === 2 ? "true" : undefined}
+                  className={`btn btn-primary btn-lg w-full ${step === 2 ? "ring-4 ring-blue-300 ring-offset-2 dark:ring-blue-700" : ""}`}
                 >
                   {creatingPdf ? "Preparing PDF…" : `Create PDF (${pages.length} page${pages.length === 1 ? "" : "s"})`}
                 </button>
@@ -1036,7 +1086,11 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
         <PageEditor
           page={editingPage}
           index={editingIndex}
-          onClose={() => setEditingPageId(null)}
+          onClose={() => {
+            setEditingPageId(null);
+            // Done editing: the person has finished with this page's edits.
+            setEditsDone(true);
+          }}
           onRotate={handleEditorRotate}
           onAdjustCrop={() => setCroppingPageId(editingPage.id)}
           onAnnotate={() => setAnnotatingPageId(editingPage.id)}

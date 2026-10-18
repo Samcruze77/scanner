@@ -315,8 +315,8 @@ await test("add pages, switch theme mid-way, edit, create the PDF and download a
   await waitFor(`document.querySelector('[role=dialog][aria-label="Edit page 1"]')`, "page editor");
   await evaluate(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.getAttribute('aria-label') === 'Rotate right').click()`);
   await sleep(1200);
-  await evaluate(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.innerText.trim() === 'Done').click()`);
-  await waitFor(`!document.querySelector('[role=dialog]')`, "editor closed");
+  await evaluate(`[...document.querySelectorAll('[role=dialog] button')].find(b => /^Done( editing)?$/.test(b.innerText.trim())).click()`);
+  await waitFor(`!document.querySelector('[role=dialog][aria-label^="Edit page"]')`, "editor closed");
   await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(2 page/.test(b.innerText) && !b.disabled)`, "ready after edit", 30000);
   await pickTheme("Warm Beige");
   await evaluate(`[...document.querySelectorAll('button')].find(b => /Create PDF/.test(b.innerText)).click()`);

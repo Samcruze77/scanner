@@ -13,6 +13,8 @@
 
 export type AnnotationTool =
   | "select"
+  // "Move page": dragging scrolls the zoomed page and never moves a mark.
+  | "pan"
   | "text"
   | "draw"
   | "highlight"
@@ -96,6 +98,9 @@ export interface ImageAnnotation {
   // The untouched original and the edits applied to it, so turning or cropping again always
   // starts from the original pixels (see imagePlacement.ts).
   original?: ImageOriginal;
+  // Fraction of the page width each pixel of the ORIGINAL picture took when it was first placed.
+  // Reset size and Restore original use it to bring back the first on-page size at any crop.
+  placedScale?: number;
 }
 
 export interface ImageOriginal {
@@ -278,6 +283,7 @@ export function createImage(
     dataUrl,
     pxW: imageWidth,
     pxH: imageHeight,
+    placedScale: w / imageWidth,
     ...(extra?.original ? { original: extra.original } : {}),
   };
 }

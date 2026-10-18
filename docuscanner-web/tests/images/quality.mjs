@@ -210,8 +210,8 @@ async function selection(page) {
   return { x: (b.x - f.x) / f.width, y: (b.y - f.y) / f.height, w: b.width / f.width, h: b.height / f.height };
 }
 async function exportPdf(page, name) {
-  await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done editing", exact: true }).click();
+  await page.getByRole("button", { name: "Done editing", exact: true }).click();
   await page.locator('[data-assistant-id="scan-create-pdf"]').click();
   const download = page.waitForEvent("download", { timeout: 90000 });
   await page.locator('[data-assistant-id="scan-download-pdf"]').click({ timeout: 90000 });
@@ -335,7 +335,7 @@ try {
     const heapAfter = await page.evaluate(() => performance.memory?.usedJSHeapSize ?? 0);
     const imgs = await pictures(pdf);
     const big = imgs.find((i) => i.width >= 3000);
-    assert.ok(big && big.width <= 4000 && big.height <= 4000, `scaled once to the 4000 px limit: ${big?.width}x${big?.height}`);
+    assert.ok(big && big.width === 6000 && big.height === 4500, `kept at its own size, not scaled down (it needs no pixel change): ${big?.width}x${big?.height}`);
     assert.ok(heapAfter < 700 * 1024 * 1024, `JS heap stays reasonable (${Math.round(heapAfter / 1048576)} MB)`);
     assert.ok(fs.statSync(pdf).size < 40 * 1024 * 1024, "PDF size is sane: " + fs.statSync(pdf).size);
     ok(`6000x4500 PNG: embedded ${big.width}x${big.height}, heap ${Math.round(heapBefore / 1048576)}->${Math.round(heapAfter / 1048576)} MB, ${((Date.now() - t0) / 1000).toFixed(1)} s, PDF ${(fs.statSync(pdf).size / 1048576).toFixed(1)} MB`);
@@ -356,8 +356,8 @@ try {
   // Chromium's print pipeline (page.pdf) prints the armed document exactly as the print dialog
   // would; the resulting PDF is then inspected like the downloaded one.
   async function printedPdf(page, name) {
-    await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done", exact: true }).click();
-    await page.getByRole("button", { name: "Done", exact: true }).click();
+    await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done editing", exact: true }).click();
+    await page.getByRole("button", { name: "Done editing", exact: true }).click();
     // The open document is kept ready for printing; wait for page 2 with its picture layers.
     await page.waitForFunction(
       () => document.querySelectorAll(".print-root[data-standing] .print-page").length === 2 && !!document.querySelector(".print-root[data-standing] .print-page:nth-child(2) svg"),

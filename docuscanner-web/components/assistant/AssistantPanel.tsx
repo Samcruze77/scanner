@@ -345,7 +345,7 @@ export function AssistantPanel({ open, pathname, onClose }: { open: boolean; pat
           onClose();
         }
       }}
-      className="fixed inset-x-2 bottom-[calc(7.25rem+env(safe-area-inset-bottom))] z-50 flex h-[min(34rem,calc(100dvh-10.5rem))] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-surface shadow-2xl sm:inset-x-auto sm:bottom-16 sm:right-3 sm:w-[24rem] dark:border-zinc-700"
+      className="fixed inset-x-2 bottom-[calc(7.25rem+env(safe-area-inset-bottom))] z-[80] flex h-[min(34rem,calc(100dvh-10.5rem))] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-surface shadow-2xl sm:inset-x-auto sm:bottom-16 sm:right-3 sm:w-[24rem] dark:border-zinc-700"
     >
       <div className="flex shrink-0 items-start gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
         <div className="min-w-0 flex-1">

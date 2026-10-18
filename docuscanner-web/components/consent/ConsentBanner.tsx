@@ -99,7 +99,7 @@ export function ConsentBanner() {
           <ul className="mt-3 space-y-3">
             <li className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
               <p className="text-sm font-medium">Essential (always on)</p>
-              <p className="muted mt-0.5 text-xs leading-5">Sign-in, security, your theme, saved signatures and this choice. The site cannot work without them.</p>
+              <p className="muted mt-0.5 text-xs leading-5">Sign-in, security, your theme, your help-tips choice, saved signatures and this choice. The site cannot work without them.</p>
             </li>
             {OPTIONS.map((o) => (
               <li key={o.key} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">

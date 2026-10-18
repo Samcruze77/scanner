@@ -158,6 +158,12 @@ await send("Page.addScriptToEvaluateOnNewDocument", {
   `,
 });
 
+// The cookie banner would otherwise be the last role=dialog and (until answered) blocks analytics events this
+// test counts: answer it first, allowing usage analytics, as a visitor who accepted would have.
+await send("Page.addScriptToEvaluateOnNewDocument", {
+  source: `try { if (!localStorage.getItem('ds_consent')) localStorage.setItem('ds_consent', JSON.stringify({ version: 1, decided_at: new Date().toISOString(), analytics: true, advertising: false, recordings: false })); } catch {}`,
+});
+
 async function open(route, { width = 1280, height = 900, mobile = false } = {}) {
   await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile });
   await send("Page.navigate", { url: BASE + route });
@@ -431,7 +437,7 @@ await test("annotated page: text added with the Add text tool is flattened into 
   await waitFor(`document.querySelector('textarea[aria-label="Text"]')`, "text box");
   await send("Input.insertText", { text: "PRINTED MARK 12345" });
   await sleep(300);
-  await evaluate(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.innerText.trim() === 'Done').click()`);
+  await evaluate(`[...document.querySelectorAll('[role=dialog] button')].find(b => /^Done( editing)?$/.test(b.innerText.trim())).click()`);
   await waitFor(`!document.querySelector('[role=dialog][aria-label^="Annotate page"]')`, "annotator to close");
   await waitFor(`[...document.querySelectorAll('button')].some(b => /Create PDF \\(1 page/.test(b.innerText) && !b.disabled)`, "workspace");
   await clickButton("Print");

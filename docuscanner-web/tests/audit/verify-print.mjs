@@ -77,8 +77,8 @@ const edited = await printOf("rich.pdf", "edited.pdf", async (page) => {
   await page.getByAltText("Your picture, ready to place on the page").waitFor({ timeout: 20000 });
   await page.getByRole("button", { name: "Place on page" }).click();
   await page.locator('[role="application"] .border-dashed').first().waitFor();
-  await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done editing", exact: true }).click();
+  await page.getByRole("button", { name: "Done editing", exact: true }).click();
   await page.waitForFunction(() => !!document.querySelector(".print-root[data-standing] .print-page:nth-child(1) svg"), null, { timeout: 60000 });
 });
 const er = await pdfReport(edited, []);

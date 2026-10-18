@@ -125,7 +125,7 @@ try {
     await page.getByRole("button", { name: "Rotate right" }).click();
     await page.waitForTimeout(1500);
     await page.waitForFunction(() => !document.querySelector("[role=dialog]")?.innerText.includes("Processing"), null, { timeout: 30000 });
-    await page.getByRole("button", { name: "Done", exact: true }).click();
+    await page.getByRole("button", { name: "Done editing", exact: true }).click();
   });
   const img = (await embeddedStreams(r.file)).sort((a, b) => b.width * b.height - a.width * a.height)[0];
   record({ status: "info", feature: "Edit page: rotate", input: "photo-std.jpg 1600x1200 rotated right", output: "PDF", summary: `embedded ${img.width}x${img.height} ${img.filter} (re-rendered from the original, JPEG q0.92)` });

@@ -46,7 +46,7 @@ async function editPage(page, index, fn) {
   const result = await fn(editor);
   await page.waitForTimeout(400);
   await settle(page);
-  await editor.getByRole("button", { name: "Done", exact: true }).click();
+  await editor.getByRole("button", { name: "Done editing", exact: true }).click();
   await editor.waitFor({ state: "detached" });
   return result;
 }

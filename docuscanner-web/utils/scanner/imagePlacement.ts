@@ -165,9 +165,18 @@ export function isImageAnnotation(a: Annotation | null | undefined): a is ImageA
 export type InsertImageKind = "jpeg" | "png" | "webp";
 
 export const MAX_INSERT_IMAGE_BYTES = 20 * 1024 * 1024;
-// Pictures larger than this on their longest side are scaled down once (4000 px is about
-// 340 dpi across a whole A4 page), so several still fit in memory on a phone.
+// A JPEG or PNG that needs no pixel change is kept exactly as chosen, at its own size, up to these
+// limits (a 12000 px side is about 1000 dpi across a whole A4 page; beyond them the file is drawn again
+// at the redraw size below rather than risk running a phone out of memory).
+export const MAX_KEEP_IMAGE_SIDE_PX = 12000;
+export const MAX_KEEP_IMAGE_PIXELS = 64_000_000;
+// A picture that has to be drawn again anyway (its camera rotation must be applied, or it is WebP, which a
+// PDF cannot hold) is drawn at most this large on its longest side, in one step from the original.
 export const MAX_INSERT_IMAGE_SIDE_PX = 4000;
+// Largest canvas (in pixels) used to draw an edited copy. iPhones and iPads cannot make larger ones (they
+// come out blank), so an edit of a huge picture is drawn at this size there instead of failing silently.
+export const MAX_CANVAS_PIXELS_IOS = 16_000_000;
+export const MAX_CANVAS_PIXELS = 100_000_000;
 // Refuses decoding anything bigger than this many pixels (a decompression-bomb guard).
 export const MAX_INSERT_IMAGE_PIXELS = 100_000_000;
 

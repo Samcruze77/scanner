@@ -324,7 +324,7 @@ console.log("2. Reminder behaviour");
     await complete(page);
     await page.waitForTimeout(8000);
     ok((await card(page).count()) === 0, "card over the editor");
-    await editor.getByRole("button", { name: "Done", exact: true }).click();
+    await editor.getByRole("button", { name: "Done editing", exact: true }).click();
     await card(page).waitFor({ timeout: 12000 });
     await context.close();
   });

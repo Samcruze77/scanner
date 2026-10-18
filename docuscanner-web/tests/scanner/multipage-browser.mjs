@@ -85,7 +85,7 @@ console.log("A. Three pages, three different crop decisions, independent of each
   await editor.getByRole("button", { name: "Reset to original" }).click();
   await page.waitForTimeout(800);
   await settle(page);
-  await editor.getByRole("button", { name: "Done", exact: true }).click();
+  await editor.getByRole("button", { name: "Done editing", exact: true }).click();
   const second = await exportPdf(page, "multi-2.pdf", 3);
   const r2 = await pdfReport(second);
   assert.deepEqual(r2.pages[2].images[0].px, [1600, 1200], "page 3 is now the full frame");

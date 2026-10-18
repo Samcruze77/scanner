@@ -146,7 +146,7 @@ console.log("6. Policy s.8: advertising storage, measurement and embeds need opt
 
 console.log("7. Every browser storage key is classified (new storage must be reviewed)");
 {
-  const ESSENTIAL = ["pdfscanner.theme", "docuscanner.signature.v1", "ds_consent", "ds_password_recovery", "ds_install_reminder"];
+  const ESSENTIAL = ["pdfscanner.theme", "docuscanner.signature.v1", "ds_consent", "ds_password_recovery", "ds_install_reminder", "docuscanner.guidance.v1", "docuscanner.assist.ignored"];
   const ANALYTICS = ["ds_visitor_id", "ds_session_id", "ds_session_last_seen"];
   const ADVERTISING = ["ds_ad_seen_", "ds_ad_"];
   // Not browser storage (font-name marker in the DOCX converter).

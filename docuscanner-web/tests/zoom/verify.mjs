@@ -107,6 +107,10 @@ async function open(route, { width = 1280, height = 900, mobile = false, touch =
   await send("Emulation.setTouchEmulationEnabled", { enabled: false });
   await send("Emulation.setTouchEmulationEnabled", { enabled: touch });
   await send("Page.navigate", { url: BASE + route });
+  // The cookie banner is itself a role=dialog and would be taken for the editor: answer it first (reject all).
+  await sleep(300);
+  await evaluate(`localStorage.setItem('ds_consent', JSON.stringify({version:1,decided_at:new Date().toISOString(),analytics:false,advertising:false,recordings:false}))`);
+  await send("Page.navigate", { url: BASE + route });
   await waitFor(`document.readyState === 'complete' && document.querySelector('main')`, `${route}`);
   await sleep(500);
 }
@@ -164,8 +168,9 @@ await test("opens at normal size (the fitted preview) with the zoom controls, Re
   assert.equal(s.label, "100%");
   assert.equal(s.resetDisabled, true);
   assert.equal(s.inDisabled, false);
-  // Desktop (two-pane editor) gives the page up to 66vh; phones still get 45vh. Either way it must fit, not overflow.
-  assert.ok(normal.h <= 900 * 0.66 + 1, "normal size still fits the preview window, as before zoom existed");
+  // The page editor now measures its room and fills it (it used to cap the page at 66vh / 45vh). Either way the
+  // whole page must fit inside the scroll window at normal size, not overflow it.
+  assert.ok(normal.h <= normal.vh + 1 && normal.w <= normal.vw + 1, "normal size still fits the preview window, as before zoom existed");
   near(normal.w / normal.h, 1700 / 2400, 0.01, "aspect");
 });
 
@@ -258,7 +263,7 @@ await test("marks drawn on the page stay exactly over it at every zoom (overlay 
   await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: px, y: py, button: "left", clickCount: 1 });
   await waitFor(`document.querySelector('textarea[aria-label="Text"]')`, "text box");
   await send("Input.insertText", { text: "ALIGN" });
-  await evaluate(`[...${TOP}.querySelectorAll('button')].find(b => b.innerText.trim() === 'Done').click()`);
+  await evaluate(`[...${TOP}.querySelectorAll('button')].find(b => /^Done( editing)?$/.test(b.innerText.trim())).click()`);
   await waitFor(`!document.querySelector('[role=dialog][aria-label^="Annotate page"]')`, "annotator closed");
   await sleep(500);
   for (const zoomKey of [null, "+", "+", "+"]) {
@@ -372,8 +377,13 @@ await test("Reset in the annotator returns to normal size and Escape/Done still 
   await click(`document.querySelector('[role=dialog] [role=group][aria-label=Zoom] button:nth-child(2)')`);
   await sleep(200);
   near((await frameRect()).w, f0.w, 1.5, "normal width again");
-  await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape" });
-  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape" });
+  // Escape steps back one thing at a time (stop typing, let go of a mark, leave a tool, then close); this page opens
+  // with the Text tool chosen, so it can take a second press.
+  for (let i = 0; i < 3 && (await evaluate(`Boolean(document.querySelector('[role=dialog][aria-label^="Annotate page"]'))`)); i++) {
+    await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape" });
+    await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape" });
+    await sleep(250);
+  }
   await waitFor(`!document.querySelector('[role=dialog][aria-label^="Annotate page"]')`, "annotator to close");
 });
 
@@ -522,7 +532,7 @@ await test("375px: the zoom controls fit, are 44px tall, and nothing overflows s
   assert.ok(g.btns.every((b) => b.h >= 44 && b.w >= 44));
   await send("Page.captureScreenshot", { format: "png" }).then((s) => fs.writeFileSync(path.join(outDir, "page-editor-375.png"), Buffer.from(s.data, "base64")));
   await openAnnotator({ width: 375, height: 812, mobile: true });
-  g = await evaluate(`(() => { const grp = document.querySelector('[role=dialog] [role=group][aria-label=Zoom]'); const r = grp.getBoundingClientRect(); const btns = [...grp.querySelectorAll('button')].map(b => { const x = b.getBoundingClientRect(); return { w: Math.round(x.width), h: Math.round(x.height) }; }); const doneR = [...document.querySelectorAll('[role=dialog] button')].find(b => b.innerText.trim() === 'Done').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, vw: innerWidth, vh: innerHeight, btns, doneBottom: doneR.bottom, scrollW: document.documentElement.scrollWidth }; })()`);
+  g = await evaluate(`(() => { const grp = document.querySelector('[role=dialog] [role=group][aria-label=Zoom]'); const r = grp.getBoundingClientRect(); const btns = [...grp.querySelectorAll('button')].map(b => { const x = b.getBoundingClientRect(); return { w: Math.round(x.width), h: Math.round(x.height) }; }); const doneR = [...document.querySelectorAll('[role=dialog] button')].find(b => /^Done( editing)?$/.test(b.innerText.trim())).getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, vw: innerWidth, vh: innerHeight, btns, doneBottom: doneR.bottom, scrollW: document.documentElement.scrollWidth }; })()`);
   log(`annotator: ${JSON.stringify(g)}`);
   assert.ok(g.left >= 0 && g.right <= g.vw && g.bottom <= g.vh && g.top > g.doneBottom, "controls sit inside the screen, below the header");
   assert.ok(g.btns.every((b) => b.h >= 44 && b.w >= 44));

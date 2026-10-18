@@ -68,8 +68,8 @@ await page.locator('[data-assistant-id="image-file-input"]').setInputFiles(C("lo
 await page.getByAltText("Your picture, ready to place on the page").waitFor({ timeout: 20000 });
 await page.getByRole("button", { name: "Place on page" }).click();
 await page.locator('[role="application"] .border-dashed').first().waitFor();
-await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done", exact: true }).click();
-await page.getByRole("button", { name: "Done", exact: true }).click();
+await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done editing", exact: true }).click();
+await page.getByRole("button", { name: "Done editing", exact: true }).click();
 await ready();
 
 // ---- page 2: rotate right; page 3: Grayscale (a pixel edit that must still work) ----
@@ -78,13 +78,13 @@ await page.locator('[data-assistant-id="scan-edit-page"]').first().click();
 await page.getByRole("button", { name: "Rotate right" }).click();
 await page.waitForTimeout(1200);
 await page.waitForFunction(() => !document.querySelector("[role=dialog]")?.innerText.includes("Processing"), null, { timeout: 30000 });
-await page.getByRole("button", { name: "Done", exact: true }).click();
+await page.getByRole("button", { name: "Done editing", exact: true }).click();
 await page.locator('ul[aria-label="Pages"] li button').nth(2).click();
 await page.locator('[data-assistant-id="scan-edit-page"]').first().click();
 await page.getByRole("button", { name: "Grayscale" }).click();
 await page.waitForTimeout(1200);
 await page.waitForFunction(() => !document.querySelector("[role=dialog]")?.innerText.includes("Processing"), null, { timeout: 30000 });
-await page.getByRole("button", { name: "Done", exact: true }).click();
+await page.getByRole("button", { name: "Done editing", exact: true }).click();
 // ---- reorder: page 3 moves before page 2 ----
 await page.locator('ul[aria-label="Pages"] li button').nth(2).click();
 await page.getByRole("button", { name: "Move page 3 earlier" }).click();

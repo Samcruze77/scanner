@@ -1,16 +1,17 @@
-// Where the person is in the scan: Add pages -> Edit -> Export. It is a status
-// display, not navigation: every action stays reachable at every step, so nothing is
-// locked behind it. Done steps get a check; the current one is marked for screen readers.
+// Where the person is in the scan: Add pages -> Edit -> Create PDF -> Download PDF. These are the real
+// controls, in the order they are used (Edit ends with the Done editing button). It is a status display,
+// not navigation: every action stays reachable at every step, so nothing is locked behind it. Done steps
+// get a check; the current one is marked for screen readers. Step 4 means the download was started.
 
 import { Icon } from "@/components/ui/icons";
 
-const STEPS = ["Add pages", "Edit", "Export"] as const;
+const STEPS = ["Add pages", "Edit", "Create PDF", "Download PDF"] as const;
 
-export type WorkspaceStep = 0 | 1 | 2;
+export type WorkspaceStep = 0 | 1 | 2 | 3 | 4;
 
 export function WorkspaceStepper({ current }: { current: WorkspaceStep }) {
   return (
-    <ol aria-label="Progress" className="flex items-center gap-2 text-sm">
+    <ol aria-label="Progress" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
       {STEPS.map((label, index) => {
         const done = index < current;
         const active = index === current;

@@ -199,8 +199,8 @@ async function dragSelection(page, dxFrac, dyFrac) {
 const annotationCount = (page) => page.evaluate(() => document.querySelectorAll('[role="application"] .border-dashed').length);
 
 async function exportPdf(page, name) {
-  await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: "Done", exact: true }).click(); // the page editor underneath
+  await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done editing", exact: true }).click();
+  await page.getByRole("button", { name: "Done editing", exact: true }).click(); // the page editor underneath
   await page.locator('[data-assistant-id="scan-create-pdf"]').click();
   const download = page.waitForEvent("download", { timeout: 60000 });
   await page.locator('[data-assistant-id="scan-download-pdf"]').click({ timeout: 60000 });

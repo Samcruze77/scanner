@@ -5,6 +5,7 @@ import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { PresenceHeartbeat } from "@/components/presence/PresenceHeartbeat";
 import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
+import { AssistOnboarding } from "@/components/guidance/AssistOnboarding";
 import { InstallReminder } from "@/components/install/InstallReminder";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { AuthModal } from "@/components/auth/AuthModal";
@@ -87,6 +88,7 @@ export default function RootLayout({
           <MobileActionBar />
           <AuthModal />
           <AssistantLauncher />
+          <AssistOnboarding />
           <InstallReminder />
           <ConsentBanner />
         </AuthProvider>

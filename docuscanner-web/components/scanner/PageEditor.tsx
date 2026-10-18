@@ -9,6 +9,7 @@ import { scannerPagesToPrintPages } from "@/utils/print/sources";
 import type { ScannerPage } from "@/utils/scanner/page";
 import { ENHANCEMENT_MODES, type EnhancementMode } from "@/utils/scanner/enhance";
 import { AnnotationOverlay } from "./AnnotationOverlay";
+import { useFitBox } from "./useFitBox";
 import { useZoom, ZoomControls, ZoomFrame, ZoomViewport } from "./zoom";
 
 // A range slider that only asks for a re-render when the user lets go. The
@@ -86,6 +87,11 @@ export function PageEditor({
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const zoom = useZoom();
+  // Desktop: the tools column can be folded away so the page gets the whole width.
+  const [toolsOpen, setToolsOpen] = useState(true);
+  // The page is fitted to the room the stage really has (see useFitBox), so it is as large as the
+  // window allows instead of a fixed share of the screen height.
+  const { ref: stageRef, box: stageBox } = useFitBox(page.processedWidth / page.processedHeight, 6);
   const processing = page.status === "detecting" || page.status === "processing";
 
   useEffect(() => {
@@ -111,16 +117,29 @@ export function PageEditor({
       role="dialog"
       aria-modal="true"
       aria-label={`Edit page ${index + 1}`}
-      className="fixed inset-0 z-50 flex flex-col bg-black/60 p-3 sm:items-center sm:justify-center sm:p-4"
+      className="fixed inset-0 z-50 flex flex-col bg-black/60 sm:p-3"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* Phone: one scrolling column with Done pinned below it. Desktop: the page on the
-          left, its tools on the right, each scrolling on its own. */}
-      <div className="flex max-h-full w-full flex-col overflow-hidden rounded-2xl bg-elevated shadow-xl sm:max-h-[92vh] sm:max-w-lg lg:max-w-5xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 py-2 pl-4 pr-2 dark:border-zinc-800">
-          <h2 className="text-base font-semibold">Edit page {index + 1}</h2>
+      {/* Phone: the whole screen (respecting its notches), one column - the page first, large, then
+          the tools below it. Desktop: the page fills the window with the tools in a column beside it that
+          can be hidden; each scrolls on its own. */}
+      <div className="mx-auto flex h-full w-full max-w-[1800px] flex-col overflow-hidden bg-elevated shadow-xl sm:rounded-2xl">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-200 py-1.5 pl-4 pr-2 pt-[max(0.375rem,env(safe-area-inset-top))] dark:border-zinc-800">
+          <h2 className="min-w-0 flex-1 truncate text-base font-semibold">Edit page {index + 1}</h2>
+          <button
+            type="button"
+            onClick={() => setToolsOpen((v) => !v)}
+            aria-expanded={toolsOpen}
+            data-assistant-id="page-toggle-tools"
+            className="btn btn-ghost hidden lg:inline-flex"
+          >
+            {toolsOpen ? "Hide tools" : "Show tools"}
+          </button>
+          <button type="button" onClick={onClose} data-assistant-id="page-done" className="btn btn-primary hidden whitespace-nowrap lg:inline-flex">
+            Done editing
+          </button>
           <button
             ref={closeRef}
             type="button"
@@ -132,16 +151,18 @@ export function PageEditor({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:overflow-hidden">
-          <div className="p-4 [--ph:45vh] lg:overflow-y-auto lg:[--ph:66vh]">
-            {/* shrink-0: this is a flex item with overflow-hidden, which lets it
-                collapse to 0px (hiding the preview entirely) whenever the editor
-                is taller than the screen. It should scroll instead. */}
-            <div className="relative mb-2 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950">
-              {/* Zoomed in, the page scrolls inside this window instead of growing the
-                  editor. At normal size it is the same fitted preview as always. */}
-              <ZoomViewport api={zoom} className="max-h-[var(--ph)] overflow-auto">
-                <ZoomFrame zoom={zoom.zoom} fit={`min(100%, calc(var(--ph) * ${page.processedWidth / page.processedHeight}))`}>
+        <div className="min-h-0 flex-1 overflow-y-auto lg:flex lg:overflow-hidden">
+          <div className="p-2 sm:p-3 lg:flex lg:min-h-0 lg:min-w-0 lg:flex-1 lg:flex-col">
+            {/* The stage: on a phone a tall fixed share of the screen, on desktop all the height left. The
+                page is measured into it, so it is never smaller than the room allows. shrink-0 stops a
+                flex item with overflow-hidden collapsing to 0px in a short window. */}
+            <div
+              ref={stageRef}
+              data-page-stage
+              className="relative h-[calc(100dvh-15.5rem)] min-h-[18rem] shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-950 lg:h-auto lg:min-h-0 lg:flex-1"
+            >
+              <ZoomViewport api={zoom} className="absolute inset-0 overflow-auto p-1.5">
+                <ZoomFrame zoom={zoom.zoom} fit={stageBox ? `${stageBox.w}px` : `min(100%, calc(60dvh * ${page.processedWidth / page.processedHeight}))`}>
                   {/* The wrapper is exactly as big as the image, so marks drawn over it
                       (see AnnotationOverlay) line up with the page at any zoom. */}
                   <div className="relative">
@@ -160,13 +181,22 @@ export function PageEditor({
                 </div>
               )}
             </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-              <p className="muted text-xs">Zoom in to check details: pinch, or use + and −.</p>
-              <ZoomControls api={zoom} />
+            <div className="mt-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
+              <button type="button" onClick={onAnnotate} disabled={processing} data-assistant-id="page-annotate" className="btn btn-primary">
+                <Icon name="signature" size={18} />
+                {page.annotations.length > 0
+                  ? `Edit text, signature & marks (${page.annotations.length})`
+                  : "Add text, signature & marks"}
+              </button>
+              <ZoomControls api={zoom} fit />
             </div>
           </div>
 
-          <div className="space-y-5 border-t border-zinc-200 p-4 dark:border-zinc-800 lg:overflow-y-auto lg:border-l lg:border-t-0">
+          <div
+            className={`space-y-5 border-t border-zinc-200 p-4 dark:border-zinc-800 lg:w-[340px] lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-t-0 ${
+              toolsOpen ? "" : "lg:hidden"
+            }`}
+          >
             <div>
               <p className="panel-title mb-2">Crop</p>
               <div className="flex flex-wrap gap-2">
@@ -248,13 +278,12 @@ export function PageEditor({
 
             <FlattenNotice page={page} before />
 
-            <div>
-              <p className="panel-title mb-2">Annotate</p>
-              <button type="button" onClick={onAnnotate} disabled={processing} data-assistant-id="page-annotate" className="btn btn-secondary">
-                <Icon name="signature" size={18} />
-                {page.annotations.length > 0
-                  ? `Edit text, signature & marks (${page.annotations.length})`
-                  : "Add text, signature & marks"}
+            <div className="hidden flex-wrap gap-2 lg:flex">
+              <button type="button" onClick={onResetToOriginal} disabled={processing || !isModified} className="btn btn-ghost">
+                Reset to original
+              </button>
+              <button type="button" onClick={onRemove} className="btn btn-ghost text-red-700 dark:text-red-400">
+                Remove page
               </button>
             </div>
 
@@ -289,7 +318,7 @@ export function PageEditor({
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-zinc-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-zinc-800 lg:hidden">
           <button
             type="button"
             onClick={onResetToOriginal}
@@ -302,7 +331,7 @@ export function PageEditor({
             Remove page
           </button>
           <button type="button" onClick={onClose} className="btn btn-primary min-w-28 flex-1 sm:ml-auto sm:flex-none">
-            Done
+            Done editing
           </button>
         </div>
       </div>

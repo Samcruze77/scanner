@@ -71,7 +71,7 @@ async function editPage(page, index, fn) {
   await fn(editor);
   await page.waitForTimeout(500);
   await settle(page);
-  await editor.getByRole("button", { name: "Done", exact: true }).click();
+  await editor.getByRole("button", { name: "Done editing", exact: true }).click();
   await editor.waitFor({ state: "detached" });
 }
 // Crop with the keyboard: Shift+arrows move a corner by 5% of the page. Corners start 6% in from each edge.

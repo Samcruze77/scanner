@@ -30,7 +30,10 @@ export interface ZoomApi {
   zoomBy: (factor: number, anchor?: { x: number; y: number }, pan?: { dx: number; dy: number }) => void;
   zoomIn: () => void;
   zoomOut: () => void;
+  // Back to the page fitted whole on screen (zoom 1), scrolled to the start.
   reset: () => void;
+  // Widens the page to the full width of the window (it can then be scrolled down).
+  fitWidth: () => void;
 }
 
 interface Pending {
@@ -134,9 +137,27 @@ export function useZoom(): ZoomApi {
     setZoomState(ZOOM_NORMAL);
   }, []);
 
+  const fitWidth = useCallback(() => {
+    const el = viewportRef.current;
+    const frame = el?.querySelector<HTMLElement>("[data-zoom-frame]");
+    if (!el || !frame) return;
+    const style = getComputedStyle(el);
+    const room = el.clientWidth - parseFloat(style.paddingLeft || "0") - parseFloat(style.paddingRight || "0");
+    const base = frame.getBoundingClientRect().width / zoomRef.current;
+    if (!(room > 0) || !(base > 0)) return;
+    const target = Math.min(ZOOM_MAX, room / base);
+    if (Math.abs(target - zoomRef.current) < 0.005) {
+      el.scrollLeft = 0;
+      return;
+    }
+    pending.current = { ratio: 1, ax: 0, ay: 0, dx: 0, dy: 0, reset: true };
+    zoomRef.current = clampZoom(target);
+    setZoomState(zoomRef.current);
+  }, []);
+
   return useMemo(
-    () => ({ zoom, attachViewport, getViewport, getZoom, zoomBy, zoomIn: () => step(1), zoomOut: () => step(-1), reset }),
-    [zoom, attachViewport, getViewport, getZoom, zoomBy, step, reset],
+    () => ({ zoom, attachViewport, getViewport, getZoom, zoomBy, zoomIn: () => step(1), zoomOut: () => step(-1), reset, fitWidth }),
+    [zoom, attachViewport, getViewport, getZoom, zoomBy, step, reset, fitWidth],
   );
 }
 
@@ -144,7 +165,7 @@ export function useZoom(): ZoomApi {
 // before zoom existed (so zoom 1 is pixel-for-pixel the old layout).
 export function ZoomFrame({ zoom, fit, minWidth, children }: { zoom: number; fit: string; minWidth?: string; children: ReactNode }) {
   return (
-    <div className="mx-auto" style={{ width: `calc(${fit} * ${zoom})`, minWidth }}>
+    <div data-zoom-frame className="mx-auto" style={{ width: `calc(${fit} * ${zoom})`, minWidth }}>
       {children}
     </div>
   );
@@ -159,7 +180,10 @@ function isTopmostDialog(el: HTMLElement): boolean {
 
 // The scrollable window onto the page. Adds pinch (with two-finger panning),
 // Ctrl+wheel and the +/-/0 keys. Put it around a ZoomFrame.
-export function ZoomViewport({ api, className, children }: { api: ZoomApi; className?: string; children: ReactNode }) {
+export function ZoomViewport({ api, className, children, pan = false }: { api: ZoomApi; className?: string; children: ReactNode; pan?: boolean }) {
+  // Hand tool for a mouse or pen: dragging the page scrolls the window. (A finger scrolls natively
+  // because the page surface leaves touch scrolling on in this mode.)
+  const hand = useRef<{ id: number; x: number; y: number; left: number; top: number } | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number; target: EventTarget | null }>());
   const pinch = useRef<{ startDistance: number; startZoom: number; mid: { x: number; y: number } } | null>(null);
   // Once a pinch begins, the fingers belong to it until every one is lifted.
@@ -237,8 +261,21 @@ export function ZoomViewport({ api, className, children }: { api: ZoomApi; class
       className={className}
       // One finger scrolls as usual; the browser must not take two-finger pinch
       // for itself, or this handler never sees it.
-      style={{ touchAction: "pan-x pan-y" }}
+      style={{ touchAction: "pan-x pan-y", cursor: pan ? "grab" : undefined }}
+      data-pan-mode={pan ? "true" : undefined}
       onPointerDownCapture={(e) => {
+        if (pan && e.pointerType !== "touch" && e.button === 0) {
+          const el = elementRef.current;
+          if (el) {
+            hand.current = { id: e.pointerId, x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop };
+            try {
+              el.setPointerCapture(e.pointerId);
+            } catch {
+              // The drag still works while the pointer stays over the window.
+            }
+          }
+          return;
+        }
         if (e.pointerType !== "touch") return;
         pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, target: e.target });
         if (pointers.current.size === 2) {
@@ -257,6 +294,12 @@ export function ZoomViewport({ api, className, children }: { api: ZoomApi; class
         }
       }}
       onPointerMoveCapture={(e) => {
+        const h = hand.current;
+        if (h && h.id === e.pointerId && elementRef.current) {
+          elementRef.current.scrollLeft = h.left - (e.clientX - h.x);
+          elementRef.current.scrollTop = h.top - (e.clientY - h.y);
+          return;
+        }
         if (e.pointerType !== "touch") return;
         const p = pointers.current.get(e.pointerId);
         if (!p) return;
@@ -274,8 +317,14 @@ export function ZoomViewport({ api, className, children }: { api: ZoomApi; class
           state.mid = mid;
         });
       }}
-      onPointerUpCapture={(e) => endPointer(e)}
-      onPointerCancelCapture={(e) => endPointer(e)}
+      onPointerUpCapture={(e) => {
+        if (hand.current?.id === e.pointerId) hand.current = null;
+        endPointer(e);
+      }}
+      onPointerCancelCapture={(e) => {
+        if (hand.current?.id === e.pointerId) hand.current = null;
+        endPointer(e);
+      }}
     >
       {children}
     </div>
@@ -284,12 +333,12 @@ export function ZoomViewport({ api, className, children }: { api: ZoomApi; class
 
 // - / percentage / + . The middle button says Reset while zoomed and takes the
 // page back to normal size (and to the top-left).
-export function ZoomControls({ api, className = "" }: { api: ZoomApi; className?: string }) {
+export function ZoomControls({ api, className = "", fit = false }: { api: ZoomApi; className?: string; fit?: boolean }) {
   const percent = Math.round(api.zoom * 100);
   const zoomed = api.zoom !== ZOOM_NORMAL;
   const button = "flex h-11 items-center justify-center rounded-lg border border-zinc-300 bg-surface text-sm font-medium disabled:opacity-40 dark:border-zinc-700";
   return (
-    <div role="group" aria-label="Zoom" className={`flex items-center gap-1 ${className}`}>
+    <div role="group" aria-label="Zoom" className={`flex flex-wrap items-center gap-1 ${className}`}>
       <button type="button" aria-label="Zoom out" title="Zoom out (−)" disabled={api.zoom <= ZOOM_MIN} onClick={api.zoomOut} className={`${button} w-11 text-lg`}>
         −
       </button>
@@ -306,6 +355,16 @@ export function ZoomControls({ api, className = "" }: { api: ZoomApi; className?
       <button type="button" aria-label="Zoom in" title="Zoom in (+)" disabled={api.zoom >= ZOOM_MAX} onClick={api.zoomIn} className={`${button} w-11 text-lg`}>
         +
       </button>
+      {fit && (
+        <>
+          <button type="button" data-assistant-id="zoom-fit-page" title="Show the whole page" onClick={api.reset} className={`${button} px-2.5`}>
+            Fit page
+          </button>
+          <button type="button" data-assistant-id="zoom-fit-width" title="Make the page as wide as the screen" onClick={api.fitWidth} className={`${button} px-2.5`}>
+            Fit width
+          </button>
+        </>
+      )}
     </div>
   );
 }

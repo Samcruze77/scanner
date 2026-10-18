@@ -357,8 +357,8 @@ try {
       return hit?.closest("[role=dialog]")?.getAttribute("aria-label") ?? "page";
     });
     assert.notEqual(top, "page", "a full-screen editor is on top of the launcher");
-    await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done", exact: true }).click();
-    await page.getByRole("button", { name: "Done", exact: true }).click();
+    await page.getByRole("dialog", { name: /Annotate page/ }).getByRole("button", { name: "Done editing", exact: true }).click();
+    await page.getByRole("button", { name: "Done editing", exact: true }).click();
     await page.locator('[data-assistant-id="scan-create-pdf"]').click();
     const download = page.waitForEvent("download", { timeout: 60000 });
     await page.locator('[data-assistant-id="scan-download-pdf"]').click();

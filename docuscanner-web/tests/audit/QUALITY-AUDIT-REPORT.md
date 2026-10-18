@@ -459,3 +459,15 @@ Tests: `npm run test:image-edit` (37 checks, Node canvas) and `npm run test:imag
 
 ### Regression runs on the same build
 Pass: test:images, test:images:e2e (27), test:images:quality (11), test:quality-fixes, test:pdf-quality, test:pdf-edit, test:print-quality, test:assistant (20 + API), test:assistant:browser (31), test:install, test:install:browser (56), test:compress. Known pre-existing: consent 65/1, theme 21/1, protect 1 (CRLF regex). `tsc` currently reports 5 errors, all in `components/scanner/AnnotationEditor.tsx`, which another session is editing in the same working tree (not part of this change; the tool's own files type-check and lint clean).
+
+## 17. Editor comfort, arrow placement, in-editor picture crop, tips and workflow guidance (2026-10-18)
+
+**Cause of the small page:** the page editor capped the page at 45vh/66vh inside `max-w-lg`/`max-w-5xl`; the annotator used a guessed `100dvh - 260px`. Both now measure the room they have (`useFitBox`). Measured page sizes (Edit page): tablet 650x919 (old limit 531 tall), desktop 516x730 (594), wide 658x931 (726), phone 362x512 (380).
+
+**Added:** Move page tool, one-finger pan of empty page, Fit page / Fit width, hide-tools toggles, on-screen and keyboard arrows (3 pt fine / 15 pt coarse, zoom independent, one undo per run), picture Edit image dialog (free/shape crop from the original's pixels, print size, Reset crop / Reset size / Restore original), one-time tips question with footer switch, workflow hints and a four-step stepper, "Download started" only after the browser accepted the save.
+
+**Picture quality (real downloaded PDFs):** unchanged or restored JPEG is the original file's bytes (4000x3000, byte-identical); a square crop of it is 3000x3000 real pixels (not the 1600 px preview), fine-detail crop PSNR 38.4 dB (one q0.95 JPEG save); 35x45 mm print size = 2333x3000 px at exactly 35x45 mm; PNG logo keeps alpha; 300x200 stays 300x200 (about 121 dpi, warned). Untouched JPEG/PNG up to 12000 px / 64 MP are no longer scaled to 4000 px (EXIF-rotated and WebP pictures still are). Cropped-away pixels are deliberately not left in the PDF.
+
+**Tests:** `test:editor` (4 layouts), `test:editor:images`, `test:guidance`, `test:guidance:browser` pass. Existing suites pass on this build: assistant, images (unit, e2e, quality), image-edit, pdf-edit, pdf-quality, quality-fixes, zoom 18/18, scanner, install (+browser), theme 22/22, excel/word/ocr, compress, pdf2excel. Same failures as a clean build of 569252a: consent 65/1 (+ browser file missing a module), auth 28/8, docx 2 variants, protect, print/verify.mjs (22/11 on the clean build, 29/4 here after the harness answers the cookie banner). The zoom, theme and print harnesses were updated (cookie banner is the last `role=dialog`; "Done" is now "Done editing"; Escape steps back one thing at a time).
+
+**Not verified:** real phones/tablets (Safari/iOS touch, pinch, safe areas), screen readers, Firefox/Safari, huge pictures on iOS (canvas guard exists, untested), real ads under the onboarding card.

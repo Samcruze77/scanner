@@ -177,7 +177,7 @@ console.log("C. Suggestions stay optional: accept, adjust, keep full, and restor
     await editor.getByRole("button", { name: "Reset to original" }).click();
     await page.waitForTimeout(800);
     await settle(page);
-    await editor.getByRole("button", { name: "Done", exact: true }).click();
+    await editor.getByRole("button", { name: "Done editing", exact: true }).click();
     const restored = await exportPdf(page, "C-restored.pdf");
     assert.deepEqual(imageOf(await pdfReport(restored)).px, [f.W, f.H]);
     ok("'Reset to original' brings back the full capture after a crop");
@@ -193,7 +193,7 @@ console.log("C. Suggestions stay optional: accept, adjust, keep full, and restor
     await dlg.getByRole("button", { name: "Apply crop" }).click();
     await dlg.waitFor({ state: "detached" });
     await settle(page);
-    await editor.getByRole("button", { name: "Done", exact: true }).click();
+    await editor.getByRole("button", { name: "Done editing", exact: true }).click();
     const manual = await exportPdf(page, "C-manual.pdf");
     const rm = await pdfReport(manual);
     assert.ok(imageOf(rm).px[0] < f.W && imageOf(rm).px[0] > 0, "manual crop in the export");
@@ -250,7 +250,7 @@ console.log("D. Orientation, resolution and repeated edits (SIMULATED camera)");
     }
     await click("Rotate right");
     await click("Rotate left");
-    await editor.getByRole("button", { name: "Done", exact: true }).click();
+    await editor.getByRole("button", { name: "Done editing", exact: true }).click();
     const after = await exportPdf(page, "D-after.pdf");
     const a = await renderPage(base, 1, 1.2), b = await renderPage(after, 1, 1.2);
     assert.deepEqual([a.width, a.height], [b.width, b.height]);

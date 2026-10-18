@@ -17,7 +17,7 @@ for (const fixture of ["photo-hi.jpg", "photo-std.jpg", "photo-low.jpg", "scan.j
   if (await reset.isEnabled()) await reset.click();
   await page.waitForTimeout(1500);
   await page.waitForFunction(() => !document.querySelector("[role=dialog]")?.innerText.includes("Processing"), null, { timeout: 30000 });
-  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByRole("button", { name: "Done editing", exact: true }).click();
   await page.locator('[data-assistant-id="scan-create-pdf"]').click();
   const dl = await saveDownload(page, () => page.locator('[data-assistant-id="scan-download-pdf"]').click({ timeout: 120000 }), `gl-${fixture}.pdf`);
   const s = (await embeddedStreams(dl.file)).sort((a, b) => b.width * b.height - a.width * a.height)[0];

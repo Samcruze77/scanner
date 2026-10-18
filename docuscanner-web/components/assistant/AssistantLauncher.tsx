@@ -27,6 +27,8 @@ const AssistantPanel = dynamic(() => import("./AssistantPanel").then((m) => m.As
 export const OPEN_ASSISTANT_EVENT = "ds-open-assistant";
 
 const HIDDEN_ON =["/admin", "/reset-password"];
+// What the closed launcher keeps out of the way of.
+const AVOID = 'aside[data-ad-placement], [data-assistant-id^="scan-"], [data-assistant-id="file-dropzone"]';
 
 export function AssistantLauncher() {
   const pathname = usePathname() || "/";
@@ -35,8 +37,9 @@ export function AssistantLauncher() {
   // closing it and moving between pages. It is only ever kept in memory.
   const [everOpened, setEverOpened] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  // How far the closed launcher steps up to stay clear of an advertisement that has scrolled
-  // into its corner. Ads are never covered; the launcher moves instead.
+  // How far the closed launcher steps up to stay clear of an advertisement, or of a main document
+  // action (Create PDF, Download PDF, Edit page ...), that has scrolled into its corner. Those are never
+  // covered; the launcher moves instead.
   const [lift, setLift] = useState(0);
   const liftRef = useRef(0);
 
@@ -61,7 +64,7 @@ export function AssistantLauncher() {
       const baseTop = r.top + liftRef.current;
       const baseBottom = r.bottom + liftRef.current;
       let next = 0;
-      for (const ad of document.querySelectorAll("aside[data-ad-placement]")) {
+      for (const ad of document.querySelectorAll(AVOID)) {
         const a = ad.getBoundingClientRect();
         if (a.width === 0 || a.height === 0) continue;
         const overlapsX = a.left < r.right && a.right > r.left;
@@ -81,7 +84,11 @@ export function AssistantLauncher() {
     const late = window.setTimeout(schedule, 1500); // ads fill in after the page loads
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
+    // Content that appears or disappears (a tip, a notice, a finished PDF) moves the controls too.
+    const observer = new ResizeObserver(schedule);
+    observer.observe(document.body);
     return () => {
+      observer.disconnect();
       window.clearTimeout(late);
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener("scroll", schedule);

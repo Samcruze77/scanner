@@ -58,6 +58,7 @@ const MIN_INK_STEP = 0.0015;
 type Drag =
   | { kind: "move"; id: string; startX: number; startY: number; original: Annotation; moved: boolean }
   | { kind: "resize"; id: string; startX: number; startY: number; original: Annotation }
+  | { kind: "pan"; x: number; y: number; moved: boolean }
   | { kind: "ink"; id: string }
   | { kind: "highlight"; id: string; originX: number; originY: number };
 
@@ -75,6 +76,8 @@ export function AnnotationCanvas({
   onCommit,
   onDiscardPreview,
   onPlaced,
+  onPan,
+  onDelete,
 }: {
   page: ScannerPage;
   annotations: Annotation[];
@@ -90,6 +93,10 @@ export function AnnotationCanvas({
   onDiscardPreview: () => void;
   // A one-shot mark (text, date, check, cross) was just placed.
   onPlaced: (kind: "text" | "date" | "check" | "cross") => void;
+  // A finger or pen dragged the empty page (no mark under it): scroll the zoomed page by this much.
+  onPan?: (dx: number, dy: number) => void;
+  // Shown beside the selected mark on a phone, where the options row scrolls sideways and Delete could be out of reach.
+  onDelete?: () => void;
 }) {
   const pageW = page.processedWidth;
   const pageH = page.processedHeight;
@@ -162,11 +169,21 @@ export function AnnotationCanvas({
       return;
     }
 
+    // Move page mode: the browser (finger) or the zoom window (mouse) scrolls; nothing here reacts.
+    if (tool === "pan") return;
+
     tryCapture(e.currentTarget, e.pointerId);
 
     switch (tool) {
       case "select": {
         const hit = hitAt(p.x, p.y);
+        // Dragging empty page with a finger moves the page instead of doing nothing, so no
+        // two-finger gesture has to be discovered. A mark under the finger still wins, and a
+        // plain tap on empty page still lets go of the selection (when the finger lifts).
+        if (!hit && onPan && e.pointerType !== "mouse") {
+          dragRef.current = { kind: "pan", x: e.clientX, y: e.clientY, moved: false };
+          return;
+        }
         onSelect(hit?.id ?? null);
         if (hit) dragRef.current = { kind: "move", id: hit.id, startX: p.x, startY: p.y, original: hit, moved: false };
         return;
@@ -237,6 +254,14 @@ export function AnnotationCanvas({
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
     if (!drag) return;
+    if (drag.kind === "pan") {
+      if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+      drag.moved = true;
+      onPan?.(e.clientX - drag.x, e.clientY - drag.y);
+      drag.x = e.clientX;
+      drag.y = e.clientY;
+      return;
+    }
     const p = pointFrom(e);
     if (!p) return;
 
@@ -272,6 +297,10 @@ export function AnnotationCanvas({
     const drag = dragRef.current;
     dragRef.current = null;
     if (!drag) return;
+    if (drag.kind === "pan") {
+      if (!drag.moved && !cancelled) onSelect(null);
+      return;
+    }
     if (cancelled) {
       onDiscardPreview();
       return;
@@ -329,7 +358,7 @@ export function AnnotationCanvas({
 
   const selected = annotations.find((a) => a.id === selectedId) ?? null;
   const selectedBounds = selected && selected.id !== editingId ? annotationBounds(selected, pageW, pageH) : null;
-  const cursor = tool === "select" ? "default" : tool === "text" ? "text" : "crosshair";
+  const cursor = tool === "select" ? "default" : tool === "pan" ? "grab" : tool === "text" ? "text" : "crosshair";
 
   return (
     <div
@@ -351,7 +380,7 @@ export function AnnotationCanvas({
         role="application"
         aria-label="Page annotation area"
         className="absolute inset-0"
-        style={{ touchAction: "none", cursor }}
+        style={{ touchAction: tool === "pan" ? "pan-x pan-y" : "none", cursor }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={() => endDrag(false)}
@@ -371,6 +400,23 @@ export function AnnotationCanvas({
                 height: `${selectedBounds.h * 100}%`,
               }}
             />
+            {onDelete && (
+              <button
+                type="button"
+                data-assistant-id="annotation-delete-near"
+                aria-label="Delete"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={onDelete}
+                className="absolute flex h-11 items-center rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-700 shadow sm:hidden"
+                style={{
+                  left: `min(${selectedBounds.x * 100}%, calc(100% - 5.5rem))`,
+                  top: selectedBounds.y < 0.09 ? `calc(${(selectedBounds.y + selectedBounds.h) * 100}% + 26px)` : `calc(${selectedBounds.y * 100}% - 3rem)`,
+                  touchAction: "none",
+                }}
+              >
+                Delete
+              </button>
+            )}
             {isResizable(selected) && (
               <button
                 type="button"
