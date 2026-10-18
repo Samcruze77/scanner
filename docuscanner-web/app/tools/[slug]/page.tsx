@@ -40,7 +40,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
   const landing = getLanding(path);
 
   return (
-    <PageShell width={tool.kind === "editor" ? "workspace" : "narrow"} ads="workflow">
+    <PageShell width={tool.kind === "editor" || tool.kind === "image-edit" ? "workspace" : "narrow"} ads="workflow">
       {landing && (
         <JsonLd
           data={graph(

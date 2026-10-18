@@ -13,7 +13,7 @@
 import type { AnnotationTool } from "@/utils/scanner/annotations";
 import { FEATURES, type FeatureId } from "../features/plans.ts";
 
-export type ToolGroupId = "edit-sign" | "text" | "compress" | "protect";
+export type ToolGroupId = "edit-sign" | "image" | "text" | "compress" | "protect";
 export type CompressKind = "pdf" | "image" | "word" | "excel";
 
 interface ToolBase {
@@ -47,10 +47,17 @@ export interface ProtectTool extends ToolBase {
   focus: "pdf" | "word" | "excel" | "powerpoint";
 }
 
-export type ToolDef = EditorTool | CompressTool | ProtectTool;
+// Edits one picture (crop, rotate, resize, adjust) and downloads a picture file. Independent of the PDF
+// scanner and editor: nothing here makes a PDF.
+export interface ImageEditTool extends ToolBase {
+  kind: "image-edit";
+}
+
+export type ToolDef = EditorTool | CompressTool | ProtectTool | ImageEditTool;
 
 export const TOOL_GROUPS: { id: ToolGroupId; title: string; body: string }[] = [
   { id: "edit-sign", title: "Edit & Sign", body: "Add text, marks and your signature to a document." },
+  { id: "image", title: "Edit image", body: "Crop, rotate, resize and adjust a picture, then download it as a picture." },
   { id: "text", title: "Extract text", body: "Read the words from scans and photos with OCR." },
   { id: "compress", title: "Compress", body: "Make files smaller so they are easier to send." },
   { id: "protect", title: "Protect", body: "Lock a PDF with a password before you share it." },
@@ -102,6 +109,18 @@ const protect = (slug: string, title: string, body: string, focus: "pdf" | "word
   requiresAuth: false,
 });
 
+const imageEdit = (slug: string, title: string, body: string, feature: FeatureId = "edit.image"): ImageEditTool => ({
+  id: slug.replace(/-/g, "_"),
+  slug,
+  title,
+  body,
+  group: "image",
+  kind: "image-edit",
+  feature,
+  // Editing happens on the visitor's device, so it never needs a login.
+  requiresAuth: false,
+});
+
 export const TOOLS: ToolDef[] = [
   editor("pdf-editor", "PDF Editor", "Crop, enhance, reorder pages, add text and sign, then save one clean PDF.", null, "Upload a PDF or image, tap a page to open the editor, then choose what to add."),
   editor("add-text", "Add Text", "Type text anywhere on a page and choose its size, colour and style.", "text", "Upload a document, tap a page, then tap where you want to type."),
@@ -128,6 +147,7 @@ export const TOOLS: ToolDef[] = [
     ),
     group: "text" as const,
   },
+  imageEdit("edit-image", "Edit Image", "Crop, rotate, flip, resize and adjust a photo, then download it as JPEG, PNG or WebP. Free, and your picture never leaves your device."),
   compress("compress-pdf", "Compress PDF", "Shrink a PDF with a quality-to-size slider, keeping text readable.", "pdf", "compress.pdf"),
   compress("compress-image", "Compress Image", "Reduce a photo's file size with a quality-to-size slider.", "image", "compress.image"),
   compress("compress-word", "Compress Word", "Shrink the pictures inside a Word document without touching its layout.", "word", "compress.word"),

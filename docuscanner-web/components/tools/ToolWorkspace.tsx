@@ -24,6 +24,11 @@ const CompressTool = dynamic(() => import("@/components/tools/CompressTool").the
   loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
 });
 
+const ImageEditTool = dynamic(() => import("@/components/tools/ImageEditTool").then((m) => m.ImageEditTool), {
+  ssr: false,
+  loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
+});
+
 const ProtectTool = dynamic(() => import("@/components/tools/ProtectTool").then((m) => m.ProtectTool), {
   ssr: false,
   loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
@@ -64,6 +69,8 @@ export function ToolWorkspace({ tool, heading }: { tool: ToolDef; heading?: stri
               <Hint id={`tool-${tool.id}`}>{tool.guide}</Hint>
               <ScannerWorkspace intent={{ tool: tool.editor.tool, signatureTab: tool.editor.signatureTab, guide: tool.guide }} />
             </>
+          ) : tool.kind === "image-edit" ? (
+            <ImageEditTool />
           ) : tool.kind === "protect" ? (
             <ProtectTool focus={tool.focus} />
           ) : (

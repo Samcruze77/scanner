@@ -67,6 +67,7 @@ const LINKS = {
   compressPdf: { href: "/tools/compress-pdf", label: "Compress a PDF", note: "Make a PDF smaller to email or upload." },
   compressWord: { href: "/tools/compress-word", label: "Compress a Word document", note: "Shrink the pictures inside a .docx." },
   compressExcel: { href: "/tools/compress-excel", label: "Compress an Excel file", note: "Shrink the pictures inside an .xlsx." },
+  editImage: { href: "/tools/edit-image", label: "Edit an image", note: "Crop, rotate, resize and adjust a photo." },
   compressImage: { href: "/tools/compress-image", label: "Compress an image", note: "Reduce a photo's file size." },
   imageToPdf: { href: "/convert/image-to-pdf", label: "Convert images to PDF", note: "Turn photos and pictures into one PDF." },
   wordToPdf: { href: "/convert/word-to-pdf", label: "Convert Word to PDF", note: "Turn a .docx file into a PDF." },
@@ -473,6 +474,46 @@ export const LANDING_PAGES: LandingPage[] = [
         }),
       ]
     : []),
+  {
+    path: "/tools/edit-image",
+    title: "Edit Image Online: Crop, Rotate, Resize and Adjust Photos",
+    description:
+      "Crop, rotate, flip, resize and adjust the brightness and contrast of a photo, then download it as JPEG, PNG or WebP. Free, in your browser. Your picture is never uploaded.",
+    h1: "Edit images online",
+    intro:
+      "Open a photo or logo, crop it to a shape, turn or flip it, change its size in pixels and adjust brightness and contrast. Download the result as a picture file at the full size you started with, unless you choose to resize it.",
+    crumbs: [TOOLS_CRUMB, { name: "Edit image", path: "/tools/edit-image" }],
+    appName: "FreePDFScanner image editor",
+    features: [
+      "Crop with free-form handles or a fixed shape such as 1:1, 4:3, 16:9 or passport 35:45",
+      "Rotate and flip",
+      "Resize in pixels, with the picture's shape locked if you like",
+      "Brightness and contrast",
+      "Undo, redo, reset and restore the original",
+      "Download as JPEG, PNG or WebP",
+    ],
+    how: [
+      "Choose or drop a picture.",
+      "Crop, rotate, flip, resize or adjust it. You can undo any step, and the preview is only a smaller copy.",
+      "Pick JPEG, PNG or WebP, then choose Download image. The file is made from your original pixels in one pass.",
+    ],
+    goodFor: "Cropping a photo to a set shape, straightening a sideways picture, making a logo or signature smaller, or preparing a picture for a form or a website.",
+    formats: "Opens JPEG, PNG, WebP, GIF, BMP and AVIF files up to 100 MB and 64 megapixels. Downloads as JPEG, PNG or WebP.",
+    limits: [
+      "JPEG cannot keep transparency, so transparent areas are filled with a colour you choose (white by default).",
+      "JPEG and lossy WebP discard a little detail when saved. PNG is lossless.",
+      "Making a picture larger cannot add detail that was never there.",
+      "Details such as location and camera in a photo are not copied into the edited file.",
+      "An animated GIF is edited as its first frame.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "Will my picture lose quality when I edit it?", a: "Your original is never changed. Each edit is a note about what to do, and the download is drawn from the original pixels once, so repeated edits do not stack up loss. Saving as JPEG or lossy WebP still discards a little detail; PNG does not." },
+      { q: "Does it make a PDF?", a: "No. This tool downloads a picture file. To put pictures in a PDF, use the image to PDF converter." },
+      { q: "What size will the download be?", a: "The same size as your picture, unless you crop or resize it. A 4000 by 3000 photo downloads at 4000 by 3000." },
+    ],
+    related: [LINKS.compressImage, LINKS.imageToPdf, LINKS.editor],
+  },
   {
     path: "/tools/compress-image",
     title: "Compress Image Online: Reduce JPG & PNG Size",

@@ -30,6 +30,8 @@
     "test:images": "node --no-warnings tests/images/geometry.mjs && node --no-warnings tests/images/quality-unit.mjs",
     "test:images:e2e": "node tests/images/e2e.mjs",
     "test:images:quality": "node tests/images/quality.mjs",
+    "test:image-edit": "node --no-warnings --import ./tests/scanner/register.mjs tests/images/edit-unit.mjs",
+    "test:image-edit:browser": "node --no-warnings tests/images/edit-browser.mjs",
     "test:assistant": "node --no-warnings tests/assistant/knowledge.mjs && node --no-warnings tests/assistant/api.mjs",
     "test:assistant:browser": "node tests/assistant/browser.mjs && node tests/assistant/launcher.mjs",
     "test:print": "node tests/print/verify.mjs",

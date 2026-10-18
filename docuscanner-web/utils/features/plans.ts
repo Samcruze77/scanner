@@ -18,6 +18,7 @@ export type FeatureId =
   | "convert.pdf_to_word"
   | "edit.annotate"
   | "edit.sign"
+  | "edit.image"
   | "compress.pdf"
   | "compress.image"
   | "compress.word"
@@ -57,6 +58,7 @@ export const FEATURES: Record<FeatureId, FeatureDefinition> = {
   // see `requiresAuth` in utils/tools/registry.ts.
   "edit.annotate": { minPlan: "free", implemented: true },
   "edit.sign": { minPlan: "free", implemented: true },
+  "edit.image": { minPlan: "free", implemented: true },
   "compress.pdf": { minPlan: "free", implemented: true },
   "compress.image": { minPlan: "free", implemented: true },
   "compress.word": { minPlan: "free", implemented: true },

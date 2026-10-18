@@ -419,3 +419,43 @@ New regressions found in this pass: none.
 
 ### Git state at sign-off
 Branch `web-only`, HEAD `e9b42a9`, 15 commits ahead of origin (none pushed). The 15 commits contain no backend, `.env`, handover, `.DS_Store` or `.claude` files, and a scan of their added lines for key, token and secret patterns found nothing. The pre-existing backend working-tree modifications (7 files) and the untracked handover, `.DS_Store`, `.claude` and other files are untouched.
+
+## 16. Edit Image tool (2026-10-18)
+
+New standalone tool at `/tools/edit-image`: open one picture, edit it, download a **picture file** (JPEG, PNG or WebP). It never makes a PDF and shares no code path with the PDF scanner/editor except the existing brightness/contrast curve (`applyAdjustments`) and the `downloadBlob` helper (so the install reminder's task-complete signal fires once per download).
+
+### How quality is protected
+- The original is decoded once (EXIF orientation applied) and never changed. Edits are an operation list (crop -> rotate -> flip -> resize -> brightness/contrast) drawn from the original pixels in one pass at export; the preview is drawn from a 2400 px copy and is never what is downloaded.
+- With no size change, crop/rotate/flip are exact pixel copies (canvas smoothing is switched off: a Mitchell filter was found to blur even at identity in the Node canvas, so this is enforced rather than assumed).
+- Reductions beyond 2x are done in halving steps. Adjustments run in 256-row strips (no second full-size copy).
+- Output formats are probed in the browser by the real magic bytes. Chrome 155 returns a PNG for `image/avif`, `image/bmp`, `image/tiff`, so only JPEG, PNG and WebP are offered. WebP is called lossless only at 100% quality, and only because a probe round trip was exact.
+
+### Measurements (real downloaded files, Chrome 155 headless, production build)
+| Check | Result |
+|---|---|
+| 4000x3000 JPEG, no edits, same format | original bytes returned (SHA-256 identical), original filename |
+| 4000x3000 -> JPEG q95 / PNG / WebP q95 | all 4000x3000; PSNR vs source 48.5 dB / lossless (exact) / 44.6 dB; 2.59 / 16.4 / 2.35 MB |
+| PNG -> PNG re-encoded | pixel-identical (max difference 0) |
+| Transparent logo -> PNG | alpha identical, opaque pixels identical |
+| Transparent logo -> WebP | alpha difference 0; 43.0 dB on white |
+| Transparent logo -> JPEG | corner 255,255,255 (white, never black); chosen red fill honoured |
+| WebP at 100% | VP8L, pixel-exact |
+| Rotate L/R/180, flips, combinations, crop (also after rotation) | exact pixel match to an independent reference |
+| 1200x900 -> 600x450 / 300x225 | PSNR 54.2 / 53.7 dB vs box average |
+| Brightness/contrast | equals the editor's curve exactly (0 differing values) |
+| Slider back-and-forth vs single pass | identical pixels and identical bytes |
+| EXIF-6 phone photo (stored 400x300) | opens and exports upright 300x400, quadrant colours correct; kept bytes still carry EXIF |
+| 8000x6000 (48 MP) JPEG | opens 1.3 s; export JPEG 2.0 s (50.5 dB vs source+curve), PNG 1.7 s, WebP 5.6 s |
+| Limits | over 64 MP (8200x8200), a header claiming 30000x30000, empty, text, fake `.png`, damaged JPEG all refused with a plain message; current picture kept |
+
+Tests: `npm run test:image-edit` (37 checks, Node canvas) and `npm run test:image-edit:browser` (36 checks, real UI, 1280 px, 375 px with touch drag, three themes, contrast >= 4.5).
+
+### Limits and honest gaps
+- Maximum verified: 8000x6000. Enforced limits: 64 megapixels in and out, 100 MB file, 16384 px per side. Not tested on any phone: memory on mobile Safari/Android is unverified.
+- Chrome only. Safari, Firefox, iOS and Edge are not tested; `createImageBitmap` orientation handling and WebP/lossless encoders may differ there.
+- AVIF/BMP/TIFF are not offered as output (Chrome cannot encode them from a canvas). AVIF/GIF/BMP are accepted as input; an animated GIF uses its first frame.
+- Edited files carry no EXIF/GPS or colour profile and are saved in sRGB. Semi-transparent pixels go through a premultiplied canvas (measured difference 0 on the test logo, but not guaranteed for every picture).
+- The page makes the site's existing Supabase session request; no request carries the picture and no storage key is added.
+
+### Regression runs on the same build
+Pass: test:images, test:images:e2e (27), test:images:quality (11), test:quality-fixes, test:pdf-quality, test:pdf-edit, test:print-quality, test:assistant (20 + API), test:assistant:browser (31), test:install, test:install:browser (56), test:compress. Known pre-existing: consent 65/1, theme 21/1, protect 1 (CRLF regex). `tsc` currently reports 5 errors, all in `components/scanner/AnnotationEditor.tsx`, which another session is editing in the same working tree (not part of this change; the tool's own files type-check and lint clean).

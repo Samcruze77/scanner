@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { CookieSettingsButton } from "@/components/consent/CookieSettingsButton";
+import { TipsToggle } from "@/components/guidance/TipsToggle";
 import { Logo } from "@/components/layout/Logo";
 import { FEATURES } from "@/utils/features/plans";
 import { GUIDES } from "@/utils/seo/guides";
@@ -14,6 +15,7 @@ const TOOLS = [
   { href: "/tools/sign-pdf", label: "Sign PDF" },
   { href: "/tools/annotate", label: "Annotate PDF" },
   { href: "/tools/ocr", label: "OCR: extract text" },
+  { href: "/tools/edit-image", label: "Edit image" },
   { href: "/tools/compress-pdf", label: "Compress PDF" },
   { href: "/tools/compress-image", label: "Compress image" },
   { href: "/tools/protect-pdf", label: "Protect PDF" },
@@ -79,6 +81,8 @@ export function Footer() {
             </Link>
             {" \u00B7 "}
             <CookieSettingsButton />
+            {" · "}
+            <TipsToggle />
           </p>
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span className="muted">

@@ -28,6 +28,7 @@ export const TARGETABLE_PATHS: { path: string; label: string }[] = [
   { path: "/tools/add-signature", label: "Add Signature" },
   { path: "/tools/upload-signature", label: "Upload Signature" },
   { path: "/tools/ocr", label: "OCR: Extract Text" },
+  { path: "/tools/edit-image", label: "Edit Image" },
   { path: "/tools/compress-pdf", label: "Compress PDF" },
   { path: "/tools/compress-image", label: "Compress Image" },
   { path: "/tools/compress-word", label: "Compress Word" },

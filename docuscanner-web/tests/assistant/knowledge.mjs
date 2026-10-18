@@ -84,6 +84,40 @@ test("the tool list the assistant knows is the real registry", () => {
   for (const c of CONVERT_TOOLS) assert.ok(catalog.includes(c.href), c.href);
   assert.ok(allRoutes().length >= TOOLS.length + CONVERT_TOOLS.length);
 });
+test("the Edit Image tool the assistant describes is real and honest about its limits", () => {
+  assert.ok(TOOLS.some((t) => t.slug === "edit-image" && t.kind === "image-edit"));
+  const e = getEntry("edit-image");
+  assert.equal(e.route, "/tools/edit-image");
+  assert.equal(rankEntries("how do I crop a photo", "/")[0]?.entry.id, "edit-image");
+  assert.equal(rankEntries("resize an image in pixels", "/")[0]?.entry.id, "edit-image");
+  assert.equal(rankEntries("how do I put my logo on a pdf", "/")[0]?.entry.id, "insert-image");
+  const text = [...e.steps.map((s) => s.text), ...e.notes].join(" ");
+  assert.match(text, /not a PDF/);
+  assert.match(text, /JPEG, PNG or WebP/);
+  assert.doesNotMatch(text, /AVIF|TIFF|BMP|AI |filter/i, "only describe what is implemented");
+});
+test("editing help (move page, zoom, arrows, picture crop and restore, finishing) matches real controls", () => {
+  const top1 = (q, p = "/scan") => rankEntries(q, p, 1)[0]?.entry.id;
+  assert.equal(top1("how do I zoom in on the page"), "move-zoom-editor");
+  assert.equal(top1("how do I pinch to zoom"), "move-zoom-editor");
+  assert.equal(top1("how do I move my signature a little"), "position-with-arrows");
+  assert.equal(top1("move text with arrow keys"), "position-with-arrows");
+  assert.equal(top1("how do I crop the picture I added"), "crop-restore-image");
+  assert.equal(top1("restore original image"), "crop-restore-image");
+  assert.equal(top1("I finished editing what next"), "finish-and-download");
+  assert.equal(top1("how do I download my edited pdf"), "finish-and-download");
+  assert.equal(top1("turn off tips", "/"), "help-tips");
+  // The names it tells people to look for are the labels on screen.
+  const editor = fs.readFileSync(path.join(root, "components/scanner/AnnotationEditor.tsx"), "utf8");
+  const dialog = fs.readFileSync(path.join(root, "components/scanner/ImageEditDialog.tsx"), "utf8");
+  const workspace = fs.readFileSync(path.join(root, "components/scanner/ScannerWorkspace.tsx"), "utf8");
+  for (const label of ["Move page", "Done editing", "Edit image", "Restore original", "Smaller", "Larger"]) assert.ok(editor.includes(label), label);
+  for (const label of ["Reset crop", "Restore original", "Reset size"]) assert.ok(dialog.includes(label), label);
+  for (const label of ["Create PDF", "Download PDF", "Download started"]) assert.ok(workspace.includes(label), label);
+  // It does not claim features that were not built.
+  const text = ["move-zoom-editor", "position-with-arrows", "crop-restore-image", "finish-and-download"].map((id) => entriesToPrompt([getEntry(id)], "/")).join(" ");
+  assert.doesNotMatch(text, /AI|automatic(ally)? (crop|enhance)|upload(ed)? to our/i);
+});
 test("the Add Image tool the assistant sends people to is real", () => {
   assert.ok(TOOLS.some((t) => t.slug === "add-image"));
   assert.equal(getEntry("insert-image").route, "/tools/add-image");

@@ -15,6 +15,7 @@ const TOOL_ICONS: Record<string, IconName> = {
   "sign-pdf": "signature",
   "add-signature": "signature",
   "upload-signature": "upload",
+  "edit-image": "crop",
   "compress-pdf": "compress",
   "compress-image": "image",
   "compress-word": "compress",
