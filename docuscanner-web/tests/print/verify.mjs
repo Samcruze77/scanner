@@ -171,6 +171,9 @@ async function open(route, { width = 1280, height = 900, mobile = false } = {}) 
   await sleep(600);
 }
 async function setFiles(files) {
+  // The tool pages load their workspace on demand, so the file input appears after the page reports "complete"; wait for it
+  // instead of assuming a fixed delay was enough (on a slow load the lookup returned nothing and DOM.setFileInputFiles failed).
+  await waitFor(`document.querySelector('input[type=file]')`, "the file input", 30000);
   const { result } = await send("Runtime.evaluate", { expression: `document.querySelector('input[type=file]')` });
   await send("DOM.setFileInputFiles", { files, objectId: result.objectId });
 }
