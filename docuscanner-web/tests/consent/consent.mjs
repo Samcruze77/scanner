@@ -103,7 +103,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..", "..");
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 const walk = (dir) => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
-const source = [...walk("app"), ...walk("components"), ...walk("utils")].filter((f) => /\.(ts|tsx)$/.test(f));
+// Forward slashes on every OS: path.join gives backslashes on Windows, which the startsWith("utils/consent") exclusion below would not match.
+const source = [...walk("app"), ...walk("components"), ...walk("utils")].map((f) => f.split(path.sep).join("/")).filter((f) => /\.(ts|tsx)$/.test(f));
 
 console.log("4. Policy s.7: Clarity is loaded only after opt-in, for every visitor");
 {

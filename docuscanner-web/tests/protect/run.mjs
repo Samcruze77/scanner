@@ -728,7 +728,8 @@ if (process.env.LARGE) await sizeTest("a 48 MB document (near the 50 MB limit)",
 
 // ================================ Policy checks on the source ================================
 
-const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
+// Sources are checked as LF text: a Windows checkout (core.autocrlf) has CRLF, which the multi-line patterns below would not match.
+const read = (f) => fs.readFileSync(path.join(root, f), "utf8").replace(/\r\n/g, "\n");
 const protectSources = ["utils/protect/protect.ts", "utils/protect/ooxml.ts", "utils/protect/cfbWriter.ts", "utils/protect/office.ts", "utils/protect/operation.ts", "utils/protect/browser.ts", "components/tools/ProtectTool.tsx"];
 
 await test("policy: nothing in the protect code talks to a server, logs, or stores a password", () => {
