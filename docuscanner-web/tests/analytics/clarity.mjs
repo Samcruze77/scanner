@@ -131,7 +131,7 @@ console.log("5. The API token stays on the server");
 {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const read = (p) => fs.readFileSync(path.join(here, "../..", p), "utf8");
-  const walk = (dir) => fs.readdirSync(path.join(here, "../..", dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+  const walk = (dir) => fs.readdirSync(path.join(here, "../..", dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.posix.join(dir, e.name)) : [path.posix.join(dir, e.name)])); // repository-relative paths always use "/", on every OS
   const files = [...walk("app"), ...walk("components"), ...walk("utils")].filter((f) => /\.(ts|tsx)$/.test(f));
   const users = files.filter((f) => read(f).includes("CLARITY_API_TOKEN"));
   check("CLARITY_API_TOKEN read in exactly one server-only module (plus its UI hint text)", users.includes("utils/clarity/client.server.ts"));
