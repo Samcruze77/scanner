@@ -98,6 +98,9 @@ export interface Cell {
   props: CellProps;
   // The cell's own preferred width (`tcW`, twips), used to repair a bad table grid (see tableGrid.ts).
   preferredWidth?: number;
+  // True when the cell has a `tcW` element at all (even "auto"). A table where no cell has one says nothing
+  // about its columns, and Word sizes them from the content (see autofitColumns in flow.ts).
+  hasWidth?: boolean;
 }
 
 export interface Row {
@@ -936,7 +939,7 @@ async function parseTable(el: Element, ctx: Ctx): Promise<Table | null> {
 
       const tcW = child(tcPrEl, "tcW");
       const preferredWidth = tcW && (attr(tcW, "type") ?? "dxa") === "dxa" ? attrNum(tcW, "w") : undefined;
-      row.cells.push({ blocks, gridStart: col, gridSpan: span, vMerge, rowSpan: 1, props: cellProps, ...(preferredWidth ? { preferredWidth } : {}) });
+      row.cells.push({ blocks, gridStart: col, gridSpan: span, vMerge, rowSpan: 1, props: cellProps, ...(preferredWidth ? { preferredWidth } : {}), ...(tcW ? { hasWidth: true } : {}) });
       col += span;
     }
     rows.push(row);

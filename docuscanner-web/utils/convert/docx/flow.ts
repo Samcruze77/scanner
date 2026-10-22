@@ -1,7 +1,7 @@
 // Block-level layout: tables, and the stacking of paragraphs and tables into
 // flows (a table cell, a header, the page body). Pagination lives in paginate.ts.
 
-import { layoutParagraph, type Cmd, type LaidParagraph, type LayoutEnv } from "./layout.ts";
+import { layoutParagraph, textWidth, type Cmd, type LaidParagraph, type LayoutEnv } from "./layout.ts";
 import type { Block, Cell, Table } from "./model.ts";
 import type { Border, Borders } from "./types.ts";
 
@@ -147,6 +147,85 @@ function resolveEdge(existing: { b: Border | null; explicit: boolean } | undefin
   return lineWeight(b) >= lineWeight(existing.b) ? { b, explicit } : existing;
 }
 
+// ---- auto-fit columns ------------------------------------------------------------------
+
+// Widest extent of a laid-out paragraph's lines (text and pictures).
+function naturalWidth(p: LaidParagraph): number {
+  let w = 0;
+  for (const line of p.lines) {
+    for (const c of line.cmds) {
+      if (c.k === "text") w = Math.max(w, c.x + textWidth(c.face, c.text, c.size, c.spacing, c.scale));
+      else if (c.k === "image") w = Math.max(w, c.x + c.w);
+    }
+  }
+  return w;
+}
+
+// A table Word lays out by content ("auto-fit", the default) whose column grid carries no information:
+// equal columns and no cell has a preferred width. That is how generators such as python-docx write
+// tables, and Word ignores such a grid and sizes the columns from what is in them. Returns the
+// column widths (points) Word would use, or null to keep the grid as written.
+//
+// Per column, `max` is the widest the content wants to be (nothing wraps) and `min` the narrowest it can be
+// (its longest word or picture). Fits: columns grow in proportion to `max` up to the table's width.
+// Does not fit: columns share the space between `min` and `max` in proportion to how much they can give.
+function autofitColumns(table: Table, grid: number[], containerWidth: number, env: LayoutEnv): number[] | null {
+  const cols = grid.length;
+  const props = table.props;
+  if (cols < 2 || props.layoutFixed === true) return null;
+  const cells = table.rows.flatMap((r) => r.cells);
+  if (cells.some((c) => c.hasWidth || c.preferredWidth || c.blocks.some((b) => b.kind !== "p"))) return null;
+
+  const max = new Array<number>(cols).fill(0);
+  const min = new Array<number>(cols).fill(0);
+  const measured = cells
+    .filter((c) => c.vMerge !== "continue")
+    .map((cell) => {
+      const m = cell.props.margins ?? {};
+      const pad = ((m.left ?? table.cellMargins.left) + (m.right ?? table.cellMargins.right)) * TWIP;
+      let cMax = 0;
+      let cMin = 0;
+      for (const b of cell.blocks) {
+        if (b.kind !== "p") continue;
+        // Left-aligned, so centred or right-aligned text is measured by its length, not by where it would sit.
+        const left = { ...b, ppr: { ...b.ppr, jc: "left" as const } };
+        cMax = Math.max(cMax, naturalWidth(layoutParagraph(left, 100000, env)));
+        cMin = Math.max(cMin, naturalWidth(layoutParagraph(left, 1, env)));
+      }
+      return { cell, max: cMax + pad, min: cMin + pad };
+    });
+  for (const { cell, max: cMax, min: cMin } of measured) {
+    if (cell.gridSpan !== 1) continue;
+    max[cell.gridStart] = Math.max(max[cell.gridStart], cMax);
+    min[cell.gridStart] = Math.max(min[cell.gridStart], cMin);
+  }
+  // A merged cell that is wider than the columns under it widens them equally.
+  for (const { cell, max: cMax, min: cMin } of measured) {
+    if (cell.gridSpan === 1) continue;
+    const idx = Array.from({ length: cell.gridSpan }, (_, i) => cell.gridStart + i).filter((c) => c < cols);
+    for (const [arr, need] of [[max, cMax], [min, cMin]] as const) {
+      const have = idx.reduce((s, c) => s + arr[c], 0);
+      if (need > have) for (const c of idx) arr[c] += (need - have) / idx.length;
+    }
+  }
+
+  const sumMax = max.reduce((a, b) => a + b, 0);
+  const sumMin = min.reduce((a, b) => a + b, 0);
+  if (sumMax <= 0) return null;
+  let target: number;
+  if (props.widthType === "dxa" && props.width) target = props.width * TWIP;
+  else if (props.widthType === "pct" && props.width) target = (containerWidth * props.width) / 5000;
+  else target = Math.min(sumMax, containerWidth);
+  if (sumMax <= target) {
+    // Content-sized tables (no stated width) stay as narrow as their content.
+    const scale = props.widthType === "dxa" || props.widthType === "pct" ? target / sumMax : 1;
+    return max.map((m) => m * scale);
+  }
+  if (sumMin >= target) return min;
+  const room = (target - sumMin) / (sumMax - sumMin);
+  return max.map((m, c) => min[c] + (m - min[c]) * room);
+}
+
 export function layoutTable(table: Table, containerWidth: number, env: LayoutEnv): LaidTable | null {
   const cols = table.grid.length;
   if (cols === 0) return null;
@@ -158,6 +237,8 @@ export function layoutTable(table: Table, containerWidth: number, env: LayoutEnv
     const target = (containerWidth * props.width) / 5000;
     if (Math.abs(target - gridTotal) > gridTotal * 0.01) grid = grid.map((g) => (g * target) / gridTotal);
   }
+  const fitted = autofitColumns(table, grid, containerWidth, env);
+  if (fitted) grid = fitted;
   const width = grid.reduce((a, b) => a + b, 0);
   const colX: number[] = [0];
   for (const g of grid) colX.push(colX[colX.length - 1] + g);
