@@ -22,7 +22,7 @@ const HIGHLIGHTS = ["#ffff00", "#00ff00", "#00ffff", "#ff99cc", "#ffd966", "#c6e
 
 type PopoverName = "color" | "highlight" | "link" | "spacing" | null;
 
-function Btn({ label, active, disabled, onClick, children, className = "" }: { label: string; active?: boolean; disabled?: boolean; onClick: () => void; children: ReactNode; className?: string }) {
+function Btn({ label, active, disabled, onClick, children, className = "", "data-assistant-id": assistantId }: { label: string; active?: boolean; disabled?: boolean; onClick: () => void; children: ReactNode; className?: string; "data-assistant-id"?: string }) {
   return (
     <button
       type="button"
@@ -32,6 +32,7 @@ function Btn({ label, active, disabled, onClick, children, className = "" }: { l
       disabled={disabled}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
+      data-assistant-id={assistantId}
       className={`wc-tbtn ${className}`}
     >
       {children}
@@ -105,7 +106,7 @@ function Swatches({ colors, onPick, label }: { colors: string[]; onPick: (c: str
   );
 }
 
-export function Toolbar({ editor, onPickImage, busyImage }: { editor: Editor; onPickImage: () => void; busyImage: boolean }) {
+export function Toolbar({ editor, onPickImage, onAddSignature, busyImage }: { editor: Editor; onPickImage: () => void; onAddSignature: () => void; busyImage: boolean }) {
   const [popover, setPopover] = useState<PopoverName>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const [linkText, setLinkText] = useState("");
@@ -223,6 +224,7 @@ export function Toolbar({ editor, onPickImage, busyImage }: { editor: Editor; on
         <select
           className="wc-select"
           aria-label="Paragraph style"
+          data-assistant-id="wc-style"
           title="Paragraph style"
           value={s.style}
           onChange={(e) => {
@@ -238,6 +240,7 @@ export function Toolbar({ editor, onPickImage, busyImage }: { editor: Editor; on
         <select
           className="wc-select"
           aria-label="Font"
+          data-assistant-id="wc-font"
           title="Font"
           value={FONTS.some((f) => f.label === s.font) ? s.font : "Calibri"}
           onChange={(e) => {
@@ -390,6 +393,7 @@ export function Toolbar({ editor, onPickImage, busyImage }: { editor: Editor; on
         <select
           className="wc-select"
           aria-label="Line spacing"
+          data-assistant-id="wc-line-spacing"
           title="Line spacing"
           value={String(s.lineHeight)}
           onChange={(e) => run().setLineHeight(Number(e.target.value)).run()}
@@ -455,7 +459,7 @@ export function Toolbar({ editor, onPickImage, busyImage }: { editor: Editor; on
           </Svg>
         </Btn>
         <Sep />
-        <Btn label="Insert image" disabled={busyImage} onClick={onPickImage}>
+        <Btn label="Insert image" data-assistant-id="wc-insert-image" disabled={busyImage} onClick={onPickImage}>
           <Svg>
             <rect x="3" y="4" width="18" height="16" rx="2" />
             <circle cx="9" cy="10" r="1.5" />
@@ -518,6 +522,12 @@ export function Toolbar({ editor, onPickImage, busyImage }: { editor: Editor; on
             </Popover>
           )}
         </span>
+        <Btn label="Add signature" data-assistant-id="wc-signature" onClick={onAddSignature}>
+          <Svg>
+            <path d="M3 17c2-5 4-9 6-9s1 6 3 6 2-4 4-4 2 3 5 3" />
+            <path d="M3 21h18" />
+          </Svg>
+        </Btn>
         <Btn label="Horizontal line" onClick={() => run().setHorizontalRule().run()}>
           <Svg>
             <path d="M4 12h16" />

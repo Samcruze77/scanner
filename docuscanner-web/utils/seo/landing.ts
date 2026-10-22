@@ -76,6 +76,8 @@ const LINKS = {
   pdfToExcel: { href: "/convert/pdf-to-excel", label: "Convert PDF to Excel", note: "Pull tables out of a PDF." },
   convert: { href: "/convert", label: "All file converters", note: "Word, Excel, CSV, images and PDF." },
   tools: { href: "/tools", label: "All PDF tools", note: "Edit, sign, compress and extract text." },
+  createWord: { href: "/create-word-document", label: "Create a Word document", note: "Write a new document from a blank page and download a .docx." },
+  guideCreateWord: { href: "/guides/how-to-create-a-word-document-from-scratch", label: "How to create a Word document from scratch", note: "Step-by-step, including saving and downloading." },
   guideCompressTarget: { href: "/guides/how-to-compress-a-pdf-to-1mb-or-2mb", label: "How to compress a PDF to 1 MB or 2 MB", note: "Get under an upload limit." },
 } satisfies Record<string, RelatedLink>;
 
@@ -320,12 +322,13 @@ export const LANDING_PAGES: LandingPage[] = [
     ],
     privacy: `${PRIVATE} The text engine is served from FreePDFScanner itself, not a third-party service.`,
     faq: [
+      { q: "Can I start a brand-new Word document instead?", a: "Yes. OCR reads the words that are already on a scan or photo. To write a new document from a blank page, use Create Word Document, which downloads a .docx you can keep editing in Word." },
       { q: "Is the OCR free?", a: "Yes. Basic text recognition is free and needs no account." },
       { q: "Is my document sent to a server?", a: "No. Recognition runs in your browser, so the pages never leave your device." },
       { q: "Does it support other languages?", a: "Not yet. It reads English text only." },
       { q: "Will it make my PDF searchable?", a: "No. It gives you the text to copy, but the PDF you export is still made of page images." },
     ],
-    related: [LINKS.scan, LINKS.pdfToWord, LINKS.editor, LINKS.compressPdf],
+    related: [LINKS.createWord, LINKS.scan, LINKS.pdfToWord, LINKS.editor, LINKS.compressPdf],
   },
   {
     path: "/tools/compress-pdf",
@@ -660,7 +663,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Can I convert .doc files?", a: "Not directly. Open the file in Word, save it as .docx, then convert it here." },
       { q: "Can I sign the PDF afterwards?", a: "Yes. Choose Edit & sign this PDF after converting." },
     ],
-    related: [LINKS.pdfToWord, LINKS.sign, LINKS.compressWord, LINKS.compressPdf],
+    related: [LINKS.createWord, LINKS.pdfToWord, LINKS.sign, LINKS.compressWord, LINKS.compressPdf],
   },
   {
     path: "/convert/pdf-to-word",
@@ -687,10 +690,11 @@ export const LANDING_PAGES: LandingPage[] = [
     ],
     privacy: PRIVATE,
     faq: [
+      { q: "Can I write a new Word document instead of converting a PDF?", a: "Yes. Create Word Document opens a blank page in your browser, with no file to upload, and downloads a .docx when you are done. PDF to Word is for turning a PDF you already have into an editable Word file." },
       { q: "Does it work on scanned PDFs?", a: "Yes, using English text recognition. Sharp, straight scans read best." },
       { q: "Will the formatting be perfect?", a: "Simple documents convert well. Complicated layouts usually need some tidying in Word." },
     ],
-    related: [LINKS.ocr, LINKS.wordToPdf, LINKS.pdfToExcel, LINKS.editor],
+    related: [LINKS.createWord, LINKS.ocr, LINKS.wordToPdf, LINKS.pdfToExcel, LINKS.editor],
   },
   {
     path: "/convert/excel-to-pdf",
@@ -907,7 +911,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Which PDF conversions are available?", a: "PDF to Word, PDF to Excel, Word to PDF, Excel to PDF, and images to PDF -- each is its own free tool." },
       { q: "Do scanned PDFs work?", a: "Yes. Scanned pages are read with English text recognition where a conversion needs their text." },
     ],
-    related: [LINKS.pdfToWord, LINKS.pdfToExcel, LINKS.wordToPdf, LINKS.excelToPdf, LINKS.imageToPdf],
+    related: [LINKS.createWord, LINKS.pdfToWord, LINKS.pdfToExcel, LINKS.wordToPdf, LINKS.excelToPdf, LINKS.imageToPdf],
   },
   {
     path: "/create-word-document",
@@ -922,13 +926,13 @@ export const LANDING_PAGES: LandingPage[] = [
     features: [
       "Blank A4 page that grows to as many pages as you need",
       "Fonts, sizes, colours, highlights, headings, lists, alignment and spacing",
-      "Pictures and links",
+      "Pictures, your signature and links",
       "Automatic draft saving in your browser",
       "Download a genuine, editable .docx",
     ],
     how: [
       "Open the page and start typing: there is nothing to upload and no account to make.",
-      "Use the toolbar to format text, add headings and lists, insert pictures and links, and set spacing.",
+      "Use the toolbar to format text, add headings and lists, insert pictures, add your signature and links, and set spacing.",
       "Your draft is saved in this browser as you type. Choose Download Word (.docx) when you are done.",
     ],
     goodFor: "Letters, notes, CVs, simple reports and any document you want to start from scratch and finish in Word.",
@@ -944,7 +948,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Will my work be lost if I refresh the page?", a: "No. It is saved in your browser as you type and restored when you come back. Clearing the site's data in your browser removes saved drafts, so download the .docx for anything important." },
       { q: "Can I edit the downloaded file in Microsoft Word?", a: "Yes. It is a real .docx file with real headings, lists, links and pictures, so it opens and edits in Word and other office apps." },
     ],
-    related: [LINKS.wordToPdf, LINKS.pdfToWord, LINKS.convert],
+    related: [LINKS.guideCreateWord, LINKS.wordToPdf, LINKS.pdfToWord, LINKS.convert],
   },
   {
     path: "/document-converter",
@@ -973,7 +977,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Can I scan a paper document and convert it too?", a: "Yes. Scan it to PDF first, then use OCR or PDF to Word if you need the text out of it." },
       { q: "Is there a limit on how many files I can convert?", a: "No daily limit and no account needed -- just the per-file size and page limits shown on each tool's page." },
     ],
-    related: [LINKS.scan, LINKS.pdfToWord, LINKS.pdfToExcel, LINKS.wordToPdf, LINKS.convert],
+    related: [LINKS.createWord, LINKS.scan, LINKS.pdfToWord, LINKS.pdfToExcel, LINKS.wordToPdf, LINKS.convert],
   },
   {
     path: "/pdf-to-text",
@@ -1003,7 +1007,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Does this work on scanned PDFs?", a: "Yes. Scanned and photographed pages are read with English text recognition before being exported as text." },
       { q: "Will the text keep the PDF's layout?", a: "No. A .txt file is plain text with no formatting, columns or images -- just the words." },
     ],
-    related: [LINKS.ocr, LINKS.pdfToWord, LINKS.scan, LINKS.compressPdf],
+    related: [LINKS.createWord, LINKS.ocr, LINKS.pdfToWord, LINKS.scan, LINKS.compressPdf],
   },
   {
     path: "/pdf-to-csv",

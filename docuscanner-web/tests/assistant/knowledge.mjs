@@ -252,4 +252,88 @@ test("requests are validated", () => {
   assert.equal(trimmed.value.messages[0].role, "user");
 });
 
+console.log("Create Word Document");
+test("the page the assistant sends people to is real, and its controls and labels exist", () => {
+  assert.ok(isKnownRoute("/create-word-document"));
+  assert.ok(fs.existsSync(path.join(root, "app/create-word-document/page.tsx")));
+  for (const id of ["create-word-document", "word-doc-formatting", "word-doc-pictures", "word-doc-save-download", "word-create-or-convert"]) {
+    const e = getEntry(id);
+    assert.ok(e, id);
+    assert.equal(e.route, "/create-word-document", id);
+  }
+  // Every name it tells people to look for is on the screen.
+  const ui = ["components/wordCreator/Toolbar.tsx", "components/wordCreator/WordCreator.tsx"].map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n");
+  for (const label of ["Document name", "Insert image", "Add signature", "Save now", "New document", "My drafts", "Download Word (.docx)", "Text colour", "Highlight colour", "Line spacing", "Paragraph spacing", "Paragraph style", "Bulleted list", "Numbered list"]) assert.ok(ui.includes(label), label);
+  const model = fs.readFileSync(path.join(root, "utils/wordCreator/model.ts"), "utf8");
+  for (const label of ["Normal text", "Title", "Subtitle", "Heading 1", "Heading 2", "Heading 3", "Arial", "Times New Roman", "Calibri", "Georgia", "Verdana"]) assert.ok(model.includes(label), label);
+  for (const label of ["% width", "Delete picture", "Description"]) assert.ok(ui.includes(label), label);
+});
+test("the questions people ask go to the right answer", () => {
+  const home = (q) => rankEntries(q, "/", 1)[0]?.entry.id;
+  assert.equal(home("How do I create a Word document from scratch?"), "create-word-document");
+  assert.equal(home("Where can I find Create Word Document?"), "create-word-document");
+  assert.equal(home("Create a Word document from scratch"), "create-word-document");
+  assert.equal(home("How do I add a heading and body text?"), "word-doc-formatting");
+  assert.equal(home("How can I change the font, size, colour, or spacing?"), "word-doc-formatting");
+  assert.equal(home("How do I insert a picture into my Word document?"), "word-doc-pictures");
+  assert.equal(home("how do I add my signature to a Word document"), "word-doc-pictures");
+  assert.equal(home("How do I save my work and download it as a Word document?"), "word-doc-save-download");
+  assert.equal(home("Will creating a Word document change my existing PDF?"), "word-create-or-convert");
+  assert.equal(home("What's the difference between creating a Word document and converting a PDF to Word?"), "word-create-or-convert");
+  // On the page itself, short questions mean that page's controls.
+  const there = (q) => rankEntries(q, "/create-word-document", 1)[0]?.entry.id;
+  assert.equal(there("How do I insert a picture?"), "word-doc-pictures");
+  assert.equal(there("how do I add a heading"), "word-doc-formatting");
+  assert.equal(there("how do I download it"), "word-doc-save-download");
+});
+test("existing answers are unchanged by the new ones", () => {
+  const home = (q) => rankEntries(q, "/", 1)[0]?.entry.id;
+  assert.equal(home("how do i turn a pdf into word"), "convert-pdf-to-word");
+  assert.equal(home("How do I convert a Word document to PDF?"), "convert-word-to-pdf");
+  assert.equal(home("how do I extract text from a scanned page"), "ocr");
+  assert.equal(home("how to sign a pdf"), "sign-pdf");
+  assert.equal(home("How do I insert my passport photograph?"), "insert-image");
+  assert.equal(rankEntries("How do I insert a picture?", "/scan", 1)[0]?.entry.id, "insert-image");
+});
+test("a question about making a document tells the three jobs apart and links to each", () => {
+  const a = buildGuideAnswer("How do I create a Word document from scratch?", "/");
+  assert.ok(a.matched);
+  assert.equal(a.links[0].href, "/create-word-document");
+  assert.ok(a.links.some((l) => l.href === "/convert/pdf-to-word"), "offers PDF to Word");
+  assert.ok(a.links.some((l) => l.href === "/tools/ocr"), "offers OCR");
+  const text = a.notes.join(" ");
+  assert.match(text, /PDF to Word/);
+  assert.match(text, /OCR/);
+  assert.ok(!a.steps.some((s) => /upload/i.test(s.text)), "it never says a PDF must be uploaded to create a document");
+  const here = stepsFor(getEntry("create-word-document"), "/create-word-document");
+  assert.ok(here.onThisPage);
+  assert.ok(!here.steps.some((s) => /Open Create Word Document/.test(s.text)), "already there, so it is not told to open it");
+});
+test("it describes only what the creator really does", () => {
+  const ids = ["create-word-document", "word-doc-formatting", "word-doc-pictures", "word-doc-save-download", "word-create-or-convert"];
+  const text = entriesToPrompt(ids.map((i) => getEntry(i)), "/");
+  // Local drafts, not an account or the cloud.
+  assert.match(text, /this browser/);
+  assert.match(text, /not saved to an account/);
+  assert.doesNotMatch(text, /cloud|synced? across|real-time|collaborat|spell.?check|\btemplates?\b|table of contents|track changes/i);
+  assert.doesNotMatch(text, /\bAI\b/);
+  // Tables, headers and footers are said to be missing, never offered.
+  assert.match(text, /Tables, headers, footers and page numbers are not available yet/);
+  assert.doesNotMatch(text, /insert (a )?table|add (a )?header/i);
+  // Honest about signatures.
+  assert.match(text, /not a certified digital signature/);
+});
+test("Create a Word document from scratch is offered as a suggestion and answers", () => {
+  const s = suggestionsFor("/").find((x) => x.text === "Create a Word document from scratch");
+  assert.ok(s);
+  assert.equal(s.entryId, "create-word-document");
+  assert.equal(buildGuideAnswer(s.text, "/").entryIds[0], "create-word-document");
+});
+test("the catalogue and other answers point to it", () => {
+  assert.match(getEntry("all-tools").summary, /create a new Word document/);
+  assert.match(getEntry("convert-pdf-to-word").notes.join(" "), /Create Word Document/);
+  assert.match(getEntry("ocr").notes.join(" "), /Create Word Document/);
+  assert.match(getEntry("limit-word-excel-output").summary, /Create Word Document/);
+});
+
 console.log(`\n${pass} checks passed`);

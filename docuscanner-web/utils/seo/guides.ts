@@ -229,6 +229,7 @@ export const GUIDES: Guide[] = [
       blurb: "Free OCR that runs in your browser. Nothing is uploaded.",
     },
     related: [
+      { href: "/guides/how-to-create-a-word-document-from-scratch", label: "Create a Word document from scratch", note: "Start a new document instead of reading an existing scan." },
       { href: "/convert/pdf-to-word", label: "Convert PDF to Word", note: "Get an editable .docx." },
       { href: "/scan", label: "Scan a document to PDF", note: "Make a cleaner scan first." },
       { href: "/convert/pdf-to-excel", label: "Convert PDF to Excel", note: "Pull tables out of a PDF." },
@@ -291,9 +292,108 @@ export const GUIDES: Guide[] = [
       blurb: "Free, no account, and your file stays in your browser.",
     },
     related: [
+      { href: "/guides/how-to-create-a-word-document-from-scratch", label: "Create a Word document from scratch", note: "Writing a new document? Add your signature to it too." },
       { href: "/tools/annotate", label: "Annotate a PDF", note: "Add text, dates and check marks too." },
       { href: "/tools/pdf-editor", label: "Edit a PDF online", note: "Crop, rotate and reorder pages." },
       { href: "/tools/compress-pdf", label: "Compress a PDF", note: "Shrink the signed file before you send it." },
+    ],
+  },
+  {
+    slug: "how-to-create-a-word-document-from-scratch",
+    title: "Create a Word Document from Scratch (Free, No Account)",
+    description:
+      "Write a new Word document from a blank page in your browser, format it, add pictures and your signature, and download a real .docx. Includes saving, draft recovery and troubleshooting.",
+    h1: "Create a Word document from scratch",
+    intro:
+      "You do not need Word installed, an account or an existing file to start a document. Create Word Document gives you a blank white page in your browser; you write, format and download it as a .docx you can keep editing in Microsoft Word.",
+    published: "2026-10-22",
+    updated: "2026-10-22",
+    sections: [
+      {
+        h2: "Open Create Word Document",
+        steps: [
+          "Choose Tools in the top menu, then Create Word Document in the Create section at the top. It is also on the home page.",
+          "Or go straight to the page with the button below. Nothing is uploaded and no account is needed.",
+        ],
+      },
+      {
+        h2: "Start a blank document",
+        paragraphs: [
+          "The page opens blank, with the name Untitled Document in the Document name box at the top and a formatting toolbar above an A4 page. Click the page and start typing. If you come back later, your last draft is restored; choose New document to start again with a clean page (your earlier draft is kept under My drafts).",
+        ],
+      },
+      {
+        h2: "Enter a title, headings and body text",
+        steps: [
+          "Type a name in the Document name box. It becomes the name of the downloaded file.",
+          "Click the page and type. Press Enter to start a new paragraph.",
+          "To make a heading, click in the line and open the paragraph style list on the toolbar. Choose Title, Subtitle, Heading 1, Heading 2 or Heading 3. Choose Normal text for body text.",
+          "Headings are real Word headings, so they show up in Word's navigation pane after you download the file.",
+        ],
+      },
+      {
+        h2: "Select text and format it",
+        paragraphs: ["Select the text first (drag over it, or double-click a word), then use the toolbar. The buttons keep your selection."],
+        bullets: [
+          "Font: Arial, Times New Roman, Calibri, Georgia or Verdana. Type a size in the size box, or use the smaller and larger text buttons.",
+          "Bold, italic, underline, strikethrough, superscript and subscript.",
+          "Text colour and highlight colour: pick a swatch or a custom colour.",
+          "Alignment (left, centre, right, justified), line spacing, space before and after a paragraph, and indent.",
+          "Bulleted and numbered lists, links and a horizontal line.",
+          "Undo and redo, and Clear text formatting.",
+        ],
+      },
+      {
+        h2: "Insert pictures and your signature",
+        steps: [
+          "Choose Insert image and pick a PNG, JPEG, WebP or GIF up to 10 MB. You can also paste a picture or drag it onto the page.",
+          "To add your signature, choose Add signature, draw it, type it or upload a picture of it, and apply it. It is placed like any other picture.",
+          "Click a picture to select it. Choose 25%, 50%, 75% or 100% width, drag the corner handle to resize it, or use the align buttons to put it on the left, centre or right. Add a description for screen readers, or choose Delete picture.",
+        ],
+      },
+      {
+        h2: "How saving and draft recovery work",
+        paragraphs: [
+          "Your draft is saved in this browser a moment after you stop typing. The message beside the document name says Saving, Saved or Save failed, and it only says Saved once the draft really is stored. Choose Save now to save straight away.",
+          "Drafts live on this device and in this browser only. They are not uploaded and are not saved to a FreePDFScanner account, so clearing the site's data removes them and they do not appear on your other devices. Choose My drafts to open or delete older drafts.",
+        ],
+      },
+      {
+        h2: "Download the finished .docx",
+        steps: [
+          "Choose Download Word (.docx).",
+          "The file is named after your Document name and opens in Microsoft Word and other office apps, where you can keep editing it.",
+        ],
+      },
+      {
+        h2: "Limits and troubleshooting",
+        bullets: [
+          "Word and your browser lay out pages with different engines, so line and page breaks can move slightly in Word. Your text, formatting, pictures and links are kept.",
+          "Tables, headers, footers and page numbers are not available yet.",
+          "A signature added here is a picture of your handwriting or typed name, not a certified digital signature.",
+          "If you see Save failed, your browser has no room or is blocking site data (private browsing does this). Download the .docx straight away to keep your work, then free some space.",
+          "If a picture will not insert, check that it is a PNG, JPEG, WebP or GIF under 10 MB and is not damaged.",
+          "Creating a document never changes any file you already have.",
+        ],
+      },
+      {
+        h2: "Create, convert or extract text?",
+        bullets: [
+          "Create Word Document: write a new document from a blank page.",
+          "PDF to Word: turn a PDF you already have into an editable Word file.",
+          "OCR (Extract text): read the words from a scan or photo, in English.",
+        ],
+      },
+    ],
+    tool: {
+      href: "/create-word-document",
+      label: "Create a Word document now",
+      blurb: "Free, no account, and your writing stays in your browser.",
+    },
+    related: [
+      { href: "/convert/pdf-to-word", label: "Convert a PDF to Word", note: "Edit a PDF you already have in Word." },
+      { href: "/tools/ocr", label: "Extract text with OCR", note: "Read English text from a scan or photo." },
+      { href: "/guides/how-to-sign-a-pdf-online", label: "How to sign a PDF online", note: "Signing a PDF rather than a new document." },
     ],
   },
   {

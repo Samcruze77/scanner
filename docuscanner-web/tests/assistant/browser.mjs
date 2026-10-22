@@ -113,8 +113,9 @@ try {
       "How do I protect a PDF with a password?",
       "Where can I find my download?",
       "How do I use the scanner?",
+      "Create a Word document from scratch",
     ]);
-    ok("the six example questions are offered");
+    ok("the example questions are offered, including Create a Word document from scratch");
     await page.keyboard.press("Escape");
     await panel(page).waitFor({ state: "hidden" });
     await page.waitForFunction(() => document.activeElement?.hasAttribute("data-assistant-launcher"), null, { timeout: 3000 });
@@ -143,6 +144,46 @@ try {
     assert.match(text, /not AI/);
     assert.equal(posts.length, 0, "with AI off nothing is sent to the model endpoint");
     ok("a real question gets accurate steps, a link to the right tool, and an honest 'not AI' note");
+
+    // Create Word Document: the suggestion, the steps, the three-way distinction, and the link that works.
+    await visit(page, "/");
+    await launcher(page).click();
+    await panel(page).getByRole("button", { name: "Create a Word document from scratch" }).click();
+    const create = lastAnswer(page);
+    await create.getByText("Choose Download Word (.docx).").waitFor();
+    const createText = await create.innerText();
+    assert.match(createText, /blank white page/);
+    assert.match(createText, /Document name/);
+    assert.match(createText, /Heading 1, 2 or 3/);
+    assert.match(createText, /PDF to Word/);
+    assert.match(createText, /OCR/);
+    assert.doesNotMatch(createText, /upload a PDF/i);
+    assert.equal(await create.locator('a[href="/create-word-document"]').count(), 1, "links to the real page");
+    assert.equal(await create.locator('a[href="/convert/pdf-to-word"]').count(), 1, "also offers converting an existing PDF");
+    assert.equal(await create.locator('a[href="/tools/ocr"]').count(), 1, "also offers text recognition");
+    assert.equal(posts.length, 0, "nothing is sent to the model endpoint");
+    ok("Ask Me explains Create Word Document, links to it, and offers PDF to Word and OCR for the other jobs");
+    await ask(page, "What's the difference between creating a Word document and converting a PDF to Word?");
+    await lastAnswer(page).getByText("None of these changes your original PDF or image.").waitFor();
+    ok("it tells creating, converting and text recognition apart");
+    await ask(page, "How do I add my signature to a Word document?");
+    await lastAnswer(page).getByText(/Add signature/).first().waitFor();
+    assert.match(await lastAnswer(page).innerText(), /not a certified digital signature/);
+    ok("it explains adding a signature, and is honest that it is not a certified signature");
+    await Promise.all([page.waitForURL("**/create-word-document"), lastAnswer(page).locator('a[href="/create-word-document"]').click()]);
+    await page.waitForSelector(".wc-page");
+    ok("the link opens the working page");
+    // The open panel and its conversation stay while the visitor moves to another page; only open it if it was closed.
+    if (!(await panel(page).isVisible())) await launcher(page).click();
+    await ask(page, "How do I insert a picture?");
+    const there = lastAnswer(page);
+    await there.getByText("Insert image").first().waitFor();
+    const thereText = await there.innerText();
+    assert.match(thereText, /You're already on Create Word Document/);
+    assert.match(thereText, /Add signature/);
+    assert.ok(!/^\s*1\s*Open Create Word Document/.test(await there.locator("ol li").first().innerText()), "does not tell them to open the page they are on");
+    await there.getByRole("button", { name: /Show me/ }).first().click().catch(() => undefined);
+    ok("on the page itself the answer is about this page's buttons");
 
     await ask(page, "can I edit the existing text in my pdf?");
     await lastAnswer(page).getByText(/cannot|No\./).first().waitFor();

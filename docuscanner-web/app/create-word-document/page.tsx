@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Hint } from "@/components/guidance/Hint";
 import { PageShell } from "@/components/layout/PageShell";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SeoContent } from "@/components/seo/SeoContent";
@@ -41,6 +42,9 @@ export default function CreateWordDocumentPage() {
           <h1 className="page-title">{landing.h1}</h1>
           <p className="muted mt-1 text-sm">{landing.intro}</p>
         </div>
+        <Hint id="create-word-document">
+          Start typing on the page. Use the toolbar for headings, fonts, colours, spacing, pictures and your signature. Your draft is saved in this browser as you type; choose Download Word (.docx) when you are done.
+        </Hint>
         <WordCreatorLoader />
       </div>
       <SeoContent page={landing} />

@@ -4,7 +4,7 @@
 // says so. It is used when the AI model is switched off or unavailable, and the
 // same ranking picks which entries the AI is shown.
 
-import { describePage, ENTRY_LIST, stepsFor, suggestionsFor, type HelpEntry, type HelpStep } from "./knowledge.ts";
+import { describePage, ENTRY_LIST, getEntry, stepsFor, suggestionsFor, type HelpEntry, type HelpStep } from "./knowledge.ts";
 
 const STOPWORDS = new Set([
   "a", "an", "the", "i", "me", "my", "we", "you", "your", "to", "do", "does", "can", "could", "how", "what", "where", "when",
@@ -51,7 +51,8 @@ export function rankEntries(query: string, pathname: string, limit = 3): RankedE
 
   const ranked = ENTRY_LIST.map((entry): RankedEntry => {
     let score = 0;
-    for (const phrase of entry.keywords) {
+    const onOwnPage = entry.route === path;
+    for (const phrase of onOwnPage ? [...entry.keywords, ...(entry.pageKeywords ?? [])] : entry.keywords) {
       const words = tokens(phrase);
       // A multi-word phrase that shrinks to one generic word ("where is my pdf") proves nothing.
       const meaningful = words.length >= 2 || (words.length === 1 && normalize(phrase).split(" ").length === 1);
@@ -91,7 +92,9 @@ export interface GuideAnswer {
 export function linksFor(entries: readonly HelpEntry[]): GuideLink[] {
   const seen = new Set<string>();
   const links: GuideLink[] = [];
-  for (const e of entries) {
+  // The entries themselves, then the ones they point to ("you may want PDF to Word instead").
+  const all = [...entries, ...entries.flatMap((e) => (e.related ?? []).map((id) => getEntry(id)).filter((r): r is HelpEntry => !!r))];
+  for (const e of all) {
     if (e.route && !seen.has(e.route)) {
       seen.add(e.route);
       links.push({ href: e.route, label: e.routeLabel ?? e.title });
@@ -106,7 +109,7 @@ export function buildGuideAnswer(query: string, pathname: string): GuideAnswer {
     return {
       matched: false,
       intro:
-        "I'm not sure I have that. I can help with scanning, converting Word, Excel and images to PDF, editing and signing, adding pictures, compressing, text recognition and password protection. Try one of these questions, or browse all the tools.",
+        "I'm not sure I have that. I can help with scanning, converting Word, Excel and images to PDF, editing and signing, adding pictures, compressing, text recognition, password protection and creating a new Word document. Try one of these questions, or browse all the tools.",
       steps: [],
       notes: [],
       links: [

@@ -16,13 +16,14 @@ fs.writeFileSync(pngFile, png.buf);
 let passed = 0;
 let failed = 0;
 async function check(name, fn) {
+  if (process.env.ONLY && !new RegExp(process.env.ONLY).test(name)) return;
   try {
     await fn();
     passed++;
     console.log("  ok  " + name);
   } catch (e) {
     failed++;
-    console.log("  FAIL " + name + "\n       " + String(e?.message ?? e).split("\n").slice(0, 8).join("\n       "));
+    console.log("  FAIL " + name + "\n       " + String(e?.stack ?? e).split("\n").slice(0, 8).join("\n       "));
   }
 }
 
@@ -253,6 +254,53 @@ await check("pictures: pasting a picture from the clipboard inserts it; pasted s
 });
 
 // ---- download -------------------------------------------------------------------------------------------------------------------
+await check("signature: Add signature (draw, type or upload) places a transparent PNG that exports into the .docx", async () => {
+  const { page } = await open();
+  await type(page, "Yours sincerely,");
+  await page.keyboard.press("Enter");
+  await btn(page, "Add signature").click();
+  const dialog = page.getByRole("dialog", { name: "Add signature" });
+  await dialog.waitFor();
+  // Drawing: a stroke on the pad.
+  const pad = dialog.getByLabel("Signature drawing area");
+  const box = await pad.boundingBox();
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.6);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) await page.mouse.move(box.x + box.width * (0.2 + i * 0.05), box.y + box.height * (0.6 - Math.sin(i) * 0.2), { steps: 2 });
+  await page.mouse.up();
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await dialog.waitFor({ state: "detached" });
+  const img = body(page).locator("img[alt='Signature']");
+  await img.waitFor();
+  assert.match(await img.getAttribute("src"), /^data:image\/png;base64,/);
+  // Typing works too, and the picture controls (width, alignment) apply to it.
+  await btn(page, "Add signature").click();
+  await dialog.waitFor();
+  await dialog.getByRole("tab", { name: "Type" }).click();
+  await dialog.getByPlaceholder("Type your name").fill("A. Writer");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await dialog.waitFor({ state: "detached" });
+  assert.equal(await body(page).locator("img[alt='Signature']").count(), 2);
+  await body(page).locator("img[alt='Signature']").first().click();
+  await page.getByRole("button", { name: "50% width" }).click();
+  await btn(page, "Align right").click();
+  // Cancelling inserts nothing, and Escape closes the dialog.
+  await btn(page, "Add signature").click();
+  await dialog.waitFor();
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "detached" });
+  assert.equal(await body(page).locator("img[alt='Signature']").count(), 2);
+  const { docx } = await download(page);
+  const pics = docx.paragraphs.flatMap((p) => p.runs.filter((r) => r.image).map((r) => ({ ...r.image, align: p.align })));
+  assert.equal(pics.length, 2);
+  for (const pic of pics) {
+    assert.equal(pic.descr, "Signature");
+    assert.match(docx.names.find((n) => n === "word/" + pic.target), /\.png$/);
+    assert.deepEqual(Array.from(docx.media["word/" + pic.target].slice(1, 4)), [0x50, 0x4e, 0x47], "real PNG bytes");
+  }
+  assert.ok(pics.some((p) => p.align === "right"), "the right-aligned signature is right-aligned in Word");
+  assert.equal(docx.paragraphs[0].text, "Yours sincerely,");
+});
 await check("download: a real .docx whose text, order, formatting, list, link and picture match what was written", async () => {
   const { page } = await open();
   await page.getByLabel("Document name").fill('Q3 plan: a/b*c?');
@@ -271,7 +319,12 @@ await check("download: a real .docx whose text, order, formatting, list, link an
   await btn(page, "Link").click();
   await page.getByLabel("Web address").fill("example.com");
   await page.getByRole("button", { name: "Add link" }).click();
+  // Tiptap hands focus back to the page on the next frame; wait for it, or End goes to the closing panel and the picture
+  // below would replace the still-selected link text.
+  await page.waitForFunction(() => document.activeElement?.classList.contains("wc-page"));
   await page.keyboard.press("End");
+  // Wait until the key has really collapsed the selection, so the picture goes after the link and does not replace it.
+  await page.waitForFunction(() => getSelection()?.isCollapsed === true);
   await page.setInputFiles('[data-testid="wc-image-input"]', pngFile);
   await page.waitForSelector(".wc-page img");
   const { name, docx } = await download(page);

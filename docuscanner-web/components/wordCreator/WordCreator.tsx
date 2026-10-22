@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ParagraphFormat, Pagination, WordImage } from "./extensions";
 import { Toolbar } from "./Toolbar";
+import { SignatureDialog } from "@/components/scanner/SignatureDialog";
+import type { SignatureImage } from "@/utils/scanner/signature";
 import { trackFeatureUsed, trackToolOpened } from "@/utils/analytics/events";
 import { exportDocx, ExportError } from "@/utils/wordCreator/docxExport";
 import {
@@ -268,6 +270,7 @@ export function WordCreator() {
             defaultValue={session.title}
             maxLength={150}
             aria-label="Document name"
+            data-assistant-id="wc-title"
             placeholder={DEFAULT_TITLE}
             onChange={(e) => {
               titleRef.current = e.target.value;
@@ -358,6 +361,8 @@ function Editing({
   const [deskWidth, setDeskWidth] = useState(1000);
   const [busyImage, setBusyImage] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [signing, setSigning] = useState(false);
+  const [lastSignature, setLastSignature] = useState<SignatureImage | null>(null);
   const deskRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<Editor | null>(null);
@@ -505,10 +510,10 @@ function Editing({
   return (
     <>
       <div className="wc-docbar flex flex-wrap items-center gap-2">
-        <button type="button" className="btn btn-secondary" onClick={() => void save()} disabled={status === "saving"}>
+        <button type="button" data-assistant-id="wc-save" className="btn btn-secondary" onClick={() => void save()} disabled={status === "saving"}>
           Save now
         </button>
-        <button type="button" className="btn btn-secondary" onClick={startNew}>
+        <button type="button" data-assistant-id="wc-new" className="btn btn-secondary" onClick={startNew}>
           New document
         </button>
         {storeKind !== "none" && (
@@ -516,7 +521,7 @@ function Editing({
             My drafts
           </button>
         )}
-        <button type="button" className="btn btn-primary ml-auto" onClick={() => void download()} disabled={!editor || downloading}>
+        <button type="button" data-assistant-id="wc-download" className="btn btn-primary ml-auto" onClick={() => void download()} disabled={!editor || downloading}>
           {downloading ? "Preparing…" : "Download Word (.docx)"}
         </button>
       </div>
@@ -530,7 +535,22 @@ function Editing({
         </div>
       )}
 
-      {editor && <Toolbar editor={editor} busyImage={busyImage} onPickImage={() => fileRef.current?.click()} />}
+      {editor && <Toolbar editor={editor} busyImage={busyImage} onPickImage={() => fileRef.current?.click()} onAddSignature={() => setSigning(true)} />}
+      {signing && editor && (
+        <SignatureDialog
+          lastSignature={lastSignature}
+          onCancel={() => {
+            setSigning(false);
+            editor.commands.focus();
+          }}
+          onApply={(sig) => {
+            setLastSignature(sig);
+            setSigning(false);
+            // The signature is a transparent PNG, placed like any picture: moved, resized and aligned with the picture controls.
+            editor.chain().focus().insertPicture({ src: sig.dataUrl, width: Math.min(220, sig.width), alt: "Signature" }).run();
+          }}
+        />
+      )}
       <input
         ref={fileRef}
         type="file"

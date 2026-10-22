@@ -36,6 +36,9 @@ export interface HelpEntry {
   title: string;
   // Words and phrases a person might use, lower case.
   keywords: string[];
+  // Extra phrases that count only while the visitor is on this entry's own page, where "insert a picture" can only mean
+  // this page's picture button (elsewhere the same words belong to another tool).
+  pageKeywords?: string[];
   summary: string;
   steps?: HelpStep[];
   // Where to do it (an internal route) and the link text.
@@ -44,6 +47,8 @@ export interface HelpEntry {
   variants?: HelpVariant[];
   // Short honest caveats shown under the steps.
   notes?: string[];
+  // Other entries a person asking this may really want (their pages are offered as links too).
+  related?: string[];
 }
 
 // Pages that are not tools.
@@ -52,6 +57,7 @@ export const STATIC_ROUTES: { href: string; label: string }[] = [
   { href: "/scan", label: "Scan to PDF" },
   { href: "/tools", label: "All tools" },
   { href: "/convert", label: "All converters" },
+  { href: "/create-word-document", label: "Create Word Document" },
   { href: "/history", label: "History" },
   { href: "/account", label: "Account" },
   { href: "/privacy", label: "Privacy Policy" },
@@ -128,7 +134,8 @@ const ENTRIES: HelpEntry[] = [
       { text: "Wait while it converts." },
       { text: "Choose Download Word file.", target: "convert-download" },
     ],
-    notes: ["Complex layouts may need tidying in Word. Text recognition is English only."],
+    notes: ["Complex layouts may need tidying in Word. Text recognition is English only.", "This converts a PDF you already have. To write a new document from a blank page, use Create Word Document."],
+    related: ["create-word-document"],
   },
   {
     id: "convert-excel-to-pdf",
@@ -479,7 +486,206 @@ const ENTRIES: HelpEntry[] = [
       { text: "Open More options and choose Extract text.", target: "scan-more-options" },
       { text: "Check the text, copy it, or export it as Word, Excel, TXT or CSV." },
     ],
-    notes: ["English only, up to 30 pages per run. Handwriting and low-quality photos may not be read accurately."],
+    notes: ["English only, up to 30 pages per run. Handwriting and low-quality photos may not be read accurately.", "This reads text that is already on a scan or photo. To write a new Word document from a blank page, use Create Word Document."],
+    related: ["create-word-document"],
+  },
+  {
+    id: "create-word-document",
+    kind: "howto",
+    title: "Create a Word document from scratch",
+    keywords: [
+      "create word document",
+      "create a word document",
+      "create a new word document",
+      "new word document",
+      "blank word document",
+      "blank document",
+      "word document from scratch",
+      "word doc from scratch",
+      "make a word document",
+      "write a word document",
+      "create docx",
+      "create a docx",
+      "start a new document",
+      "write a document",
+      "type a document",
+      "compose a document",
+      "create a document",
+      "create document",
+      "where is create word document",
+      "find create word document",
+    ],
+    summary:
+      "Create Word Document opens a blank white page where you write a brand-new document, then download it as a Word (.docx) file you can keep editing in Word. You do not upload anything, and no account is needed.",
+    route: "/create-word-document",
+    routeLabel: "Open Create Word Document",
+    steps: [
+      { text: "Open Create Word Document: choose Tools in the top menu, then Create Word Document in the Create section at the top. It is also on the home page.", target: "nav-tools" },
+      { text: "Type a name in the Document name box at the top. It starts as Untitled Document.", target: "wc-title" },
+      { text: "Click the white page and start typing. Press Enter for a new paragraph." },
+      { text: "Use the toolbar to format it: choose Heading 1, 2 or 3 from the paragraph style list for headings, then set the font, size, colour, spacing, lists and alignment.", target: "wc-style" },
+      { text: "Add pictures with Insert image, or your signature with Add signature.", target: "wc-insert-image" },
+      { text: "Your draft saves in this browser as you type. Choose Save now to save straight away.", target: "wc-save" },
+      { text: "When you are done, choose Download Word (.docx).", target: "wc-download" },
+    ],
+    variants: [
+      {
+        pages: ["/create-word-document"],
+        steps: [
+          { text: "Type a name in the Document name box at the top. It starts as Untitled Document.", target: "wc-title" },
+          { text: "Click the white page and start typing. Press Enter for a new paragraph." },
+          { text: "Use the toolbar to format it: choose Heading 1, 2 or 3 from the paragraph style list for headings, then set the font, size, colour, spacing, lists and alignment.", target: "wc-style" },
+          { text: "Add pictures with Insert image, or your signature with Add signature.", target: "wc-insert-image" },
+          { text: "Your draft saves in this browser as you type. Choose Save now to save straight away.", target: "wc-save" },
+          { text: "When you are done, choose Download Word (.docx).", target: "wc-download" },
+        ],
+      },
+    ],
+    related: ["convert-pdf-to-word", "ocr"],
+    notes: [
+      "This starts a new document. To turn an existing PDF into an editable Word file, use PDF to Word. To read the words in a scan or photo, use OCR.",
+      "Drafts stay in this browser on this device. They are not saved to an account, so download the .docx to keep or share a copy.",
+    ],
+  },
+  {
+    id: "word-doc-formatting",
+    kind: "howto",
+    title: "Format text in a Word document you are creating",
+    keywords: [
+      "add a heading",
+      "heading and body text",
+      "heading and body",
+      "change the font",
+      "change font",
+      "font size",
+      "text size",
+      "text colour",
+      "text color",
+      "change the colour",
+      "change the color",
+      "line spacing",
+      "paragraph spacing",
+      "spacing in my document",
+      "format my document",
+      "format text in my word document",
+      "align text in my document",
+      "bulleted list in my document",
+      "numbered list in my document",
+    ],
+    pageKeywords: ["heading", "headings", "font", "colour", "color", "spacing", "bold", "italic", "underline", "highlight", "format", "align"],
+    summary: "In Create Word Document, select your text and use the toolbar above the page. Everything on the toolbar works on the text or paragraph you have selected.",
+    route: "/create-word-document",
+    routeLabel: "Open Create Word Document",
+    steps: [
+      { text: "Open Create Word Document and click in the page.", target: "nav-tools" },
+      { text: "Select the text you want to change: drag over it, or double-click a word. For a whole paragraph, click inside it." },
+      { text: "For a heading, open the paragraph style list and choose Title, Subtitle, Heading 1, Heading 2 or Heading 3. Choose Normal text to go back to body text.", target: "wc-style" },
+      { text: "Open the Font list to choose Arial, Times New Roman, Calibri, Georgia or Verdana. Type a size in the size box, or use the smaller and larger text buttons.", target: "wc-font" },
+      { text: "Use the Bold, Italic, Underline and Strikethrough buttons, and the Text colour and Highlight colour buttons (pick a swatch or a custom colour)." },
+      { text: "Change the Line spacing list, or open Paragraph spacing to set the space before and after a paragraph in points.", target: "wc-line-spacing" },
+      { text: "Use the alignment, indent, bulleted list and numbered list buttons for the layout." },
+    ],
+    notes: ["Tables, headers, footers and page numbers are not available yet."],
+  },
+  {
+    id: "word-doc-pictures",
+    kind: "howto",
+    title: "Add a picture or your signature to a Word document you are creating",
+    keywords: [
+      "picture in my word document",
+      "image in my word document",
+      "insert picture in word document",
+      "insert image in word document",
+      "add image to word document",
+      "add picture to word document",
+      "add a picture to my document",
+      "signature in word document",
+      "signature in my word document",
+      "add signature to word document",
+      "add my signature to a word document",
+      "sign my word document",
+      "put my signature in word document",
+      "signature word document",
+    ],
+    pageKeywords: ["insert picture", "insert image", "add picture", "add image", "picture", "image", "signature", "add signature", "sign"],
+    summary: "In Create Word Document you can insert a picture from a file, or add your signature by drawing, typing or uploading it. Both are placed on the page as pictures you can resize and align.",
+    route: "/create-word-document",
+    routeLabel: "Open Create Word Document",
+    steps: [
+      { text: "Open Create Word Document and click where you want the picture to go.", target: "nav-tools" },
+      { text: "Choose Insert image and pick a PNG, JPEG, WebP or GIF (up to 10 MB). You can also paste a picture or drag it onto the page.", target: "wc-insert-image" },
+      { text: "For your signature, choose Add signature, then draw it, type it or upload a picture of it, and apply it.", target: "wc-signature" },
+      { text: "Click the picture to select it. Picture options appear with 25%, 50%, 75% and 100% width buttons, a description box and Delete picture. Drag the corner handle to resize it, and use the align buttons to put it on the left, centre or right." },
+      { text: "Click below the picture to carry on typing." },
+    ],
+    notes: [
+      "A signature added this way is a picture of your handwriting or typed name. It is not a certified digital signature.",
+      "WebP and GIF pictures are converted to PNG so Word can keep them.",
+    ],
+  },
+  {
+    id: "word-doc-save-download",
+    kind: "howto",
+    title: "Save and download a Word document you created",
+    keywords: [
+      "save my word document",
+      "save my document",
+      "download word document",
+      "download as word",
+      "download my document as word",
+      "download docx",
+      "save as docx",
+      "recover my document",
+      "restore my draft",
+      "my drafts",
+      "lost my document",
+      "autosave",
+      "new document",
+    ],
+    pageKeywords: ["save", "download", "draft", "drafts", "recover", "restore"],
+    summary: "Create Word Document saves a draft in your browser as you type, and you download the finished document as a .docx file.",
+    route: "/create-word-document",
+    routeLabel: "Open Create Word Document",
+    steps: [
+      { text: "Just keep typing: a moment after you stop, the draft is saved in this browser. The message beside the name says Saving, Saved or Save failed." },
+      { text: "Choose Save now to save straight away.", target: "wc-save" },
+      { text: "To pick up later, open Create Word Document again on the same device and browser. Your last draft comes back. Choose My drafts to open or delete older ones, or New document to start another without losing this one.", target: "wc-new" },
+      { text: "Choose Download Word (.docx). The file is named after your Document name.", target: "wc-download" },
+    ],
+    notes: [
+      "Drafts are kept in this browser on this device only. They are not uploaded and not saved to an account, and clearing the site's data removes them. Download the .docx for anything important.",
+      "Word lays pages out with its own engine, so line and page breaks can differ slightly from what you see. Your text, formatting, pictures and links are kept.",
+    ],
+  },
+  {
+    id: "word-create-or-convert",
+    kind: "faq",
+    title: "Create a Word document, convert a PDF to Word, or extract text?",
+    keywords: [
+      "difference between creating a word document and converting",
+      "create or convert",
+      "create vs convert",
+      "creating a word document and converting a pdf",
+      "will creating a word document change my pdf",
+      "does creating a word document change my pdf",
+      "creating a word document change",
+      "creating a word document affect",
+      "creating a word document modify",
+      "creating a word document delete",
+      "create a word document or convert a pdf",
+      "new word document or convert pdf",
+    ],
+    summary:
+      "Create Word Document starts from a blank page and does not open or change any of your files. PDF to Word turns a PDF you upload into an editable Word file. OCR reads the words from a scan or photo so you can copy them.",
+    route: "/create-word-document",
+    routeLabel: "Open Create Word Document",
+    related: ["convert-pdf-to-word", "ocr"],
+    notes: [
+      "Want a new document written from nothing? Use Create Word Document.",
+      "Want to edit a PDF you already have in Word? Use PDF to Word.",
+      "Want the text from a scanned page or a photo? Use OCR (English only).",
+      "None of these changes your original PDF or image.",
+    ],
   },
   {
     id: "print",
@@ -579,7 +785,7 @@ const ENTRIES: HelpEntry[] = [
     kind: "limit",
     title: "Can I add things to a Word or Excel file and keep it as Word or Excel?",
     keywords: ["edit word document", "edit docx", "edit excel file", "keep as word", "keep as excel", "word file with picture", "docx image", "insert image in word", "insert picture in word", "insert image in excel"],
-    summary: "Not directly. Word, Excel and CSV files are converted to PDF first, so anything you add goes onto the PDF and the result is a PDF. Your original file is not changed. To get an editable Word file, use PDF to Word.",
+    summary: "Not directly. Word, Excel and CSV files are converted to PDF first, so anything you add goes onto the PDF and the result is a PDF. Your original file is not changed. To get an editable Word file, use PDF to Word. To write a new Word document from a blank page instead, use Create Word Document.",
     route: "/scan",
     routeLabel: "Open Scan",
   },
@@ -637,11 +843,18 @@ function toolCatalogEntry(): HelpEntry {
     title: "What can FreePDFScanner do?",
     keywords: ["what can you do", "what tools", "list of tools", "features", "all tools", "what is this", "help", "what does this site do", "tools"],
     summary:
-      "Scan with a camera or upload files; edit, sign and add pictures to pages; convert between Word, Excel, images and PDF; extract text with OCR; compress files; and password-protect a PDF.",
+      "Scan with a camera or upload files; edit, sign and add pictures to pages; convert between Word, Excel, images and PDF; extract text with OCR; compress files; password-protect a PDF; and create a new Word document from a blank page.",
     route: "/tools",
     routeLabel: "See all tools",
     notes: [`Tools: ${tools.join("; ")}.`, `Converters: ${converters.join("; ")}.`],
   };
+}
+
+// On the Create Word Document page itself, its answers drop the "open the page" step: the visitor is already there.
+for (const e of ENTRIES) {
+  if (e.route === "/create-word-document" && e.steps && !e.variants) {
+    e.variants = [{ pages: [e.route], steps: e.steps.filter((st) => !st.text.startsWith("Open Create Word Document")) }];
+  }
 }
 
 export const ENTRY_LIST: readonly HelpEntry[] = [...ENTRIES, toolCatalogEntry()];
@@ -715,6 +928,7 @@ const BASE_SUGGESTIONS: Suggestion[] = [
   { text: "How do I protect a PDF with a password?", entryId: "protect-pdf" },
   { text: "Where can I find my download?", entryId: "find-download" },
   { text: "How do I use the scanner?", entryId: "use-scanner" },
+  { text: "Create a Word document from scratch", entryId: "create-word-document" },
 ];
 
 export function suggestionsFor(pathname: string): Suggestion[] {
