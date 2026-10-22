@@ -50,7 +50,9 @@
     "test:theme": "node tests/ui/theme.mjs",
     "test:analytics": "node tests/analytics/geo.mjs && node tests/analytics/edge-function-geo.mjs && node tests/analytics/geo-hierarchy.mjs && node tests/analytics/geography-levels.mjs && node tests/analytics/geo-providers.mjs && node tests/analytics/geo-precision.mjs && node tests/analytics/export-range.mjs && node tests/analytics/admin-summary.mjs && node tests/analytics/edge-handlers.mjs && node tests/analytics/admin-profile.mjs && node tests/analytics/export.mjs && node tests/analytics/clarity.mjs && node tests/analytics/authorization.mjs",
     "test:theme:visual": "node tests/ui/theme-visual.mjs",
-    "audit:ui": "node tests/ui/audit.mjs"
+    "audit:ui": "node tests/ui/audit.mjs",
+    "test:word-creator": "node --no-warnings --import ./tests/scanner/register.mjs tests/wordCreator/unit.mjs",
+    "test:word-creator:browser": "node tests/wordCreator/browser.mjs"
   },
   "dependencies": {
     "@neslinesli93/qpdf-wasm": "^0.3.0",
@@ -58,6 +60,15 @@
     "@supabase/server": "^1.3.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
+    "@tiptap/core": "^3.32.0",
+    "@tiptap/extension-highlight": "^3.32.0",
+    "@tiptap/extension-subscript": "^3.32.0",
+    "@tiptap/extension-superscript": "^3.32.0",
+    "@tiptap/extension-text-align": "^3.32.0",
+    "@tiptap/extension-text-style": "^3.32.0",
+    "@tiptap/pm": "^3.32.0",
+    "@tiptap/react": "^3.32.0",
+    "@tiptap/starter-kit": "^3.32.0",
     "@vercel/functions": "^3.9.9",
     "docx": "^9.7.1",
     "exceljs": "^4.4.0",

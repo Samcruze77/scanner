@@ -1,0 +1,310 @@
+/* The Word document creator: the grey desk, the A4 sheets and the text on them.
+   The sheet is PAPER: it stays white with black text in every theme (like a scanned page), while
+   the desk and toolbar around it follow the theme. Sizes mirror utils/wordCreator/model.ts (A4,
+   96 px margins) and the Word styles written by docxExport.ts. */
+
+.wc-desk {
+  background-color: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  overflow: auto;
+  /* Scrolls inside the desk, never the whole page sideways. */
+  max-width: 100%;
+  height: min(78vh, 1100px);
+  min-height: 420px;
+  padding: 1.25rem 1rem;
+  overscroll-behavior: contain;
+}
+
+.wc-scaler {
+  margin: 0 auto;
+}
+.wc-scaled {
+  width: 794px;
+  transform-origin: top left;
+  filter: drop-shadow(0 1px 3px rgb(0 0 0 / 0.28)) drop-shadow(0 6px 16px rgb(0 0 0 / 0.12));
+}
+
+/* The editor surface itself: sheets are painted as a repeating white block and a gap. */
+.wc-page {
+  position: relative;
+  box-sizing: border-box;
+  width: 794px;
+  min-height: var(--wc-paper-h, 1123px);
+  padding: 96px;
+  display: flex;
+  flex-direction: column; /* no margin collapsing, like Word: space after + space before add up */
+  align-items: stretch;
+  outline: none;
+  background: repeating-linear-gradient(to bottom, #fff 0, #fff 1123px, transparent 1123px, transparent 1147px);
+  color: #000;
+  caret-color: #000;
+  color-scheme: light;
+  font-family: Calibri, Carlito, "Segoe UI", sans-serif;
+  font-size: 11pt;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: normal;
+  --wc-lh: 1.15;
+  cursor: text;
+}
+.wc-page ::selection {
+  background: #b3d4fc;
+  color: #000;
+}
+
+.wc-page > * {
+  flex: none;
+  min-width: 0;
+}
+.wc-page .wc-page-gap {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ---- text blocks ---- */
+.wc-page p,
+.wc-page h1,
+.wc-page h2,
+.wc-page h3 {
+  /* Word's "single" line is about 1.2 x the font size; the multiplier is applied on top. */
+  line-height: calc(var(--wc-lh, 1.15) * 1.2);
+  margin-top: calc(var(--wc-before, var(--wc-d-before, 0)) * 1pt);
+  margin-bottom: calc(var(--wc-after, var(--wc-d-after, 8)) * 1pt);
+  margin-left: calc(var(--wc-indent, 0) * 48px);
+  min-height: 1.2em;
+}
+.wc-page li > p {
+  margin-left: 0;
+}
+.wc-page h1 {
+  font-size: 20pt;
+  font-weight: 700;
+  --wc-d-before: 12;
+  --wc-d-after: 6;
+}
+.wc-page h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  --wc-d-before: 10;
+  --wc-d-after: 6;
+}
+.wc-page h3 {
+  font-size: 13pt;
+  font-weight: 700;
+  --wc-d-before: 8;
+  --wc-d-after: 4;
+}
+.wc-page p[data-variant="title"] {
+  font-size: 26pt;
+  --wc-d-after: 6;
+}
+.wc-page p[data-variant="subtitle"] {
+  font-size: 14pt;
+  color: #595959;
+  --wc-d-after: 8;
+}
+
+.wc-page ul,
+.wc-page ol {
+  padding-left: 48px;
+  margin: 0;
+}
+.wc-page ul {
+  list-style: disc;
+}
+.wc-page ul ul {
+  list-style: circle;
+}
+.wc-page ul ul ul {
+  list-style: square;
+}
+.wc-page ol {
+  list-style: decimal;
+}
+.wc-page ol ol {
+  list-style: lower-alpha;
+}
+.wc-page ol ol ol {
+  list-style: lower-roman;
+}
+.wc-page li {
+  padding-left: 0;
+}
+.wc-page li::marker {
+  color: inherit;
+}
+
+.wc-page a {
+  color: #0563c1;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.wc-page mark {
+  color: inherit;
+  padding: 0;
+}
+.wc-page hr {
+  border: 0;
+  border-top: 1px solid #808080;
+  margin: 6pt 0;
+  cursor: pointer;
+}
+.wc-page hr.ProseMirror-selectednode {
+  border-top-color: #2563eb;
+  border-top-width: 2px;
+}
+
+/* The empty-document hint. */
+.wc-page.wc-empty > p:first-child::before {
+  content: "Start typing…";
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* ---- pictures ---- */
+.wc-img {
+  position: relative;
+  display: flex;
+  max-width: 100%;
+  margin-bottom: 8pt;
+}
+.wc-img[data-align="left"] {
+  align-self: flex-start;
+}
+.wc-img[data-align="center"] {
+  align-self: center;
+}
+.wc-img[data-align="right"] {
+  align-self: flex-end;
+}
+.wc-img img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.wc-img.ProseMirror-selectednode img {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+.wc-img-handle {
+  display: none;
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: #2563eb;
+  border: 2px solid #fff;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.wc-img.ProseMirror-selectednode .wc-img-handle {
+  display: block;
+}
+
+/* Gap cursor / drop cursor on the white page. */
+.wc-page .ProseMirror-gapcursor::after {
+  border-top-color: #000;
+}
+
+/* ---- toolbar ---- */
+.wc-toolbar {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+.wc-tbtn {
+  display: inline-flex;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border-radius: 0.5rem;
+  padding: 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  transition: background-color 150ms;
+  flex: none;
+}
+.wc-tbtn:hover:not(:disabled) {
+  background-color: var(--hover);
+}
+.wc-tbtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.wc-tbtn[aria-pressed="true"] {
+  background-color: var(--selected);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.wc-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.5rem 0.25rem;
+  background-color: var(--border);
+  flex: none;
+}
+.wc-select {
+  min-height: 2.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--field-border);
+  background-color: var(--field-bg);
+  color: var(--text);
+  padding: 0 0.5rem;
+  font-size: 0.875rem;
+  flex: none;
+}
+.wc-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 15rem;
+  max-width: calc(100vw - 2rem);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-strong);
+  background-color: var(--elevated);
+  color: var(--text);
+  padding: 0.75rem;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+.wc-swatch {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgb(0 0 0 / 0.25);
+}
+.wc-swatch:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .wc-desk {
+    padding: 0.75rem 0.5rem;
+    height: 72vh;
+  }
+  .wc-bar-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+}
+
+.wc-page:focus,
+.wc-page:focus-visible {
+  outline: none;
+}
+
+@media print {
+  .wc-toolbar,
+  .wc-docbar {
+    display: none;
+  }
+}

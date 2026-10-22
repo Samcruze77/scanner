@@ -910,6 +910,43 @@ export const LANDING_PAGES: LandingPage[] = [
     related: [LINKS.pdfToWord, LINKS.pdfToExcel, LINKS.wordToPdf, LINKS.excelToPdf, LINKS.imageToPdf],
   },
   {
+    path: "/create-word-document",
+    title: "Create a Word Document Online Free: Write and Download .docx",
+    description:
+      "Write a new Word document from a blank page, format it, add pictures and links, and download a real .docx. Free, no account, and your text never leaves your browser.",
+    h1: "Create a Word document online",
+    intro:
+      "Start with a blank A4 page, write and format your document, add pictures and links, then download it as a real Word (.docx) file you can keep editing in Word. Free, no account, and nothing is uploaded.",
+    crumbs: [{ name: "Create Word document", path: "/create-word-document" }],
+    appName: "FreePDFScanner Word document creator",
+    features: [
+      "Blank A4 page that grows to as many pages as you need",
+      "Fonts, sizes, colours, highlights, headings, lists, alignment and spacing",
+      "Pictures and links",
+      "Automatic draft saving in your browser",
+      "Download a genuine, editable .docx",
+    ],
+    how: [
+      "Open the page and start typing: there is nothing to upload and no account to make.",
+      "Use the toolbar to format text, add headings and lists, insert pictures and links, and set spacing.",
+      "Your draft is saved in this browser as you type. Choose Download Word (.docx) when you are done.",
+    ],
+    goodFor: "Letters, notes, CVs, simple reports and any document you want to start from scratch and finish in Word.",
+    formats: "Pictures: PNG, JPEG, WebP and GIF (WebP and GIF are converted to PNG so Word can keep them). Download: Word (.docx).",
+    limits: [
+      "Drafts are kept in this browser on this device only. They are not saved to an account and do not sync, so download the .docx to keep or share a copy.",
+      "Word and your browser lay out pages with different engines, so line and page breaks can move slightly in Word. Text, formatting, pictures and links are kept.",
+      "Pictures can be up to 10 MB each. Tables, headers, footers and page numbers are not available yet.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "Do I need an account?", a: "No. Open the page and start writing. Drafts are saved in your own browser." },
+      { q: "Will my work be lost if I refresh the page?", a: "No. It is saved in your browser as you type and restored when you come back. Clearing the site's data in your browser removes saved drafts, so download the .docx for anything important." },
+      { q: "Can I edit the downloaded file in Microsoft Word?", a: "Yes. It is a real .docx file with real headings, lists, links and pictures, so it opens and edits in Word and other office apps." },
+    ],
+    related: [LINKS.wordToPdf, LINKS.pdfToWord, LINKS.convert],
+  },
+  {
     path: "/document-converter",
     title: "Free Online Document Converter: PDF, Word & Excel",
     description:

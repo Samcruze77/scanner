@@ -44,6 +44,12 @@ const GOALS: { href: string; icon: IconName; title: string; body: string }[] = [
     title: "Make a file smaller",
     body: "Shrink a PDF, photo, Word or Excel file with a quality-to-size slider.",
   },
+  {
+    href: "/create-word-document",
+    icon: "document",
+    title: "Create a Word document",
+    body: "Write a new document on a blank page, format it, add pictures, and download a real .docx.",
+  },
 ];
 
 const STEPS = [
@@ -87,8 +93,8 @@ export default function Home() {
           What would you like to do?
         </h2>
         <ul className="grid gap-3 sm:grid-cols-2">
-          {GOALS.map((goal) => (
-            <li key={goal.href}>
+          {GOALS.map((goal, i) => (
+            <li key={goal.href} className={i === GOALS.length - 1 && GOALS.length % 2 === 1 ? "sm:col-span-2" : undefined}>
               <Link
                 href={goal.href}
                 className="card group flex h-full items-start gap-4 p-4 transition-colors hover:border-blue-300 hover:bg-blue-50/40 dark:hover:border-blue-800 dark:hover:bg-blue-950/30"
