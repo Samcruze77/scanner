@@ -10,11 +10,14 @@
 //   * withdrawing recordings removes Clarity and its cookies
 //
 // Run:  BASE_URL=http://localhost:3116 CLARITY_ID=zzTESTzz1 node tests/consent/browser.mjs
-// Needs Playwright (globally installed) and Chromium.
+// Uses the project's own playwright-core and the installed Chrome/Edge (set CHROME to pick one), like the other browser tests.
 
+import fs from "node:fs";
 import { createRequire } from "node:module";
 
-const { chromium } = createRequire(import.meta.url)("playwright");
+const { chromium } = createRequire(import.meta.url)("playwright-core");
+const CHROME = [process.env.CHROME, "C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"].find((p) => p && fs.existsSync(p));
+if (!CHROME) throw new Error("No Chrome/Edge found. Set CHROME to a browser executable.");
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3116";
 const CLARITY_ID = process.env.CLARITY_ID ?? "zzTESTzz1";
@@ -28,7 +31,7 @@ const check = (name, ok, detail) => {
   }
 };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: CHROME, headless: true });
 
 async function newSession(viewport = { width: 1280, height: 900 }) {
   const context = await browser.newContext({ viewport });
