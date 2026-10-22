@@ -80,10 +80,17 @@ const MOCK = `
   const err = (status, code, msg) => json(status, { code: status, error_code: code, msg });
   window.fetch = async (input, init) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes('track-analytics')) {
+    // The client posts events to this app's own /api/analytics/track (utils/analytics/client.ts), which forwards them to the
+    // track-analytics function. Match those two endpoints exactly; every other request is untouched.
+    if (url.includes('track-analytics') || new URL(url, location.href).pathname === '/api/analytics/track') {
       try { window.__events.push(JSON.parse(init.body)); } catch {}
-      return realFetch(input, init);
+      return json(202, {});
     }
+    // Two background calls every page makes that have nothing to do with sign-in. They need the live backend, so they are
+    // answered locally (no ad, heartbeat accepted): the run never touches a real project, and the "no console errors" check
+    // below is about the app, not about whether a backend is reachable.
+    if (url.startsWith(AUTH.replace('/auth/v1', '/functions/v1/ads-eligible'))) return json(200, { campaign: null });
+    if (new URL(url, location.href).pathname === '/api/analytics/heartbeat') return json(202, {});
     if (!url.startsWith(AUTH)) return realFetch(input, init);
     const path = url.slice(AUTH.length);
     const method = ((init && init.method) || 'GET').toUpperCase();
@@ -182,6 +189,12 @@ await send("Runtime.enable");
 await send("Log.enable");
 await send("Network.enable");
 await send("Page.addScriptToEvaluateOnNewDocument", { source: MOCK });
+// Visitor consent is explicit state, not leftover browser state. Analytics are opt-in (utils/consent) and the cookie banner is
+// itself a role=dialog that would cover these forms, so every page load starts as a visitor who has already chosen: analytics
+// accepted (these tests inspect what events carry), advertising and recordings declined.
+await send("Page.addScriptToEvaluateOnNewDocument", {
+  source: `try { localStorage.setItem("ds_consent", JSON.stringify({ version: 1, decided_at: new Date().toISOString(), analytics: true, advertising: false, recordings: false })); } catch {}`,
+});
 
 // ---- helpers -----------------------------------------------------------------------------------
 
