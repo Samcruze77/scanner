@@ -847,9 +847,10 @@ async function parsePict(
 
 // ---- tables --------------------------------------------------------------------------
 
-// Word-authored files carry the real defaults in their default table style;
-// a file without one (some generators) has none.
-const DEFAULT_CELL_MARGINS = { top: 0, left: 0, bottom: 0, right: 0 };
+// Word-authored files carry the real defaults in their default table style. A file without one (some
+// generators) is laid out by Word with 0.5 pt (10 twips) left and right: Word writes exactly that into
+// the table when it re-saves such a file, and a probe table with no styles at all gets the same.
+const DEFAULT_CELL_MARGINS = { top: 0, left: 10, bottom: 0, right: 10 };
 
 async function parseTable(el: Element, ctx: Ctx): Promise<Table | null> {
   const tblPrEl = child(el, "tblPr");

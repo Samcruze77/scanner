@@ -52,7 +52,8 @@
     "test:theme:visual": "node tests/ui/theme-visual.mjs",
     "audit:ui": "node tests/ui/audit.mjs",
     "test:word-creator": "node --no-warnings --import ./tests/scanner/register.mjs tests/wordCreator/unit.mjs",
-    "test:word-creator:browser": "node tests/wordCreator/browser.mjs"
+    "test:word-creator:browser": "node tests/wordCreator/browser.mjs",
+    "test:docx:autofit": "node --no-warnings tests/docx/autofit.mjs"
   },
   "dependencies": {
     "@neslinesli93/qpdf-wasm": "^0.3.0",

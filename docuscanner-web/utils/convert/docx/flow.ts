@@ -161,6 +161,19 @@ function naturalWidth(p: LaidParagraph): number {
   return w;
 }
 
+// The narrowest a paragraph can be made: its longest word (or widest picture). Measured on the unwrapped
+// layout, because laying the paragraph out in a sliver breaks inside words instead.
+function longestUnit(p: LaidParagraph): number {
+  let w = 0;
+  for (const line of p.lines) {
+    for (const c of line.cmds) {
+      if (c.k === "image") w = Math.max(w, c.w);
+      else if (c.k === "text") for (const word of c.text.split(/\s+/)) if (word) w = Math.max(w, textWidth(c.face, word, c.size, c.spacing, c.scale));
+    }
+  }
+  return w;
+}
+
 // A table Word lays out by content ("auto-fit", the default) whose column grid carries no information:
 // equal columns and no cell has a preferred width. That is how generators such as python-docx write
 // tables, and Word ignores such a grid and sizes the columns from what is in them. Returns the
@@ -190,7 +203,7 @@ function autofitColumns(table: Table, grid: number[], containerWidth: number, en
         // Left-aligned, so centred or right-aligned text is measured by its length, not by where it would sit.
         const left = { ...b, ppr: { ...b.ppr, jc: "left" as const } };
         cMax = Math.max(cMax, naturalWidth(layoutParagraph(left, 100000, env)));
-        cMin = Math.max(cMin, naturalWidth(layoutParagraph(left, 1, env)));
+        cMin = Math.max(cMin, longestUnit(layoutParagraph(left, 100000, env)));
       }
       return { cell, max: cMax + pad, min: cMin + pad };
     });
@@ -199,13 +212,14 @@ function autofitColumns(table: Table, grid: number[], containerWidth: number, en
     max[cell.gridStart] = Math.max(max[cell.gridStart], cMax);
     min[cell.gridStart] = Math.max(min[cell.gridStart], cMin);
   }
-  // A merged cell that is wider than the columns under it widens them equally.
+  // A merged cell that is wider than the columns under it widens them in proportion to their own widths
+  // (Word's behaviour; equally only where they are all empty).
   for (const { cell, max: cMax, min: cMin } of measured) {
     if (cell.gridSpan === 1) continue;
     const idx = Array.from({ length: cell.gridSpan }, (_, i) => cell.gridStart + i).filter((c) => c < cols);
     for (const [arr, need] of [[max, cMax], [min, cMin]] as const) {
       const have = idx.reduce((s, c) => s + arr[c], 0);
-      if (need > have) for (const c of idx) arr[c] += (need - have) / idx.length;
+      if (need > have) for (const c of idx) arr[c] += have > 0 ? ((need - have) * arr[c]) / have : (need - have) / idx.length;
     }
   }
 
