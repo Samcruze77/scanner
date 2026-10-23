@@ -2,10 +2,21 @@
 // the picture node (resizable, aligned), and the page layout that lays text out on A4 sheets.
 import { Extension, Node, mergeAttributes } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
-import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Plugin, PluginKey, TextSelection, type EditorState } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { layoutPages, type Spacer } from "@/utils/wordCreator/layout";
-import { CONTENT_WIDTH_PX, MAX_INDENT } from "@/utils/wordCreator/model";
+import {
+  DEFAULT_MARGINS,
+  FONT_SIZES,
+  INDENT_STEP_PT,
+  MAX_INDENT,
+  MAX_INDENT_PT,
+  PARAGRAPH_STYLES,
+  leftIndentPt,
+  pageViewGeometry,
+  sizeToPt,
+  type PageGeometry,
+} from "@/utils/wordCreator/model";
 
 const TEXT_BLOCKS = ["paragraph", "heading"];
 const numAttr = (name: string) => (el: HTMLElement) => {
@@ -19,7 +30,19 @@ declare module "@tiptap/core" {
       setLineHeight: (value: number | null) => ReturnType;
       setParagraphSpacing: (spacing: { before?: number | null; after?: number | null }) => ReturnType;
       changeIndent: (delta: number) => ReturnType;
+      // Left and right indent and first-line indent in points (first line may be negative: a hanging indent). null clears one.
+      setIndents: (v: { left?: number | null; right?: number | null; firstLine?: number | null }) => ReturnType;
       setBlockStyle: (style: "normal" | "title" | "subtitle" | "h1" | "h2" | "h3") => ReturnType;
+    };
+    fontSizeTools: {
+      // One step up or down the standard sizes, for every piece of selected text separately (mixed sizes stay different).
+      changeFontSize: (direction: 1 | -1) => ReturnType;
+    };
+    pageBreak: {
+      insertPageBreak: () => ReturnType;
+    };
+    pagination: {
+      setPageGeometry: (geometry: PageGeometry) => ReturnType;
     };
     wordImage: {
       insertPicture: (attrs: { src: string; width?: number; alt?: string }) => ReturnType;
@@ -51,6 +74,21 @@ export const ParagraphFormat = Extension.create({
             default: null,
             parseHTML: numAttr("data-space-after"),
             renderHTML: (a) => (a.spaceAfter !== null && a.spaceAfter !== undefined ? { "data-space-after": a.spaceAfter, style: `--wc-after:${a.spaceAfter}` } : {}),
+          },
+          indentLeft: {
+            default: null,
+            parseHTML: numAttr("data-indent-left"),
+            renderHTML: (a) => (typeof a.indentLeft === "number" ? { "data-indent-left": a.indentLeft, style: `--wc-left:${(a.indentLeft * 96) / 72}px` } : {}),
+          },
+          indentRight: {
+            default: null,
+            parseHTML: numAttr("data-indent-right"),
+            renderHTML: (a) => (typeof a.indentRight === "number" && a.indentRight > 0 ? { "data-indent-right": a.indentRight, style: `--wc-right:${(a.indentRight * 96) / 72}px` } : {}),
+          },
+          firstLine: {
+            default: null,
+            parseHTML: numAttr("data-first-line"),
+            renderHTML: (a) => (typeof a.firstLine === "number" && a.firstLine !== 0 ? { "data-first-line": a.firstLine, style: `--wc-first:${(a.firstLine * 96) / 72}px` } : {}),
           },
           indent: {
             default: 0,
@@ -101,7 +139,27 @@ export const ParagraphFormat = Extension.create({
           ...(spacing.before !== undefined ? { spaceBefore: spacing.before } : {}),
           ...(spacing.after !== undefined ? { spaceAfter: spacing.after } : {}),
         }))(),
-      changeIndent: (delta) => setAttrs((node) => ({ indent: Math.min(MAX_INDENT, Math.max(0, (node.attrs.indent ?? 0) + delta)) }))(),
+      changeIndent: (delta) =>
+        setAttrs((node) => {
+          // A left indent set in the Paragraph menu moves in half-inch steps; otherwise the indent level moves.
+          if (typeof node.attrs.indentLeft === "number") return { indentLeft: Math.min(MAX_INDENT_PT, Math.max(0, node.attrs.indentLeft + delta * INDENT_STEP_PT)) };
+          return { indent: Math.min(MAX_INDENT, Math.max(0, (node.attrs.indent ?? 0) + delta)) };
+        })(),
+      setIndents: (v) =>
+        setAttrs((node) => {
+          const clamp = (n: number | null | undefined, min: number, max: number) => (n === null || n === undefined || !Number.isFinite(n) ? null : Math.min(max, Math.max(min, n)));
+          const out: Record<string, unknown> = {};
+          if (v.left !== undefined) {
+            out.indentLeft = clamp(v.left, 0, MAX_INDENT_PT);
+            out.indent = 0;
+          }
+          if (v.right !== undefined) out.indentRight = clamp(v.right, 0, MAX_INDENT_PT);
+          if (v.firstLine !== undefined) {
+            const left = out.indentLeft !== undefined ? (out.indentLeft as number | null) ?? 0 : leftIndentPt(node.attrs);
+            out.firstLine = clamp(v.firstLine, -left, MAX_INDENT_PT);
+          }
+          return out;
+        })(),
       setBlockStyle:
         (style) =>
         ({ tr, state, dispatch }) => {
@@ -119,6 +177,121 @@ export const ParagraphFormat = Extension.create({
             for (const k of Object.keys(attrs)) if (!(k in allowed)) delete attrs[k];
             tr.setNodeMarkup(pos, type, attrs);
           });
+          if (dispatch) dispatch(tr);
+          return true;
+        },
+    };
+  },
+});
+
+// ---- font size ---------------------------------------------------------------------------------------------------------------
+// The size a block's text has when nothing says otherwise (a heading is bigger than body text).
+function blockDefaultPt(node: PMNode | null | undefined): number {
+  if (!node) return 11;
+  const id = node.type.name === "heading" ? `h${node.attrs.level}` : (node.attrs.variant as string | null) ?? "normal";
+  return (PARAGRAPH_STYLES.find((p) => p.id === id) ?? PARAGRAPH_STYLES[0]).sizePt;
+}
+
+function textStyleSize(marks: readonly { type: { name: string }; attrs: Record<string, unknown> }[]): number | null {
+  const ts = marks.find((m) => m.type.name === "textStyle");
+  return ts ? sizeToPt(ts.attrs.fontSize) : null;
+}
+
+// Every distinct size in the selection, smallest first (one entry at the cursor). More than one means "mixed".
+export function fontSizesInSelection(state: EditorState): number[] {
+  const { from, to, empty, $from } = state.selection;
+  if (empty) return [textStyleSize(state.storedMarks ?? $from.marks()) ?? blockDefaultPt($from.parent)];
+  const sizes = new Set<number>();
+  state.doc.nodesBetween(from, to, (node, _pos, parent) => {
+    if (node.isText && parent) sizes.add(textStyleSize(node.marks) ?? blockDefaultPt(parent));
+  });
+  if (!sizes.size) sizes.add(blockDefaultPt($from.parent));
+  return [...sizes].sort((a, b) => a - b);
+}
+
+// The next standard size above or below `pt` (sizes between the standard ones step to their neighbours).
+export function nextPresetSize(pt: number, direction: 1 | -1): number {
+  if (direction > 0) return FONT_SIZES.find((n) => n > pt) ?? Math.min(400, Math.floor(pt) + 8);
+  const smaller = [...FONT_SIZES].reverse().find((n) => n < pt);
+  return smaller ?? Math.max(1, Math.ceil(pt) - 1);
+}
+
+export const FontSizeTools = Extension.create({
+  name: "fontSizeTools",
+
+  addCommands() {
+    return {
+      changeFontSize:
+        (direction) =>
+        ({ state, tr, dispatch }) => {
+          const markType = state.schema.marks.textStyle;
+          const { from, to, empty, $from } = state.selection;
+          if (empty) {
+            const next = nextPresetSize(fontSizesInSelection(state)[0], direction);
+            const marks = state.storedMarks ?? $from.marks();
+            const old = marks.find((m) => m.type === markType);
+            tr.setStoredMarks([...marks.filter((m) => m.type !== markType), markType.create({ ...(old?.attrs ?? {}), fontSize: `${next}pt` })]);
+          } else {
+            state.doc.nodesBetween(from, to, (node, pos, parent) => {
+              if (!node.isText || !parent) return;
+              const old = node.marks.find((m) => m.type === markType);
+              const next = nextPresetSize(textStyleSize(node.marks) ?? blockDefaultPt(parent), direction);
+              tr.addMark(Math.max(pos, from), Math.min(pos + node.nodeSize, to), markType.create({ ...(old?.attrs ?? {}), fontSize: `${next}pt` }));
+            });
+          }
+          if (dispatch) dispatch(tr);
+          return true;
+        },
+    };
+  },
+});
+
+// ---- page break --------------------------------------------------------------------------------------------------------------
+// A real page break: whatever follows starts on a new page. Shown in the editor as a labelled line, and written to the .docx as
+// "page break before" on the next paragraph, so Word separates the pages in the same place.
+export const PageBreak = Node.create({
+  name: "pageBreak",
+  group: "block",
+  atom: true,
+  selectable: true,
+
+  parseHTML() {
+    return [{ tag: "div[data-page-break]" }];
+  },
+
+  renderHTML() {
+    return ["div", { "data-page-break": "true", class: "wc-pagebreak", role: "separator", "aria-label": "Page break" }, ["span", { class: "wc-pagebreak-label" }, "Page break"]];
+  },
+
+  addKeyboardShortcuts() {
+    return { "Mod-Enter": () => this.editor.commands.insertPageBreak() };
+  },
+
+  addCommands() {
+    return {
+      insertPageBreak:
+        () =>
+        ({ state, tr, dispatch }) => {
+          const type = state.schema.nodes.pageBreak;
+          const paragraph = state.schema.nodes.paragraph;
+          if (!tr.selection.empty && !("node" in tr.selection)) tr.deleteSelection();
+          const sel = tr.selection;
+          const $pos = sel.$from;
+          let at: number;
+          if ("node" in sel) at = sel.to; // a selected picture: the break goes after it
+          else if ($pos.depth === 1 && $pos.parentOffset > 0 && $pos.parentOffset < $pos.parent.content.size) {
+            // In the middle of a paragraph: the text after the cursor moves to the new page.
+            tr.split($pos.pos);
+            at = tr.selection.$from.before(1);
+          } else if ($pos.depth >= 1 && $pos.depth === 1 && $pos.parentOffset === 0 && $pos.parent.content.size > 0) at = $pos.before(1);
+          else at = $pos.depth >= 1 ? $pos.after(1) : $pos.pos;
+          tr.insert(at, type.create());
+          const after = at + 1;
+          // There is always somewhere to carry on typing on the new page.
+          const next = tr.doc.nodeAt(after);
+          if (!next || !next.isTextblock) tr.insert(after, paragraph.create());
+          tr.setSelection(TextSelection.near(tr.doc.resolve(after + 1), 1));
+          tr.scrollIntoView();
           if (dispatch) dispatch(tr);
           return true;
         },
@@ -174,8 +347,8 @@ export const WordImage = Node.create({
         (attrs) =>
         ({ commands, state }) => {
           const content = { type: "image", attrs: { align: "left", ...attrs } };
-          // A selected picture is not replaced: the new one goes after it.
-          return "node" in state.selection ? commands.insertContentAt(state.selection.to, content) : commands.insertContent(content);
+          // Selected text or a selected picture is never replaced: the new picture goes after it.
+          return "node" in state.selection || !state.selection.empty ? commands.insertContentAt(state.selection.to, content) : commands.insertContent(content);
         },
       updatePicture:
         (attrs) =>
@@ -187,6 +360,8 @@ export const WordImage = Node.create({
   addNodeView() {
     return ({ node: initial, getPos, editor }) => {
       let node = initial;
+      // The width of the text area as it is drawn now (it changes with the page margins and the phone view).
+      const contentWidth = () => (editor.storage as unknown as { pagination?: { geometry: PageGeometry } }).pagination?.geometry.contentW ?? pageViewGeometry(DEFAULT_MARGINS).contentW;
       const dom = document.createElement("div");
       dom.className = "wc-img";
       const img = document.createElement("img");
@@ -201,12 +376,12 @@ export const WordImage = Node.create({
         img.alt = node.attrs.alt ?? "";
         dom.dataset.align = node.attrs.align ?? "left";
         const w = node.attrs.width;
-        img.style.width = w ? `${Math.min(w, CONTENT_WIDTH_PX)}px` : "";
+        img.style.width = w ? `${Math.min(w, contentWidth())}px` : "";
       };
       apply();
       // Before the picture has loaded, show it no wider than the page.
       img.addEventListener("load", () => {
-        if (!node.attrs.width) img.style.width = `${Math.min(img.naturalWidth, CONTENT_WIDTH_PX)}px`;
+        if (!node.attrs.width) img.style.width = `${Math.min(img.naturalWidth, contentWidth())}px`;
       });
 
       handle.addEventListener("pointerdown", (event) => {
@@ -218,7 +393,7 @@ export const WordImage = Node.create({
         handle.setPointerCapture(event.pointerId);
         let width = startW;
         const move = (e: PointerEvent) => {
-          width = Math.round(Math.max(24, Math.min(CONTENT_WIDTH_PX, startW + (e.clientX - startX) / scale)));
+          width = Math.round(Math.max(24, Math.min(contentWidth(), startW + (e.clientX - startX) / scale)));
           img.style.width = `${width}px`;
         };
         const up = () => {
@@ -262,8 +437,27 @@ export const Pagination = Extension.create<{ onPages?: (pages: number) => void }
     return { onPages: undefined };
   },
 
+  addStorage() {
+    return { geometry: pageViewGeometry(DEFAULT_MARGINS) as PageGeometry };
+  },
+
+  addCommands() {
+    return {
+      setPageGeometry:
+        (geometry) =>
+        ({ tr, dispatch }) => {
+          this.storage.geometry = geometry;
+          // Any transaction makes the layout measure again; this one changes nothing else.
+          tr.setMeta("wcRelayout", true).setMeta("addToHistory", false);
+          if (dispatch) dispatch(tr);
+          return true;
+        },
+    };
+  },
+
   addProseMirrorPlugins() {
     const options = this.options;
+    const storage = this.storage;
     return [
       new Plugin({
         key: paginationKey,
@@ -308,7 +502,7 @@ export const Pagination = Extension.create<{ onPages?: (pages: number) => void }
             const root = view.dom as HTMLElement;
             if (!root.isConnected || root.offsetParent === null) return;
             const paddingTop = parseFloat(getComputedStyle(root).paddingTop) || 0;
-            const blocks: { top: number; bottom: number }[] = [];
+            const blocks: { top: number; bottom: number; breakAfter?: boolean }[] = [];
             let above = 0;
             for (const child of Array.from(root.children) as HTMLElement[]) {
               if (child.classList.contains("ProseMirror-gapcursor")) continue;
@@ -320,10 +514,10 @@ export const Pagination = Extension.create<{ onPages?: (pages: number) => void }
               const mt = parseFloat(cs.marginTop) || 0;
               const mb = parseFloat(cs.marginBottom) || 0;
               const top = child.offsetTop - paddingTop - above;
-              blocks.push({ top: top - mt, bottom: top + child.offsetHeight + mb });
+              blocks.push({ top: top - mt, bottom: top + child.offsetHeight + mb, ...(child.hasAttribute("data-page-break") ? { breakAfter: true } : {}) });
             }
             if (blocks.length !== view.state.doc.childCount) return; // mid-update; the next frame will be right
-            const { spacers, pages } = layoutPages(blocks);
+            const { spacers, pages } = layoutPages(blocks, storage.geometry);
             const current = paginationKey.getState(view.state)!.spacers;
             const same = spacers.length === current.length && spacers.every((s, i) => s.index === current[i].index && Math.abs(s.height - current[i].height) < 0.6);
             if (!same) view.dispatch(view.state.tr.setMeta(paginationKey, { spacers }).setMeta("addToHistory", false));

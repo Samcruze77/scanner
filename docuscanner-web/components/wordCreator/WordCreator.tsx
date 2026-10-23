@@ -15,8 +15,10 @@ import TextAlign from "@tiptap/extension-text-align";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ParagraphFormat, Pagination, WordImage } from "./extensions";
+import { FontSizeTools, PageBreak, ParagraphFormat, Pagination, WordImage } from "./extensions";
+import { NavPad } from "./NavPad";
 import { Toolbar } from "./Toolbar";
+import { useMediaQuery } from "./useMediaQuery";
 import { SignatureDialog } from "@/components/scanner/SignatureDialog";
 import type { SignatureImage } from "@/utils/scanner/signature";
 import { trackFeatureUsed, trackToolOpened } from "@/utils/analytics/events";
@@ -29,7 +31,7 @@ import {
   type DraftSummary,
 } from "@/utils/wordCreator/draftStore";
 import { ImageProblem, prepareImage } from "@/utils/wordCreator/imageFile";
-import { DEFAULT_TITLE, EMPTY_DOC, PAGE, isDocumentEmpty, safeLinkHref, sanitizeFileName, type DocNode } from "@/utils/wordCreator/model";
+import { DEFAULT_MARGINS, DEFAULT_TITLE, EMPTY_DOC, isDocumentEmpty, pageViewGeometry, phoneViewGeometry, safeLinkHref, sanitizeFileName, type DocNode, type Margins } from "@/utils/wordCreator/model";
 
 type Status = "ready" | "unsaved" | "saving" | "saved" | "error";
 interface Notice {
@@ -41,6 +43,7 @@ interface Session {
   id: string;
   title: string;
   content: DocNode;
+  margins: Margins;
   saved: boolean; // already in storage
 }
 
@@ -62,6 +65,8 @@ export function WordCreator() {
   const storeRef = useRef<DraftStore | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const docRef = useRef<DocNode>(EMPTY_DOC);
+  const [margins, setMargins] = useState<Margins>(DEFAULT_MARGINS);
+  const marginsRef = useRef<Margins>(DEFAULT_MARGINS);
   const titleRef = useRef(DEFAULT_TITLE);
   const rev = useRef(0);
   const savedRev = useRef(0);
@@ -95,7 +100,7 @@ export function WordCreator() {
       }
       setSaveStatus("saving");
       try {
-        await store.save(current.id, title, doc);
+        await store.save(current.id, title, doc, marginsRef.current);
         current.saved = true;
         savedRev.current = snap;
         if (rev.current === snap) setSaveStatus("saved", `Saved in this browser at ${time(Date.now())}`);
@@ -127,13 +132,13 @@ export function WordCreator() {
       storeRef.current = store;
       setStore(store);
       setStoreKind(store ? store.kind : "none");
-      let next: Session = { key: 1, id: newDraftId(), title: DEFAULT_TITLE, content: EMPTY_DOC, saved: false };
+      let next: Session = { key: 1, id: newDraftId(), title: DEFAULT_TITLE, content: EMPTY_DOC, margins: DEFAULT_MARGINS, saved: false };
       if (store) {
         try {
           const last = await store.getLastId();
           if (last) {
             const draft = await store.load(last);
-            next = { key: 1, id: draft.id, title: draft.title, content: draft.content, saved: true };
+            next = { key: 1, id: draft.id, title: draft.title, content: draft.content, margins: draft.margins, saved: true };
             if (draft.lostImages) setNotice({ kind: "error", text: `${draft.lostImages} picture${draft.lostImages > 1 ? "s" : ""} in your last draft could not be recovered and ${draft.lostImages > 1 ? "were" : "was"} left out.` });
             else setNotice({ kind: "info", text: "Your last draft was restored from this browser." });
           }
@@ -146,6 +151,8 @@ export function WordCreator() {
       sessionRef.current = next;
       docRef.current = next.content;
       titleRef.current = next.title;
+      marginsRef.current = next.margins;
+      setMargins(next.margins);
       rev.current = savedRev.current = 0;
       setSession(next);
     })();
@@ -187,6 +194,8 @@ export function WordCreator() {
       sessionRef.current = s;
       docRef.current = s.content;
       titleRef.current = s.title;
+      marginsRef.current = s.margins;
+      setMargins(s.margins);
       rev.current = savedRev.current = 0;
       setSaveStatus("ready");
       setSession(s);
@@ -205,7 +214,7 @@ export function WordCreator() {
   const startNew = useCallback(async () => {
     if (!(await keepCurrentWork())) return;
     setNotice({ kind: "info", text: "New blank document. Your previous document is kept under My drafts." });
-    beginSession({ id: newDraftId(), title: DEFAULT_TITLE, content: EMPTY_DOC, saved: false });
+    beginSession({ id: newDraftId(), title: DEFAULT_TITLE, content: EMPTY_DOC, margins: DEFAULT_MARGINS, saved: false });
   }, [beginSession, keepCurrentWork]);
 
   const openDraft = useCallback(
@@ -216,7 +225,7 @@ export function WordCreator() {
       if (!(await keepCurrentWork())) return;
       try {
         const draft = await store.load(id);
-        beginSession({ id: draft.id, title: draft.title, content: draft.content, saved: true });
+        beginSession({ id: draft.id, title: draft.title, content: draft.content, margins: draft.margins, saved: true });
         setNotice(draft.lostImages ? { kind: "error", text: `${draft.lostImages} picture(s) in that draft could not be recovered.` } : null);
         setDraftsOpen(false);
       } catch (e) {
@@ -236,7 +245,7 @@ export function WordCreator() {
         setNotice({ kind: "error", text: "The draft could not be deleted." });
         return;
       }
-      if (id === sessionRef.current?.id) beginSession({ id: newDraftId(), title: DEFAULT_TITLE, content: EMPTY_DOC, saved: false });
+      if (id === sessionRef.current?.id) beginSession({ id: newDraftId(), title: DEFAULT_TITLE, content: EMPTY_DOC, margins: DEFAULT_MARGINS, saved: false });
     },
     [beginSession],
   );
@@ -290,6 +299,12 @@ export function WordCreator() {
       <Editing
         key={session.key}
         session={session}
+        margins={margins}
+        onMargins={(m) => {
+          marginsRef.current = m;
+          setMargins(m);
+          markChanged();
+        }}
         storeKind={storeKind}
         notice={notice}
         clearNotice={() => setNotice(null)}
@@ -333,6 +348,8 @@ function SaveStatus({ status, text, storage }: { status: Status; text: string; s
 // ---- the page and toolbar -----------------------------------------------------------------------------------------------------------
 function Editing({
   session,
+  margins,
+  onMargins,
   storeKind,
   notice,
   clearNotice,
@@ -345,6 +362,8 @@ function Editing({
   status,
 }: {
   session: Session;
+  margins: Margins;
+  onMargins: (m: Margins) => void;
   storeKind: "indexeddb" | "localstorage" | "none" | null;
   notice: Notice | null;
   clearNotice: () => void;
@@ -356,14 +375,20 @@ function Editing({
   openDrafts: () => void;
   status: Status;
 }) {
+  const phone = useMediaQuery("(max-width: 767px)");
   const [pages, setPages] = useState(1);
   const [zoom, setZoom] = useState<number | "fit">("fit");
+  // On a phone the sheet is drawn as wide as the screen so the text stays readable ("phone view"); "page view" shows the real A4 sheet.
+  const [phoneView, setPhoneView] = useState(true);
+  const [navOpen, setNavOpen] = useState(false);
   const [deskWidth, setDeskWidth] = useState(1000);
+  const [keyboard, setKeyboard] = useState(0);
   const [busyImage, setBusyImage] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [signing, setSigning] = useState(false);
   const [lastSignature, setLastSignature] = useState<SignatureImage | null>(null);
   const deskRef = useRef<HTMLDivElement>(null);
+  const [dockEl, setDockEl] = useState<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<Editor | null>(null);
   const addImagesRef = useRef<(files: File[]) => void>(() => {});
@@ -373,6 +398,7 @@ function Editing({
     saveRef.current = save;
     onDocChangeRef.current = onDocChange;
   });
+  const narrowView = phone && phoneView;
 
   const extensions = useMemo(
     () => [
@@ -390,6 +416,8 @@ function Editing({
       Superscript,
       TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right", "justify"], defaultAlignment: "left" }),
       ParagraphFormat,
+      FontSizeTools,
+      PageBreak,
       WordImage,
       Pagination.configure({ onPages: (n: number) => setPages(n) }),
     ],
@@ -460,7 +488,7 @@ function Editing({
     addImagesRef.current = addImages;
   });
 
-  // Fit the page to the desk (a phone shows the whole width; zoom in to read closely).
+  // The room the sheet has.
   useEffect(() => {
     const el = deskRef.current;
     if (!el) return;
@@ -471,28 +499,105 @@ function Editing({
     return () => ro.disconnect();
   }, []);
 
-  const fitScale = Math.min(1, Math.max(0.3, deskWidth / PAGE.widthPx));
-  const scale = zoom === "fit" ? fitScale : zoom / 100;
-  const paperH = pages * PAGE.heightPx + (pages - 1) * PAGE.gapPx;
+  // What is drawn: the real A4 sheet with the chosen margins, or (phone view) a sheet as wide as the screen.
+  const geometry = useMemo(() => (narrowView ? phoneViewGeometry(margins, deskWidth) : pageViewGeometry(margins)), [narrowView, margins, deskWidth]);
+  useEffect(() => {
+    editor?.commands.setPageGeometry(geometry);
+  }, [editor, geometry]);
+
+  const fitScale = Math.min(1, Math.max(0.3, deskWidth / geometry.pageW));
+  const scale = narrowView ? 1 : zoom === "fit" ? fitScale : zoom / 100;
+  const paperH = pages * geometry.pageH + (pages - 1) * geometry.gap;
+
+  // On-screen keyboard: how much of the layout viewport it covers, so the bottom bar and sheets sit above it.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      const root = document.documentElement.style;
+      root.setProperty("--wc-kb", `${inset > 80 ? inset : 0}px`);
+      root.setProperty("--wc-vvh", `${vv.height}px`);
+      setKeyboard(inset > 80 ? inset : 0);
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      document.documentElement.style.removeProperty("--wc-kb");
+      document.documentElement.style.removeProperty("--wc-vvh");
+    };
+  }, []);
+
+  // Pulling down at the top of the page must not reload it (and lose the selection) while someone is writing.
+  useEffect(() => {
+    const root = document.documentElement.style;
+    const before = root.overscrollBehaviorY;
+    root.overscrollBehaviorY = "contain";
+    return () => {
+      root.overscrollBehaviorY = before;
+    };
+  }, []);
+
+  // Keep the caret on screen: above the bottom bar and the on-screen keyboard, below the top of the screen.
+  useEffect(() => {
+    if (!editor || !phone) return;
+    let frame = 0;
+    const ensure = () => {
+      frame = 0;
+      if (!editor.view.hasFocus()) return;
+      const vv = window.visualViewport;
+      const dock = dockEl?.getBoundingClientRect();
+      const bottomLimit = (dock && dock.height > 0 ? dock.top : (vv ? vv.offsetTop + vv.height : window.innerHeight)) - 12;
+      const topLimit = (vv?.offsetTop ?? 0) + 64;
+      const c = editor.view.coordsAtPos(editor.state.selection.head);
+      if (c.bottom > bottomLimit) window.scrollBy({ top: c.bottom - bottomLimit, behavior: "auto" });
+      else if (c.top < topLimit) window.scrollBy({ top: c.top - topLimit, behavior: "auto" });
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(ensure);
+    };
+    editor.on("selectionUpdate", schedule);
+    editor.on("update", schedule);
+    window.visualViewport?.addEventListener("resize", schedule);
+    return () => {
+      editor.off("selectionUpdate", schedule);
+      editor.off("update", schedule);
+      window.visualViewport?.removeEventListener("resize", schedule);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [editor, phone, dockEl]);
 
   const download = async () => {
     if (!editor || downloading) return;
     setDownloading(true);
     try {
       const title = getTitle();
-      const bytes = await exportDocx(editor.getJSON() as DocNode, { title });
-      const blob = new Blob([bytes as BlobPart], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = sanitizeFileName(title);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+      const bytes = await exportDocx(editor.getJSON() as DocNode, { title, margins });
+      const mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      const blob = new Blob([bytes as BlobPart], { type: mime });
+      const name = sanitizeFileName(title);
+      if (!("download" in HTMLAnchorElement.prototype)) {
+        // A browser that cannot save a file from a link: offer the share sheet, or open the file.
+        const file = new File([blob], name, { type: mime });
+        if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title });
+        else window.open(URL.createObjectURL(blob), "_blank");
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+      }
       void trackFeatureUsed("word_document_downloaded");
-      setNotice({ kind: "info", text: `Downloaded ${a.download}.` });
+      setNotice({ kind: "info", text: phone ? `Downloaded ${name}. If you cannot find it, open your browser's Downloads.` : `Downloaded ${name}.` });
     } catch (e) {
+      if ((e as { name?: string })?.name === "AbortError") return; // the share sheet was closed
       setNotice({ kind: "error", text: e instanceof ExportError ? e.message : "The Word file could not be created. Your text is still here; try again." });
     } finally {
       setDownloading(false);
@@ -503,16 +608,44 @@ function Editing({
     editor,
     selector: ({ editor: e }) => {
       const text = e ? e.state.doc.textBetween(0, e.state.doc.content.size, " ", " ").trim() : "";
-      return text ? text.split(/s+/).length : 0;
+      return text ? text.split(/\s+/).length : 0;
     },
   });
+
+  const saveLabel = status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Retry save" : "Save";
+  const dockBottom = keyboard > 0 ? `${keyboard}px` : "calc(3.5rem + env(safe-area-inset-bottom))";
+
+  const moreExtras = (
+    <div className="grid gap-3">
+      <div>
+        <p className="panel-title mb-1">View</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn btn-secondary min-h-10" aria-pressed={phoneView} onClick={() => setPhoneView(true)}>
+            Phone view
+          </button>
+          <button type="button" className="btn btn-secondary min-h-10" aria-pressed={!phoneView} onClick={() => setPhoneView(false)}>
+            Page view
+          </button>
+        </div>
+        <p className="muted mt-1 text-xs">Phone view keeps the text a readable size. Page view shows the whole A4 sheet; zoom in with the browser to read it.</p>
+      </div>
+      <div>
+        <p className="panel-title mb-1">Move through the document</p>
+        <button type="button" className="btn btn-secondary min-h-10" aria-pressed={navOpen} onClick={() => setNavOpen((v) => !v)}>
+          {navOpen ? "Hide navigation keys" : "Show navigation keys"}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <>
       <div className="wc-docbar flex flex-wrap items-center gap-2">
-        <button type="button" data-assistant-id="wc-save" className="btn btn-secondary" onClick={() => void save()} disabled={status === "saving"}>
-          Save now
-        </button>
+        {!phone && (
+          <button type="button" data-assistant-id="wc-save" className="btn btn-secondary" onClick={() => void save()} disabled={status === "saving"}>
+            Save now
+          </button>
+        )}
         <button type="button" data-assistant-id="wc-new" className="btn btn-secondary" onClick={startNew}>
           New document
         </button>
@@ -521,9 +654,11 @@ function Editing({
             My drafts
           </button>
         )}
-        <button type="button" data-assistant-id="wc-download" className="btn btn-primary ml-auto" onClick={() => void download()} disabled={!editor || downloading}>
-          {downloading ? "Preparing…" : "Download Word (.docx)"}
-        </button>
+        {!phone && (
+          <button type="button" data-assistant-id="wc-download" className="btn btn-primary ml-auto" onClick={() => void download()} disabled={!editor || downloading}>
+            {downloading ? "Preparing…" : "Download Word (.docx)"}
+          </button>
+        )}
       </div>
 
       {notice && (
@@ -535,7 +670,39 @@ function Editing({
         </div>
       )}
 
-      {editor && <Toolbar editor={editor} busyImage={busyImage} onPickImage={() => fileRef.current?.click()} onAddSignature={() => setSigning(true)} />}
+      {editor && (
+        <Toolbar
+          editor={editor}
+          margins={margins}
+          onMargins={onMargins}
+          busyImage={busyImage}
+          onPickImage={() => fileRef.current?.click()}
+          onAddSignature={() => setSigning(true)}
+          moreExtras={moreExtras}
+          dock={{
+            setEl: setDockEl,
+            bottom: dockBottom,
+            above: navOpen ? <NavPad editor={editor} /> : null,
+            end: (
+              <>
+                <button type="button" data-assistant-id="wc-save" className="wc-tbtn" aria-label={status === "saving" ? "Saving" : status === "error" ? "Save failed: retry" : "Save now"} data-dock-status={status} onClick={() => void save()} disabled={status === "saving"}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M5 4h11l3 3v13H5z" />
+                    <path d="M8 4v5h7V4M8 20v-6h8v6" />
+                  </svg>
+                  <span>{saveLabel}</span>
+                </button>
+                <button type="button" data-assistant-id="wc-download" className="wc-tbtn wc-primary" aria-label="Download Word (.docx)" onClick={() => void download()} disabled={!editor || downloading}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />
+                  </svg>
+                  <span>{downloading ? "Preparing…" : "Download"}</span>
+                </button>
+              </>
+            ),
+          }}
+        />
+      )}
       {signing && editor && (
         <SignatureDialog
           lastSignature={lastSignature}
@@ -566,9 +733,22 @@ function Editing({
         }}
       />
 
-      <div className="wc-desk" ref={deskRef} data-testid="wc-desk">
-        <div className="wc-scaler" style={{ width: PAGE.widthPx * scale, height: paperH * scale }}>
-          <div className="wc-scaled" style={{ transform: `scale(${scale})`, ["--wc-paper-h" as string]: `${paperH}px` }}>
+      <div className="wc-desk" ref={deskRef} data-testid="wc-desk" data-view={narrowView ? "phone" : "page"}>
+        <div className="wc-scaler" style={{ width: geometry.pageW * scale, height: paperH * scale }}>
+          <div
+            className="wc-scaled"
+            style={{
+              transform: scale === 1 ? undefined : `scale(${scale})`,
+              ["--wc-w" as string]: `${geometry.pageW}px`,
+              ["--wc-h" as string]: `${geometry.pageH}px`,
+              ["--wc-gap" as string]: `${geometry.gap}px`,
+              ["--wc-mt" as string]: `${geometry.mt}px`,
+              ["--wc-mr" as string]: `${geometry.mr}px`,
+              ["--wc-mb" as string]: `${geometry.mb}px`,
+              ["--wc-ml" as string]: `${geometry.ml}px`,
+              ["--wc-paper-h" as string]: `${paperH}px`,
+            }}
+          >
             <EditorContent editor={editor} />
           </div>
         </div>
@@ -576,29 +756,33 @@ function Editing({
 
       <div className="wc-docbar flex flex-wrap items-center justify-between gap-2 text-sm" style={{ color: "var(--text-2)" }}>
         <p data-testid="wc-counter">
-          Page count: {pages} · {words} word{words === 1 ? "" : "s"}
+          {narrowView ? "Pages (about)" : "Page count"}: {pages} · {words} word{words === 1 ? "" : "s"}
         </p>
-        <div className="flex items-center gap-1" role="group" aria-label="Zoom">
-          <button type="button" className="btn btn-ghost px-3" aria-label="Zoom out" onClick={() => setZoom(Math.max(25, Math.round(scale * 100) - 10))}>
-            −
-          </button>
-          <select className="wc-select" aria-label="Zoom level" value={zoom === "fit" ? "fit" : String(zoom)} onChange={(e) => setZoom(e.target.value === "fit" ? "fit" : Number(e.target.value))}>
-            <option value="fit">Fit width ({Math.round(fitScale * 100)}%)</option>
-            {ZOOMS.map((z) => (
-              <option key={z} value={z}>
-                {z}%
-              </option>
-            ))}
-            {typeof zoom === "number" && !ZOOMS.includes(zoom) && <option value={zoom}>{zoom}%</option>}
-          </select>
-          <button type="button" className="btn btn-ghost px-3" aria-label="Zoom in" onClick={() => setZoom(Math.min(300, Math.round(scale * 100) + 10))}>
-            +
-          </button>
-        </div>
+        {!narrowView && (
+          <div className="flex items-center gap-1" role="group" aria-label="Zoom">
+            <button type="button" className="btn btn-ghost px-3" aria-label="Zoom out" onClick={() => setZoom(Math.max(25, Math.round(scale * 100) - 10))}>
+              −
+            </button>
+            <select className="wc-select" aria-label="Zoom level" value={zoom === "fit" ? "fit" : String(zoom)} onChange={(e) => setZoom(e.target.value === "fit" ? "fit" : Number(e.target.value))}>
+              <option value="fit">Fit width ({Math.round(fitScale * 100)}%)</option>
+              {ZOOMS.map((z) => (
+                <option key={z} value={z}>
+                  {z}%
+                </option>
+              ))}
+              {typeof zoom === "number" && !ZOOMS.includes(zoom) && <option value={zoom}>{zoom}%</option>}
+            </select>
+            <button type="button" className="btn btn-ghost px-3" aria-label="Zoom in" onClick={() => setZoom(Math.min(300, Math.round(scale * 100) + 10))}>
+              +
+            </button>
+          </div>
+        )}
       </div>
       <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-        Your document and pictures stay in this browser: nothing is uploaded. Drafts live on this device only (they are not saved to an account), so download the .docx to keep or share a copy. Word lays pages out with its own engine, so line and page breaks can differ slightly from this view.
+        Your document and pictures stay in this browser: nothing is uploaded. Drafts live on this device only (they are not saved to an account), so download the .docx to keep or share a copy. Word lays pages out with its own engine, so line and page breaks can differ slightly from this view
+        {narrowView ? ", and phone view draws a narrower sheet than the A4 page Word will print" : ""}.
       </p>
+      {phone && <div aria-hidden style={{ height: navOpen ? "11rem" : "7rem" }} />}
     </>
   );
 }

@@ -45,7 +45,7 @@ test("it leads to the real page, and every link in it is a real page", () => {
   }
 });
 test("it names controls that are on the screen", () => {
-  const ui = ["components/wordCreator/Toolbar.tsx", "components/wordCreator/WordCreator.tsx"].map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n");
+  const ui = ["components/wordCreator/Toolbar.tsx", "components/wordCreator/WordCreator.tsx", "components/wordCreator/NavPad.tsx"].map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n");
   const text = all(guide);
   for (const label of ["Document name", "Insert image", "Add signature", "Save now", "New document", "My drafts", "Download Word (.docx)", "Clear text formatting", "Delete picture"]) {
     assert.ok(text.includes(label), `the guide never mentions ${label}`);
@@ -83,6 +83,22 @@ test("other guides and pages link to it", () => {
   assert.ok(getLanding("/convert/pdf-to-word").faq.some((f) => /new Word document/i.test(f.q)));
   assert.ok(getLanding("/tools/ocr").faq.some((f) => /new Word document/i.test(f.q)));
   assert.match(getLanding("/create-word-document").features.join(" "), /signature/);
+});
+test("it explains font size, margins, paragraph options, page breaks and writing on a phone, using the real labels and limits", () => {
+  const text = all(guide);
+  const ui = ["components/wordCreator/Toolbar.tsx", "components/wordCreator/WordCreator.tsx", "components/wordCreator/NavPad.tsx", "components/wordCreator/extensions.ts"].map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n");
+  for (const label of ["Add page", "Page break", "Apply custom margins", "Show navigation keys", "Increase font size", "Decrease font size", "Page view", "Phone view", "Paragraph", "More"]) {
+    assert.ok(text.includes(label), `the guide never mentions ${label}`);
+    assert.ok(ui.includes(label), `${label} is not in the interface`);
+  }
+  for (const phrase of ["8 to 72 points", "from 1 to 400", "Normal, Narrow, Moderate or Wide", "each from 0.25 to 4", "Ctrl+Enter", "Mixed", "Single, 1.15, 1.5, Double", "first-line or hanging indent", "narrower page than Word will print"]) assert.ok(text.includes(phrase), phrase);
+  const headings = guide.sections.map((s) => s.h2);
+  assert.ok(headings.includes("Set the page margins and add pages") && headings.includes("Writing on a phone"));
+  const model = fs.readFileSync(path.join(root, "utils/wordCreator/model.ts"), "utf8");
+  assert.match(model, /FONT_SIZES = \[8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72\]/);
+  assert.match(model, /MIN_MARGIN_TWIPS = 360/);
+  assert.match(model, /MAX_MARGIN_TWIPS = 5760/);
+  assert.doesNotMatch(text, /cloud|synced? across|collaborat|\bAI\b|voice|dictat/i);
 });
 test("the guide is in the sitemap, the guides hub and the pages are built from the same list", () => {
   const sitemap = fs.readFileSync(path.join(root, "app/sitemap.ts"), "utf8");

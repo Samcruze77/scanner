@@ -99,6 +99,11 @@ export async function readDocx(bytes) {
       line: spacing && attr(spacing, "line") !== null ? Number(attr(spacing, "line")) : null,
       lineRule: spacing ? attr(spacing, "lineRule") : null,
       indentLeft: ind && attr(ind, "left") !== null ? Number(attr(ind, "left")) : null,
+      indentRight: ind && attr(ind, "right") !== null ? Number(attr(ind, "right")) : null,
+      firstLine: ind && attr(ind, "firstLine") !== null ? Number(attr(ind, "firstLine")) : null,
+      hanging: ind && attr(ind, "hanging") !== null ? Number(attr(ind, "hanging")) : null,
+      pageBreakBefore: !!kid(pPr, "pageBreakBefore"),
+      pageBreakRuns: Array.from(p.getElementsByTagNameNS(W, "br")).filter((b) => attr(b, "type") === "page").length,
       border: !!kid(pPr, "pBdr"),
     });
   }

@@ -7,7 +7,16 @@ import { sniffImage, bytesFromDataUrl } from "../../utils/wordCreator/imageData.
 import { layoutPages, PITCH } from "../../utils/wordCreator/layout.ts";
 import {
   CONTENT_HEIGHT_PX,
+  DEFAULT_MARGINS,
+  MARGIN_PRESETS,
   EMPTY_DOC,
+  inchesToTwips,
+  marginPreset,
+  pageViewGeometry,
+  phoneViewGeometry,
+  sanitizeMargins,
+  twipsToInches,
+  validateMargins,
   colorToHex,
   countWords,
   isDocumentEmpty,
@@ -85,6 +94,7 @@ await check("empty-document detection and word count", () => {
   assert.ok(isDocumentEmpty(EMPTY_DOC));
   assert.ok(!isDocumentEmpty({ type: "doc", content: [p("x")] }));
   assert.ok(!isDocumentEmpty({ type: "doc", content: [{ type: "horizontalRule" }] }));
+  assert.ok(!isDocumentEmpty({ type: "doc", content: [{ type: "pageBreak" }, p()] }), "a page break is content");
   assert.equal(countWords({ type: "doc", content: [p("one two  three"), p("four")] }), 4);
 });
 
@@ -285,6 +295,120 @@ await check("docx: the same document exports to identical content twice (determi
   const a = await readDocx(await exportDocx(doc));
   const b = await readDocx(await exportDocx(doc));
   assert.deepEqual(a.paragraphs, b.paragraphs);
+});
+
+// ---- page margins, geometry, page breaks, indents (new) ---------------------------------------------------------------
+await check("margins: presets are valid and recognised; custom values are checked", () => {
+  for (const p of MARGIN_PRESETS) {
+    const c = validateMargins(p.margins);
+    assert.equal(c.ok, true, p.id);
+    assert.equal(marginPreset(p.margins), p.id);
+  }
+  assert.equal(marginPreset({ top: 1000, right: 1440, bottom: 1440, left: 1440 }), "custom");
+  assert.equal(twipsToInches(1440), 1);
+  assert.equal(inchesToTwips(0.5), 720);
+  assert.deepEqual(MARGIN_PRESETS.map((p) => p.label), ["Normal", "Narrow", "Moderate", "Wide"]);
+  const ok = { top: 1440, right: 1440, bottom: 1440, left: 1440 };
+  for (const [bad, why] of [
+    [{ ...ok, left: -1 }, /negative/],
+    [{ ...ok, top: 0 }, /at least 0.25/],
+    [{ ...ok, bottom: 100 }, /at least 0.25/],
+    [{ ...ok, right: 9999 }, /at most 4/],
+    [{ ...ok, left: NaN }, /number/],
+    [{ ...ok, left: "1in" }, /number/],
+    [{ ...ok, left: undefined }, /number/],
+    [{ top: 1440, bottom: 1440, left: 5000, right: 5000 }, /left and right/],
+    [null, /number/],
+  ]) {
+    const c = validateMargins(bad);
+    assert.equal(c.ok, false, JSON.stringify(bad));
+    assert.match(c.error, why);
+  }
+  assert.deepEqual(sanitizeMargins({ ...ok, left: -5 }), ok, "damaged saved margins fall back to the defaults");
+  assert.deepEqual(sanitizeMargins(undefined), ok);
+});
+await check("geometry: the default sheet matches the original A4 numbers; margins and the phone view change it", () => {
+  const g = pageViewGeometry(DEFAULT_MARGINS);
+  assert.deepEqual([g.pageW, g.pageH, g.contentW, g.contentH, g.gapTotal, g.pitch], [794, 1123, 602, 931, 216, 1147]);
+  const narrow = pageViewGeometry(MARGIN_PRESETS[1].margins);
+  assert.equal(narrow.contentW, 794 - 96);
+  assert.ok(narrow.contentH > g.contentH);
+  const phone = phoneViewGeometry(DEFAULT_MARGINS, 350);
+  assert.equal(phone.pageW, 350);
+  assert.ok(Math.abs(phone.pageH / phone.pageW - 1123 / 794) < 0.01, "A4 proportions");
+  assert.ok(phone.ml >= 14 && phone.mt >= 14 && phone.contentW > 250);
+});
+await check("layout: a page break starts the next block on a new page even when the page is nearly empty", () => {
+  const blocks = [{ top: 0, bottom: 30 }, { top: 30, bottom: 52, breakAfter: true }, { top: 52, bottom: 82 }];
+  const r = layoutPages(blocks);
+  assert.equal(r.pages, 2);
+  assert.equal(r.spacers.length, 1);
+  assert.equal(r.spacers[0].index, 2);
+  assert.equal(r.spacers[0].height, PITCH - 52);
+});
+await check("layout: several breaks, a break at the end, and a break already at the top of a page", () => {
+  assert.equal(layoutPages([{ top: 0, bottom: 20, breakAfter: true }, { top: 20, bottom: 40, breakAfter: true }, { top: 40, bottom: 60 }]).pages, 3);
+  assert.equal(layoutPages([{ top: 0, bottom: 30 }, { top: 30, bottom: 52, breakAfter: true }]).pages, 2, "a trailing break opens a page to carry on typing");
+  // The marker is the last thing on the page: the next block still goes to the next page, once.
+  const tight = layoutPages([{ top: 0, bottom: 900 }, { top: 900, bottom: 922, breakAfter: true }, { top: 922, bottom: 952 }]);
+  assert.equal(tight.pages, 2);
+  assert.deepEqual(tight.spacers.map((x) => x.index), [2]);
+  // A page that is already full pushes the marker itself onto the next page, and the text after it to the one after.
+  const full = layoutPages([{ top: 0, bottom: 931 }, { top: 931, bottom: 953, breakAfter: true }, { top: 953, bottom: 983 }]);
+  assert.equal(full.pages, 3);
+});
+await check("layout: margins change how much fits on a page", () => {
+  const blocks = Array.from({ length: 80 }, (_, i) => ({ top: i * 50, bottom: i * 50 + 50 }));
+  const normal = layoutPages(blocks, pageViewGeometry(DEFAULT_MARGINS));
+  const narrow = layoutPages(blocks, pageViewGeometry(MARGIN_PRESETS[1].margins));
+  const wide = layoutPages(blocks, pageViewGeometry({ top: 2880, right: 1440, bottom: 2880, left: 1440 }));
+  assert.ok(narrow.pages < normal.pages && normal.pages < wide.pages, `${narrow.pages} < ${normal.pages} < ${wide.pages}`);
+});
+await check("docx: the chosen margins are the page margins in the file, and pictures stay inside them", async () => {
+  const margins = { top: 720, right: 2880, bottom: 1080, left: 2160 };
+  const big = makePicture("png", 1200, 600);
+  const r = await readDocx(await exportDocx({ type: "doc", content: [p("x"), { type: "image", attrs: { src: big.dataUrl, width: 1200, align: "left" } }] }, { margins }));
+  assert.deepEqual(r.page, { width: 11906, height: 16838, margins: [720, 2880, 1080, 2160] });
+  const pic = r.paragraphs.flatMap((x) => x.runs.filter((y) => y.image))[0].image;
+  assert.equal(pic.widthPx, Math.round((11906 - 2880 - 2160) / 15), "as wide as the text area, not wider");
+  assert.equal(pic.heightPx, Math.round(pic.widthPx / 2));
+  // Bad margins never reach the file.
+  const bad = await readDocx(await exportDocx(EMPTY_DOC, { margins: { top: -5, right: 1, bottom: 1, left: 1 } }));
+  assert.deepEqual(bad.page.margins, [1440, 1440, 1440, 1440]);
+});
+await check("docx: a page break puts the next paragraph on a new page (page break before), and blank pages keep their place", async () => {
+  const doc = { type: "doc", content: [p("Page one"), { type: "pageBreak" }, p("Page two"), { type: "pageBreak" }, { type: "pageBreak" }, p("Page four"), { type: "pageBreak" }] };
+  const r = await readDocx(await exportDocx(doc));
+  assert.deepEqual(r.paragraphs.map((x) => [x.text, x.pageBreakBefore]), [["Page one", false], ["Page two", true], ["", true], ["Page four", true], ["", true]]);
+  assert.ok(!r.paragraphs.some((x) => x.pageBreakRuns), "no stray breaks inside paragraphs");
+  // Before any text: page one is a blank page of its own.
+  const first = await readDocx(await exportDocx({ type: "doc", content: [{ type: "pageBreak" }, p("Second page")] }));
+  assert.deepEqual(first.paragraphs.map((x) => [x.text, x.pageBreakBefore]), [["", false], ["Second page", true]]);
+  // After a heading, a list, a picture and a rule the break still lands on the next block.
+  const mixed = { type: "doc", content: [{ type: "pageBreak" }, { type: "heading", attrs: { level: 1 }, content: [text("H")] }, { type: "pageBreak" }, { type: "bulletList", content: [{ type: "listItem", content: [p("item")] }] }, { type: "pageBreak" }, { type: "horizontalRule" }] };
+  const m = await readDocx(await exportDocx(mixed));
+  assert.deepEqual(m.paragraphs.map((x) => x.pageBreakBefore), [false, true, true, true]);
+});
+await check("docx: left, right and first-line indents, hanging indents, and the older indent steps", async () => {
+  const doc = {
+    type: "doc",
+    content: [
+      p("A", { indentLeft: 36, indentRight: 18, firstLine: 36 }),
+      p("B", { indentLeft: 72, firstLine: -36 }),
+      p("C", { indent: 2 }),
+      p("D", { indent: 1, indentLeft: 54 }),
+      p("E", { firstLine: -100 }),
+      { type: "bulletList", content: [{ type: "listItem", content: [p("L", { indentLeft: 200, indentRight: 50 })] }] },
+    ],
+  };
+  const r = await readDocx(await exportDocx(doc));
+  const by = (t) => r.paragraphs.find((x) => x.text === t);
+  assert.deepEqual([by("A").indentLeft, by("A").indentRight, by("A").firstLine, by("A").hanging], [720, 360, 720, null]);
+  assert.deepEqual([by("B").indentLeft, by("B").firstLine, by("B").hanging], [1440, null, 720]);
+  assert.equal(by("C").indentLeft, 1440, "the indent buttons' steps are half an inch each");
+  assert.equal(by("D").indentLeft, 1080, "an exact left indent wins over the steps");
+  assert.equal(by("E").hanging, null, "a hanging indent cannot pull text off the page (no left indent to hang from)");
+  assert.notEqual(by("L").indentRight, 1000, "list items take their indent from the list");
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -175,7 +175,7 @@ export function isDocumentEmpty(doc: DocNode): boolean {
   let empty = true;
   const walk = (n: DocNode) => {
     if (!empty) return;
-    if (n.type === "image" || n.type === "horizontalRule") empty = false;
+    if (n.type === "image" || n.type === "horizontalRule" || n.type === "pageBreak") empty = false;
     else if (n.type === "text" && n.text) empty = false;
     else n.content?.forEach(walk);
   };
@@ -186,4 +186,130 @@ export function isDocumentEmpty(doc: DocNode): boolean {
 export function countWords(doc: DocNode): number {
   const text = plainText(doc).trim();
   return text ? text.split(/\s+/).length : 0;
+}
+
+// ---- page margins ------------------------------------------------------------------------------------------------------------
+// Margins are stored in twips (1/20 pt), exactly what Word writes. 1 CSS px = 15 twips; 1 inch = 1440 twips.
+export interface Margins {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+export const DEFAULT_MARGINS: Margins = { top: 1440, right: 1440, bottom: 1440, left: 1440 };
+
+// Word's own presets.
+export const MARGIN_PRESETS: { id: "normal" | "narrow" | "moderate" | "wide"; label: string; margins: Margins }[] = [
+  { id: "normal", label: "Normal", margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 } },
+  { id: "narrow", label: "Narrow", margins: { top: 720, right: 720, bottom: 720, left: 720 } },
+  { id: "moderate", label: "Moderate", margins: { top: 1440, right: 1080, bottom: 1440, left: 1080 } },
+  { id: "wide", label: "Wide", margins: { top: 1440, right: 2880, bottom: 1440, left: 2880 } },
+];
+
+export const MIN_MARGIN_TWIPS = 360; // 0.25 in: most printers cannot print closer to the edge
+export const MAX_MARGIN_TWIPS = 5760; // 4 in
+// Whatever the margins, at least this much of the page is left for text.
+export const MIN_TEXT_TWIPS = 2880; // 2 in
+
+export const twipsToInches = (tw: number) => Math.round((tw / 1440) * 100) / 100;
+export const inchesToTwips = (inches: number) => Math.round(inches * 1440);
+
+export type MarginCheck = { ok: true; margins: Margins } | { ok: false; error: string };
+
+// Checks margins typed by a person (or read back from a saved draft): numbers only, never negative, never so large that no
+// room is left for text.
+export function validateMargins(raw: unknown): MarginCheck {
+  const m = raw as Partial<Record<keyof Margins, unknown>> | null;
+  const out = {} as Margins;
+  for (const side of ["top", "right", "bottom", "left"] as const) {
+    const v = m?.[side];
+    if (typeof v !== "number" || !Number.isFinite(v)) return { ok: false, error: `Enter a number for the ${side} margin.` };
+    if (v < 0) return { ok: false, error: `The ${side} margin cannot be negative.` };
+    if (v < MIN_MARGIN_TWIPS) return { ok: false, error: `The ${side} margin must be at least ${twipsToInches(MIN_MARGIN_TWIPS)} in.` };
+    if (v > MAX_MARGIN_TWIPS) return { ok: false, error: `The ${side} margin can be at most ${twipsToInches(MAX_MARGIN_TWIPS)} in.` };
+    out[side] = Math.round(v);
+  }
+  if (PAGE.widthTwips - out.left - out.right < MIN_TEXT_TWIPS) return { ok: false, error: "The left and right margins leave too little room for text. Make one of them smaller." };
+  if (PAGE.heightTwips - out.top - out.bottom < MIN_TEXT_TWIPS) return { ok: false, error: "The top and bottom margins leave too little room for text. Make one of them smaller." };
+  return { ok: true, margins: out };
+}
+
+// A saved draft's margins, or the defaults if they are missing or damaged.
+export function sanitizeMargins(raw: unknown): Margins {
+  const check = validateMargins(raw);
+  return check.ok ? check.margins : { ...DEFAULT_MARGINS };
+}
+
+export function marginPreset(m: Margins): "normal" | "narrow" | "moderate" | "wide" | "custom" {
+  const hit = MARGIN_PRESETS.find((p) => p.margins.top === m.top && p.margins.right === m.right && p.margins.bottom === m.bottom && p.margins.left === m.left);
+  return hit ? hit.id : "custom";
+}
+
+// ---- what is on screen -------------------------------------------------------------------------------------------------------
+// The size of the sheet and its margins in CSS pixels, as drawn. In "page" view this is the real A4 sheet. In the narrow
+// "phone" view the sheet is as wide as the screen allows (so text stays readable) with the same A4 proportions and small
+// margins; the downloaded file always uses the real margins.
+export interface PageGeometry {
+  pageW: number;
+  pageH: number;
+  mt: number;
+  mr: number;
+  mb: number;
+  ml: number;
+  gap: number;
+  contentW: number;
+  contentH: number;
+  // Bottom margin + the grey strip + top margin: the space a page break occupies between two pages' text.
+  gapTotal: number;
+  // Distance from the top of one page's text to the top of the next page's text.
+  pitch: number;
+}
+
+export function makeGeometry(pageW: number, marginsPx: { top: number; right: number; bottom: number; left: number }, gap: number = PAGE.gapPx): PageGeometry {
+  const pageH = Math.round((pageW * PAGE.heightPx) / PAGE.widthPx);
+  const contentH = pageH - marginsPx.top - marginsPx.bottom;
+  const gapTotal = marginsPx.bottom + gap + marginsPx.top;
+  return {
+    pageW,
+    pageH,
+    mt: marginsPx.top,
+    mr: marginsPx.right,
+    mb: marginsPx.bottom,
+    ml: marginsPx.left,
+    gap,
+    contentW: pageW - marginsPx.left - marginsPx.right,
+    contentH,
+    gapTotal,
+    pitch: contentH + gapTotal,
+  };
+}
+
+export const marginsToPx = (m: Margins) => ({ top: m.top / 15, right: m.right / 15, bottom: m.bottom / 15, left: m.left / 15 });
+
+// The real A4 sheet with the chosen margins.
+export function pageViewGeometry(m: Margins): PageGeometry {
+  return makeGeometry(PAGE.widthPx, marginsToPx(m));
+}
+
+// The narrow view: `width` is the room the screen has; margins shrink in proportion but stay at least 14 px.
+export function phoneViewGeometry(m: Margins, width: number): PageGeometry {
+  const pageW = Math.max(280, Math.round(width));
+  const k = pageW / PAGE.widthPx;
+  const px = marginsToPx(m);
+  const scaled = { top: Math.max(14, px.top * k * 0.6), right: Math.max(14, px.right * k * 0.6), bottom: Math.max(14, px.bottom * k * 0.6), left: Math.max(14, px.left * k * 0.6) };
+  return makeGeometry(pageW, { top: Math.round(scaled.top), right: Math.round(scaled.right), bottom: Math.round(scaled.bottom), left: Math.round(scaled.left) });
+}
+
+// ---- paragraph indents ---------------------------------------------------------------------------------------------------------
+export const PT_PER_INCH = 72;
+export const INDENT_STEP_PT = 36; // one indent step = 0.5 in
+export const MAX_INDENT_PT = 360; // 5 in
+
+// Left indent in points: an explicit value if one was set, otherwise the number of steps from the indent buttons.
+export function leftIndentPt(attrs: Record<string, unknown> | undefined): number {
+  const a = attrs ?? {};
+  if (typeof a.indentLeft === "number" && Number.isFinite(a.indentLeft)) return Math.min(MAX_INDENT_PT, Math.max(0, a.indentLeft));
+  const level = typeof a.indent === "number" ? Math.min(MAX_INDENT, Math.max(0, Math.round(a.indent))) : 0;
+  return level * INDENT_STEP_PT;
 }

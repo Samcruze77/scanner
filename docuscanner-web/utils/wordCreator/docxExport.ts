@@ -24,12 +24,15 @@ import {
 } from "docx";
 import { bytesFromDataUrl, sniffImage } from "./imageData.ts";
 import {
-  CONTENT_WIDTH_PX,
+  DEFAULT_MARGINS,
   DEFAULTS,
   INDENT_TWIPS,
   MAX_INDENT,
   PAGE,
   PARAGRAPH_STYLES,
+  leftIndentPt,
+  validateMargins,
+  type Margins,
   colorToHex,
   primaryFont,
   safeLinkHref,
@@ -42,6 +45,17 @@ export class ExportError extends Error {}
 
 interface Ctx {
   orderedInstances: number;
+  // A page break was just read: the next paragraph written starts a new page.
+  pendingBreak: boolean;
+  // Width of the text area in pixels, for keeping pictures inside the margins.
+  contentWidthPx: number;
+}
+
+// Hands the pending page break to the paragraph being written (once).
+function takeBreak(ctx: Ctx): boolean {
+  const b = ctx.pendingBreak;
+  ctx.pendingBreak = false;
+  return b;
 }
 
 // Characters that are not allowed in an XML document at all (they would make Word refuse the file).
@@ -159,17 +173,24 @@ function paragraphLayout(node: DocNode, inList: boolean) {
     spacing.line = Math.round(line * 240);
     spacing.lineRule = LineRuleType.AUTO;
   }
-  const level = Math.min(MAX_INDENT, Math.max(0, Math.round(num(a.indent) ?? 0)));
+  const left = Math.round(leftIndentPt(a) * 20);
+  const right = Math.round(Math.max(0, Math.min(MAX_INDENT * INDENT_TWIPS, (num(a.indentRight) ?? 0) * 20)));
+  const first = Math.round(Math.max(-left, Math.min(MAX_INDENT * INDENT_TWIPS, (num(a.firstLine) ?? 0) * 20)));
+  const indent: { left?: number; right?: number; firstLine?: number; hanging?: number } = {};
+  if (left > 0) indent.left = left;
+  if (right > 0) indent.right = right;
+  if (first > 0) indent.firstLine = first;
+  else if (first < 0) indent.hanging = -first;
   return {
     alignment: typeof a.textAlign === "string" ? ALIGN[a.textAlign] : undefined,
     spacing: Object.keys(spacing).length ? spacing : undefined,
-    indent: !inList && level > 0 ? { left: level * INDENT_TWIPS } : undefined,
+    indent: !inList && Object.keys(indent).length ? indent : undefined,
   };
 }
 
 const HEADINGS = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3];
 
-function textBlock(node: DocNode, inList: boolean, extra: { numbering?: { reference: string; level: number; instance?: number }; indentLeft?: number } = {}): Paragraph {
+function textBlock(node: DocNode, inList: boolean, extra: { numbering?: { reference: string; level: number; instance?: number }; indentLeft?: number; pageBreakBefore?: boolean } = {}): Paragraph {
   const layout = paragraphLayout(node, inList);
   const base = {
     children: inlineChildren(node.content),
@@ -177,6 +198,7 @@ function textBlock(node: DocNode, inList: boolean, extra: { numbering?: { refere
     spacing: layout.spacing,
     indent: extra.indentLeft !== undefined ? { left: extra.indentLeft } : layout.indent,
     numbering: extra.numbering,
+    ...(extra.pageBreakBefore ? { pageBreakBefore: true } : {}),
   };
   if (node.type === "heading") {
     const level = Math.min(3, Math.max(1, Math.round(num(node.attrs?.level) ?? 1)));
@@ -188,20 +210,21 @@ function textBlock(node: DocNode, inList: boolean, extra: { numbering?: { refere
   return new Paragraph(base);
 }
 
-function imageBlock(node: DocNode, inList: boolean, listIndent?: number): Paragraph {
+function imageBlock(node: DocNode, ctx: Ctx, listIndent?: number): Paragraph {
   const bytes = bytesFromDataUrl(node.attrs?.src);
   const info = bytes ? sniffImage(bytes) : null;
   if (!bytes || !info || !info.width || !info.height) {
     throw new ExportError("A picture in the document could not be read, so the file was not created. Remove the picture and add it again.");
   }
   const requested = num(node.attrs?.width) ?? info.width;
-  const width = Math.max(8, Math.min(CONTENT_WIDTH_PX, Math.round(requested)));
+  const width = Math.max(8, Math.min(ctx.contentWidthPx, Math.round(requested)));
   const height = Math.max(1, Math.round((width * info.height) / info.width));
   const alt = typeof node.attrs?.alt === "string" ? node.attrs.alt : "";
   const align = typeof node.attrs?.align === "string" ? ALIGN[node.attrs.align] : undefined;
   const type = info.mime === "image/png" ? "png" : info.mime === "image/gif" ? "gif" : "jpg";
   return new Paragraph({
     alignment: align,
+    ...(takeBreak(ctx) ? { pageBreakBefore: true } : {}),
     indent: listIndent !== undefined ? { left: listIndent } : undefined,
     children: [new ImageRun({ type, data: bytes, transformation: { width, height }, altText: { name: "Picture", title: alt, description: alt } })],
   });
@@ -221,13 +244,13 @@ function listBlocks(list: DocNode, depth: number, ctx: Ctx): Paragraph[] {
         out.push(
           numbered
             ? textBlock(child, true, { indentLeft: textLeft })
-            : textBlock(child, true, { numbering: { reference, level: Math.min(depth, 8), instance } }),
+            : textBlock(child, true, { numbering: { reference, level: Math.min(depth, 8), instance }, pageBreakBefore: takeBreak(ctx) }),
         );
         numbered = true;
       } else if (child.type === "bulletList" || child.type === "orderedList") {
         out.push(...listBlocks(child, depth + 1, ctx));
       } else if (child.type === "image") {
-        out.push(imageBlock(child, true, textLeft));
+        out.push(imageBlock(child, ctx, textLeft));
       }
     }
   }
@@ -249,27 +272,37 @@ function levels(ordered: boolean): ILevelsOptions[] {
 // ---- the document ---------------------------------------------------------------------------------------------------
 export interface ExportOptions {
   title?: string;
+  // Page margins in twips. Checked here too, so a bad value can never produce a file Word refuses.
+  margins?: Margins;
 }
 
 export function buildDocument(doc: DocNode, options: ExportOptions = {}): Document {
-  const ctx: Ctx = { orderedInstances: 0 };
+  const checked = options.margins ? validateMargins(options.margins) : null;
+  const margins: Margins = checked && checked.ok ? checked.margins : DEFAULT_MARGINS;
+  const ctx: Ctx = { orderedInstances: 0, pendingBreak: false, contentWidthPx: Math.round((PAGE.widthTwips - margins.left - margins.right) / 15) };
   const children: Paragraph[] = [];
   for (const node of doc.content ?? []) {
     switch (node.type) {
       case "paragraph":
       case "heading":
-        children.push(textBlock(node, false));
+        children.push(textBlock(node, false, { pageBreakBefore: takeBreak(ctx) }));
         break;
       case "bulletList":
       case "orderedList":
         children.push(...listBlocks(node, 0, ctx));
         break;
       case "image":
-        children.push(imageBlock(node, false));
+        children.push(imageBlock(node, ctx));
+        break;
+      case "pageBreak":
+        // A break right after another (or before any text) leaves a blank page: it needs a paragraph of its own to sit on.
+        if (ctx.pendingBreak || children.length === 0) children.push(new Paragraph(ctx.pendingBreak ? { pageBreakBefore: true } : {}));
+        ctx.pendingBreak = true;
         break;
       case "horizontalRule":
         children.push(
           new Paragraph({
+            ...(takeBreak(ctx) ? { pageBreakBefore: true } : {}),
             spacing: { before: 120, after: 120 },
             border: { bottom: { style: BorderStyle.SINGLE, size: 8, space: 1, color: "808080" } },
           }),
@@ -277,6 +310,8 @@ export function buildDocument(doc: DocNode, options: ExportOptions = {}): Docume
         break;
     }
   }
+  // A page break at the very end still opens a page to continue on.
+  if (ctx.pendingBreak) children.push(new Paragraph({ pageBreakBefore: true }));
   if (!children.length) children.push(new Paragraph({}));
 
   const styleOf = (id: string) => PARAGRAPH_STYLES.find((s) => s.id === id)!;
@@ -323,7 +358,7 @@ export function buildDocument(doc: DocNode, options: ExportOptions = {}): Docume
         properties: {
           page: {
             size: { width: PAGE.widthTwips, height: PAGE.heightTwips },
-            margin: { top: PAGE.marginTwips, right: PAGE.marginTwips, bottom: PAGE.marginTwips, left: PAGE.marginTwips },
+            margin: { top: margins.top, right: margins.right, bottom: margins.bottom, left: margins.left },
           },
         },
         children,

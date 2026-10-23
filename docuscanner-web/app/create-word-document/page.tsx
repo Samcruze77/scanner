@@ -43,7 +43,7 @@ export default function CreateWordDocumentPage() {
           <p className="muted mt-1 text-sm">{landing.intro}</p>
         </div>
         <Hint id="create-word-document">
-          Start typing on the page. Use the toolbar for headings, fonts, colours, spacing, pictures and your signature. Your draft is saved in this browser as you type; choose Download Word (.docx) when you are done.
+          Start typing on the page. Use the toolbar for headings, fonts and sizes, colours, paragraph spacing, margins, new pages, pictures and your signature (on a phone: the bar at the bottom and the three dots). Your draft is saved in this browser as you type; choose Download Word (.docx) when you are done.
         </Hint>
         <WordCreatorLoader />
       </div>

@@ -46,7 +46,8 @@ const sourceIds = new Set();
 for (const dir of ["app", "components"]) {
   for (const file of walk(path.join(root, dir))) {
     const text = fs.readFileSync(file, "utf8");
-    for (const m of text.matchAll(/data-assistant-id="([a-z0-9-]+)"/g)) sourceIds.add(m[1]);
+    // `data-assistant-id="x"` in JSX, or `"data-assistant-id": "x"` where it is passed to a button helper as a prop.
+    for (const m of text.matchAll(/data-assistant-id"?(?:=|:\s*)"([a-z0-9-]+)"/g)) sourceIds.add(m[1]);
   }
 }
 // Ids built from a template in the source.
@@ -256,14 +257,14 @@ console.log("Create Word Document");
 test("the page the assistant sends people to is real, and its controls and labels exist", () => {
   assert.ok(isKnownRoute("/create-word-document"));
   assert.ok(fs.existsSync(path.join(root, "app/create-word-document/page.tsx")));
-  for (const id of ["create-word-document", "word-doc-formatting", "word-doc-pictures", "word-doc-save-download", "word-create-or-convert"]) {
+  for (const id of ["create-word-document", "word-doc-formatting", "word-doc-font-size", "word-doc-margins", "word-doc-paragraph", "word-doc-add-page", "word-doc-phone-navigation", "word-doc-where-controls", "word-doc-pictures", "word-doc-save-download", "word-create-or-convert"]) {
     const e = getEntry(id);
     assert.ok(e, id);
     assert.equal(e.route, "/create-word-document", id);
   }
   // Every name it tells people to look for is on the screen.
-  const ui = ["components/wordCreator/Toolbar.tsx", "components/wordCreator/WordCreator.tsx"].map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n");
-  for (const label of ["Document name", "Insert image", "Add signature", "Save now", "New document", "My drafts", "Download Word (.docx)", "Text colour", "Highlight colour", "Line spacing", "Paragraph spacing", "Paragraph style", "Bulleted list", "Numbered list"]) assert.ok(ui.includes(label), label);
+  const ui = ["components/wordCreator/Toolbar.tsx", "components/wordCreator/WordCreator.tsx", "components/wordCreator/NavPad.tsx"].map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n");
+  for (const label of ["Document name", "Insert image", "Add signature", "Save now", "New document", "My drafts", "Download Word (.docx)", "Text colour", "Highlight colour", "Line spacing", "Paragraph", "Page margins", "Add page", "Increase font size", "Decrease font size", "Choose font size from list", "Show navigation keys", "Move up one line", "Page up", "Page down", "Paragraph style", "Bulleted list", "Numbered list"]) assert.ok(ui.includes(label), label);
   const model = fs.readFileSync(path.join(root, "utils/wordCreator/model.ts"), "utf8");
   for (const label of ["Normal text", "Title", "Subtitle", "Heading 1", "Heading 2", "Heading 3", "Arial", "Times New Roman", "Calibri", "Georgia", "Verdana"]) assert.ok(model.includes(label), label);
   for (const label of ["% width", "Delete picture", "Description"]) assert.ok(ui.includes(label), label);
@@ -285,6 +286,40 @@ test("the questions people ask go to the right answer", () => {
   assert.equal(there("How do I insert a picture?"), "word-doc-pictures");
   assert.equal(there("how do I add a heading"), "word-doc-formatting");
   assert.equal(there("how do I download it"), "word-doc-save-download");
+});
+test("the improved editor's questions go to the right answer", () => {
+  const home = (q) => rankEntries(q, "/", 1)[0]?.entry.id;
+  assert.equal(home("How do I change the font size without typing a number?"), "word-doc-font-size");
+  assert.equal(home("How do I increase or decrease font size?"), "word-doc-font-size");
+  assert.equal(home("How do I change the page margins?"), "word-doc-margins");
+  assert.equal(home("How do I change paragraph alignment and line spacing?"), "word-doc-paragraph");
+  assert.equal(home("How do I insert a new page before the current page is full?"), "word-doc-add-page");
+  assert.equal(home("How do I navigate through my document on a phone?"), "word-doc-phone-navigation");
+  assert.equal(home("How do I save and download my Word document?"), "word-doc-save-download");
+  assert.equal(home("Where can I find page, paragraph and image controls?"), "word-doc-where-controls");
+  assert.equal(home("How can I change the font, size, colour, or spacing?"), "word-doc-formatting");
+  const there = (q) => rankEntries(q, "/create-word-document", 1)[0]?.entry.id;
+  assert.equal(there("how do I make the text bigger"), "word-doc-font-size");
+  assert.equal(there("margins"), "word-doc-margins");
+  assert.equal(there("how do I double space"), "word-doc-paragraph");
+  assert.equal(there("how do I add a page"), "word-doc-add-page");
+  assert.equal(there("how do I move the cursor on my phone"), "word-doc-phone-navigation");
+});
+test("the improved editor's answers describe only what exists", () => {
+  const ids = ["word-doc-font-size", "word-doc-margins", "word-doc-paragraph", "word-doc-add-page", "word-doc-phone-navigation", "word-doc-where-controls"];
+  const text = entriesToPrompt(ids.map((i) => getEntry(i)), "/");
+  // Real numbers: the list, the margin presets and limits, the font size range.
+  for (const n of ["8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48 or 72", "Normal, Narrow, Moderate or Wide", "0.25 to 4", "1 to 400", "Ctrl+Enter", "Show navigation keys", "Phone view", "Page view"]) assert.ok(text.includes(n), n);
+  // The list in the answer is the list in the product.
+  const sizes = fs.readFileSync(path.join(root, "utils/wordCreator/model.ts"), "utf8").match(/FONT_SIZES = \[([^\]]+)\]/)[1].replace(/\s/g, "");
+  assert.equal(sizes, "8,9,10,11,12,14,16,18,20,24,28,32,36,48,72");
+  assert.doesNotMatch(text, /cloud|synced? across|real-time|collaborat|templates?|track changes|columns?|headers?.*add|footers?.*add/i);
+  assert.doesNotMatch(text, /AI|voice|dictat|swipe to type|gesture/i);
+  // Margins and page breaks reach the file.
+  assert.match(text, /same margins are used in the downloaded .docx/);
+  assert.match(text, /kept in the downloaded .docx/);
+  // Phone answers do not pretend to be a keyboard.
+  assert.match(getEntry("word-doc-phone-navigation").notes.join(" "), /With a physical keyboard/);
 });
 test("existing answers are unchanged by the new ones", () => {
   const home = (q) => rankEntries(q, "/", 1)[0]?.entry.id;
@@ -310,7 +345,7 @@ test("a question about making a document tells the three jobs apart and links to
   assert.ok(!here.steps.some((s) => /Open Create Word Document/.test(s.text)), "already there, so it is not told to open it");
 });
 test("it describes only what the creator really does", () => {
-  const ids = ["create-word-document", "word-doc-formatting", "word-doc-pictures", "word-doc-save-download", "word-create-or-convert"];
+  const ids = ["create-word-document", "word-doc-formatting", "word-doc-font-size", "word-doc-margins", "word-doc-paragraph", "word-doc-add-page", "word-doc-phone-navigation", "word-doc-where-controls", "word-doc-pictures", "word-doc-save-download", "word-create-or-convert"];
   const text = entriesToPrompt(ids.map((i) => getEntry(i)), "/");
   // Local drafts, not an account or the cloud.
   assert.match(text, /this browser/);

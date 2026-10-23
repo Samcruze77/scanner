@@ -335,13 +335,23 @@ export const GUIDES: Guide[] = [
         h2: "Select text and format it",
         paragraphs: ["Select the text first (drag over it, or double-click a word), then use the toolbar. The buttons keep your selection."],
         bullets: [
-          "Font: Arial, Times New Roman, Calibri, Georgia or Verdana. Type a size in the size box, or use the smaller and larger text buttons.",
+          "Font: Arial, Times New Roman, Calibri, Georgia or Verdana.",
+          "Font size: the group labelled Font size has a list of standard sizes (8 to 72 points, scroll for all of them), a box where you can type any size from 1 to 400, and Decrease font size and Increase font size buttons that move one standard size at a time. If your selection has several sizes the box says Mixed.",
           "Bold, italic, underline, strikethrough, superscript and subscript.",
           "Text colour and highlight colour: pick a swatch or a custom colour.",
-          "Alignment (left, centre, right, justified), line spacing, space before and after a paragraph, and indent.",
-          "Bulleted and numbered lists, links and a horizontal line.",
+          "Paragraph: the Paragraph menu sets alignment (left, centre, right, justified), line spacing (Single, 1.15, 1.5, Double and more), space before and after a paragraph in points, left and right indents and a first-line or hanging indent in inches, and has the bulleted and numbered list buttons.",
+          "Links, a horizontal line and your signature are on the toolbar too.",
           "Undo and redo, and Clear text formatting.",
         ],
+      },
+      {
+        h2: "Set the page margins and add pages",
+        steps: [
+          "To change the margins, choose Margins on the toolbar (on a phone: the three dots, then Page margins). Pick Normal, Narrow, Moderate or Wide, or type your own top, bottom, left and right margins in inches (each from 0.25 to 4) and choose Apply custom margins. Invalid values are refused with a message.",
+          "To start a new page, click where it should begin and choose Add page (the page with a plus sign), or press Ctrl+Enter. The text after the caret moves to the new page even if the page you were on is not full, and a labelled Page break line shows where it starts.",
+          "To remove a page break, undo it straight away with Ctrl+Z, or click the Page break line and press Delete.",
+        ],
+        paragraphs: ["The margins and every page break are saved with your draft and written into the .docx, so Word separates the pages in the same places."],
       },
       {
         h2: "Insert pictures and your signature",
@@ -366,9 +376,17 @@ export const GUIDES: Guide[] = [
         ],
       },
       {
+        h2: "Writing on a phone",
+        paragraphs: [
+          "On a phone the page is drawn as wide as your screen (Phone view) so the text stays a readable size, and the page scrolls normally with your finger. The most-used actions are in a bar at the bottom of the screen: Paragraph, Image, Add page, Save and Download. Everything else is under the three dots (More), including Font, colours, Link, Signature, Page margins and a switch to Page view, which shows the whole A4 sheet.",
+          "There are no arrow keys on a phone, so choose More, then Show navigation keys. A row of keys appears above the bottom bar: arrows, Home and End (start and end of the line), Page up and Page down, and Top and Bottom of the document. They move the caret without closing the keyboard or typing anything. A physical keyboard's arrow keys, Home, End, Page Up and Page Down work as usual.",
+          "The downloaded file always uses the real A4 page and the margins you chose, so Phone view shows a narrower page than Word will print.",
+        ],
+      },
+      {
         h2: "Limits and troubleshooting",
         bullets: [
-          "Word and your browser lay out pages with different engines, so line and page breaks can move slightly in Word. Your text, formatting, pictures and links are kept.",
+          "Word and your browser lay out pages with different engines, so line and page breaks can move slightly in Word. Pages you start with Add page, your margins, your text, formatting, pictures and links are kept.",
           "Tables, headers, footers and page numbers are not available yet.",
           "A signature added here is a picture of your handwriting or typed name, not a certified digital signature.",
           "If you see Save failed, your browser has no room or is blocking site data (private browsing does this). Download the .docx straight away to keep your work, then free some space.",

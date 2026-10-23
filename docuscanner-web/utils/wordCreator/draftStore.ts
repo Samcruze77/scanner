@@ -5,7 +5,7 @@
 // hash so the same picture is stored once and an autosave never rewrites a big picture. If
 // IndexedDB is unavailable (some private modes) a localStorage store keeps the text and pictures
 // together, and says so when it runs out of room.
-import { countWords, EMPTY_DOC, DEFAULT_TITLE, type DocNode } from "./model.ts";
+import { countWords, EMPTY_DOC, DEFAULT_TITLE, sanitizeMargins, type DocNode, type Margins } from "./model.ts";
 
 export interface DraftSummary {
   id: string;
@@ -20,6 +20,8 @@ export interface LoadedDraft {
   title: string;
   content: DocNode;
   updatedAt: number;
+  // The page margins the draft was written with (the defaults for drafts saved before margins could be changed).
+  margins: Margins;
   // Pictures that could not be found in storage and were left out of the restored document.
   lostImages: number;
 }
@@ -28,7 +30,7 @@ export interface DraftStore {
   kind: "indexeddb" | "localstorage";
   list(): Promise<DraftSummary[]>;
   load(id: string): Promise<LoadedDraft>;
-  save(id: string, title: string, content: DocNode): Promise<void>;
+  save(id: string, title: string, content: DocNode, margins: Margins): Promise<void>;
   remove(id: string): Promise<void>;
   getLastId(): Promise<string | null>;
 }
@@ -125,6 +127,7 @@ interface DraftRow {
   id: string;
   title: string;
   updatedAt: number;
+  margins?: Margins;
   content: DocNode;
   imageIds: string[];
 }
@@ -193,10 +196,10 @@ class IndexedDbStore implements DraftStore {
       }
       return { ...n, attrs: { ...n.attrs, src: await blobToDataUrl(rec.blob) } };
     });
-    return { id, title: typeof row.title === "string" ? row.title : DEFAULT_TITLE, content: resolved ?? EMPTY_DOC, updatedAt: row.updatedAt, lostImages: lost };
+    return { id, title: typeof row.title === "string" ? row.title : DEFAULT_TITLE, content: resolved ?? EMPTY_DOC, updatedAt: row.updatedAt, margins: sanitizeMargins(row.margins), lostImages: lost };
   }
 
-  async save(id: string, title: string, content: DocNode): Promise<void> {
+  async save(id: string, title: string, content: DocNode, margins: Margins): Promise<void> {
     try {
       const fresh: { id: string; blob: Blob }[] = [];
       const imageIds = new Set<string>();
@@ -221,7 +224,7 @@ class IndexedDbStore implements DraftStore {
       const tx = this.db.transaction(["drafts", "images", "meta"], "readwrite");
       const images = tx.objectStore("images");
       for (const f of fresh) images.put(f);
-      tx.objectStore("drafts").put({ id, title, updatedAt: Date.now(), content: stored, imageIds: [...imageIds] } satisfies DraftRow);
+      tx.objectStore("drafts").put({ id, title, updatedAt: Date.now(), margins, content: stored, imageIds: [...imageIds] } satisfies DraftRow);
       tx.objectStore("meta").put({ key: "last", value: id });
       await txDone(tx);
       for (const f of fresh) this.known.add(f.id);
@@ -303,12 +306,12 @@ class LocalStorageStore implements DraftStore {
       /* corrupt */
     }
     if (!row || !isDocShape(row.content)) throw new DraftCorruptError("This draft could not be read.");
-    return { id, title: typeof row.title === "string" ? row.title : DEFAULT_TITLE, content: row.content, updatedAt: row.updatedAt, lostImages: 0 };
+    return { id, title: typeof row.title === "string" ? row.title : DEFAULT_TITLE, content: row.content, updatedAt: row.updatedAt, margins: sanitizeMargins(row.margins), lostImages: 0 };
   }
 
-  async save(id: string, title: string, content: DocNode): Promise<void> {
+  async save(id: string, title: string, content: DocNode, margins: Margins): Promise<void> {
     try {
-      localStorage.setItem(LS + "draft:" + id, JSON.stringify({ id, title, updatedAt: Date.now(), content, imageIds: [] } satisfies DraftRow));
+      localStorage.setItem(LS + "draft:" + id, JSON.stringify({ id, title, updatedAt: Date.now(), margins, content, imageIds: [] } satisfies DraftRow));
       localStorage.setItem(LS + "last", id);
     } catch (e) {
       throw classifyStorageError(e);

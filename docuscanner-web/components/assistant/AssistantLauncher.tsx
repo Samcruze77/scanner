@@ -28,7 +28,7 @@ export const OPEN_ASSISTANT_EVENT = "ds-open-assistant";
 
 const HIDDEN_ON =["/admin", "/reset-password"];
 // What the closed launcher keeps out of the way of.
-const AVOID = 'aside[data-ad-placement], [data-assistant-id^="scan-"], [data-assistant-id="file-dropzone"]';
+const AVOID = 'aside[data-ad-placement], [data-assistant-id^="scan-"], [data-assistant-id="file-dropzone"], [data-assistant-avoid]';
 
 export function AssistantLauncher() {
   const pathname = usePathname() || "/";

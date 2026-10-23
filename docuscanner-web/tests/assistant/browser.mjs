@@ -77,11 +77,11 @@ try {
   console.log("Where it appears");
   {
     const { context, page } = await open({ width: 1280, height: 900 });
-    for (const url of ["/", "/scan", "/tools", "/tools/sign-pdf", "/tools/add-image", "/tools/protect-pdf", "/convert", "/convert/word-to-pdf", "/guides", "/privacy", "/history"]) {
+    for (const url of ["/", "/scan", "/tools", "/tools/sign-pdf", "/tools/add-image", "/tools/protect-pdf", "/convert", "/convert/word-to-pdf", "/create-word-document", "/guides", "/privacy", "/history"]) {
       await visit(page, url, { cookies: url === "/" });
       await launcher(page).waitFor({ timeout: 15000 });
     }
-    ok("the launcher is on the home page, scanner, every tool page, converters, guides, privacy and history");
+    ok("the launcher is on the home page, scanner, every tool page, converters, Create Word Document, guides, privacy and history");
     await visit(page, "/reset-password", { cookies: false });
     await page.waitForTimeout(500);
     assert.equal(await launcher(page).count(), 0);

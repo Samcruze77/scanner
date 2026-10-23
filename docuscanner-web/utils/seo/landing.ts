@@ -925,14 +925,16 @@ export const LANDING_PAGES: LandingPage[] = [
     appName: "FreePDFScanner Word document creator",
     features: [
       "Blank A4 page that grows to as many pages as you need",
-      "Fonts, sizes, colours, highlights, headings, lists, alignment and spacing",
+      "Fonts, a list of standard font sizes, colours, highlights, headings, lists, alignment, line and paragraph spacing, and indents",
+      "Page margins (Normal, Narrow, Moderate, Wide or your own) and Add page for a new page whenever you want one",
+      "Made for phones too: a bottom bar for the main actions and on-screen navigation keys",
       "Pictures, your signature and links",
       "Automatic draft saving in your browser",
       "Download a genuine, editable .docx",
     ],
     how: [
       "Open the page and start typing: there is nothing to upload and no account to make.",
-      "Use the toolbar to format text, add headings and lists, insert pictures, add your signature and links, and set spacing.",
+      "Use the toolbar to format text, add headings and lists, insert pictures, add your signature and links, set spacing and margins, and start new pages.",
       "Your draft is saved in this browser as you type. Choose Download Word (.docx) when you are done.",
     ],
     goodFor: "Letters, notes, CVs, simple reports and any document you want to start from scratch and finish in Word.",
