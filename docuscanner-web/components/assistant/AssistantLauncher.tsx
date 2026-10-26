@@ -61,17 +61,24 @@ export function AssistantLauncher() {
       const button = buttonRef.current;
       if (!button) return;
       const r = button.getBoundingClientRect();
-      const baseTop = r.top + liftRef.current;
-      const baseBottom = r.bottom + liftRef.current;
+      // Where the button sits with no lift, from its layout (not its rect, which is still mid-transition right after a lift).
+      const viewportHeight = document.documentElement.clientHeight;
+      const baseBottom = viewportHeight - (parseFloat(getComputedStyle(button).bottom) || 0);
+      const baseTop = baseBottom - r.height;
+      const targets = [...document.querySelectorAll(AVOID)]
+        .map((el) => el.getBoundingClientRect())
+        .filter((a) => a.width > 0 && a.height > 0 && a.left < r.right && a.right > r.left);
+      // Step above whatever it overlaps; stacked controls need more than one step.
       let next = 0;
-      for (const ad of document.querySelectorAll(AVOID)) {
-        const a = ad.getBoundingClientRect();
-        if (a.width === 0 || a.height === 0) continue;
-        const overlapsX = a.left < r.right && a.right > r.left;
-        const overlapsY = a.top < baseBottom + 4 && a.bottom > baseTop - 4;
-        if (overlapsX && overlapsY) next = Math.max(next, baseBottom - a.top + 8);
+      for (let pass = 0; pass < 16; pass++) {
+        const top = baseTop - next;
+        const bottom = baseBottom - next;
+        let moved = next;
+        for (const a of targets) if (a.top < bottom + 4 && a.bottom > top - 4) moved = Math.max(moved, baseBottom - a.top + 8);
+        if (moved === next) break;
+        next = moved;
       }
-      next = Math.min(next, 240);
+      next = Math.min(next, viewportHeight * 0.6);
       if (Math.abs(next - liftRef.current) > 1) {
         liftRef.current = next;
         setLift(next);

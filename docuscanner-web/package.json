@@ -37,7 +37,7 @@
     "test:editor:images": "node tests/editor/images.mjs",
     "test:guidance": "node --no-warnings tests/guidance/preferences.mjs",
     "test:guidance:browser": "node --no-warnings --import ./tests/scanner/register.mjs tests/guidance/browser.mjs",
-    "test:assistant:browser": "node tests/assistant/browser.mjs && node tests/assistant/launcher.mjs",
+    "test:assistant:browser": "node tests/assistant/browser.mjs && node tests/assistant/launcher.mjs && node tests/assistant/launcher-editor.mjs",
     "test:print": "node tests/print/verify.mjs",
     "test:zoom": "node tests/zoom/verify.mjs",
     "test:auth": "node tests/auth/verify.mjs",

@@ -909,7 +909,7 @@ export function Toolbar({ editor, margins, onMargins, onPickImage, onAddSignatur
   // ---- phone: two compact rows and a More sheet ----
   if (phone) {
     return (
-      <div className="wc-toolbar wc-toolbar-phone" role="toolbar" aria-label="Formatting">
+      <div className="wc-toolbar wc-toolbar-phone" role="toolbar" aria-label="Formatting" data-assistant-avoid>
         <div className="wc-prow">
           {undoRedo}
           {styleSelect}
