@@ -371,4 +371,74 @@ test("the catalogue and other answers point to it", () => {
   assert.match(getEntry("limit-word-excel-output").summary, /Create Word Document/);
 });
 
+console.log("Signature and edit presets");
+const SIGN_Q = "How do I add a signature to a PDF or document?";
+const EDIT_Q = "How do I edit a PDF or document?";
+test("the two preset questions are offered after the existing ones, on the home page and on other non-tool pages", () => {
+  for (const p of ["/", "/tools", "/convert", "/history", "/privacy"]) {
+    const asked = suggestionsFor(p).map((x) => x.text);
+    assert.ok(asked.includes(SIGN_Q) && asked.includes(EDIT_Q), p);
+  }
+  const base = suggestionsFor("/").map((x) => x.text);
+  assert.deepEqual(base.slice(0, 7), [
+    "How do I convert a Word document to PDF?",
+    "How do I insert my passport photograph?",
+    "How do I combine multiple PDFs?",
+    "How do I protect a PDF with a password?",
+    "Where can I find my download?",
+    "How do I use the scanner?",
+    "Create a Word document from scratch",
+  ]);
+  assert.deepEqual(base.slice(7), [SIGN_Q, EDIT_Q]);
+});
+test("each preset leads to its own entry as the top answer", () => {
+  assert.equal(suggestionsFor("/").find((x) => x.text === SIGN_Q).entryId, "add-signature");
+  assert.equal(suggestionsFor("/").find((x) => x.text === EDIT_Q).entryId, "edit-document");
+  assert.equal(buildGuideAnswer(SIGN_Q, "/").entryIds[0], "add-signature");
+  assert.equal(buildGuideAnswer(EDIT_Q, "/").entryIds[0], "edit-document");
+  assert.equal(buildGuideAnswer(SIGN_Q, "/").matched, true);
+  assert.equal(buildGuideAnswer(EDIT_Q, "/").matched, true);
+});
+test("the new answers do not take over questions that already had a better answer", () => {
+  assert.equal(top("how to sign a pdf"), "sign-pdf");
+  assert.equal(top("how do i edit a pdf"), "edit-pdf");
+  assert.equal(top("add signature to word document"), "word-doc-pictures");
+  assert.equal(top("how do i sign this document?", "/tools/pdf-editor"), "sign-pdf");
+});
+test("the signature answer is step by step, links the real PDF and Word tools, and explains how they differ", () => {
+  const a = buildGuideAnswer(SIGN_Q, "/");
+  const hrefs = a.links.map((l) => l.href);
+  assert.ok(hrefs.includes("/tools/sign-pdf") && hrefs.includes("/create-word-document"), hrefs.join(","));
+  for (const l of a.links) assert.ok(isKnownRoute(l.href), l.href);
+  assert.ok(a.steps.length >= 5);
+  const text = a.steps.map((s) => s.text).concat(a.notes).join("\n");
+  assert.match(text, /Edit page/);
+  assert.match(text, /Create PDF and Download PDF/);
+  assert.match(text, /Add signature/);
+  assert.match(text, /Download Word \(\.docx\)/);
+  assert.match(text, /does not open an existing file/);
+  assert.match(text, /not a certificate-based digital signature/);
+  assert.match(text, /you will get a PDF, not a Word file/);
+});
+test("the edit answer is honest about what editing means and links the real tools", () => {
+  const a = buildGuideAnswer(EDIT_Q, "/");
+  const hrefs = a.links.map((l) => l.href);
+  for (const h of ["/tools/pdf-editor", "/convert/pdf-to-word", "/create-word-document"]) assert.ok(hrefs.includes(h), h);
+  for (const l of a.links) assert.ok(isKnownRoute(l.href), l.href);
+  const text = a.steps.map((s) => s.text).concat(a.notes).join("\n");
+  assert.match(text, /cannot rewrite text that is already in a PDF/);
+  assert.match(text, /does not open or change a file you already have/);
+  assert.match(text, /Word \(\.docx\) file/);
+  assert.doesNotMatch(text, /Open in Word/i);
+});
+test("the steps only mention controls that exist in the interface", () => {
+  const ui = ["components/scanner/ScannerWorkspace.tsx", "components/scanner/PageEditor.tsx", "components/wordCreator/Toolbar.tsx", "components/wordCreator/WordCreator.tsx"]
+    .filter((f) => fs.existsSync(path.join(root, f)))
+    .map((f) => fs.readFileSync(path.join(root, f), "utf8"))
+    .join("\n");
+  for (const label of ["Edit page", "Create PDF", "Download PDF", "Add signature", "Download Word (.docx)", "Move earlier", "Move later"]) assert.ok(ui.includes(label), label + " is not in the interface");
+  const tools = fs.readFileSync(path.join(root, "utils/tools/registry.ts"), "utf8");
+  for (const id of ["sign-pdf", "pdf-editor"]) assert.ok(tools.includes('"' + id + '"'), id);
+});
+
 console.log(`\n${pass} checks passed`);

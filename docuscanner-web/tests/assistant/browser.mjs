@@ -114,8 +114,10 @@ try {
       "Where can I find my download?",
       "How do I use the scanner?",
       "Create a Word document from scratch",
+      "How do I add a signature to a PDF or document?",
+      "How do I edit a PDF or document?",
     ]);
-    ok("the example questions are offered, including Create a Word document from scratch");
+    ok("the example questions are offered, including Create a Word document from scratch and the signature and edit questions");
     await page.keyboard.press("Escape");
     await panel(page).waitFor({ state: "hidden" });
     await page.waitForFunction(() => document.activeElement?.hasAttribute("data-assistant-launcher"), null, { timeout: 3000 });
@@ -163,6 +165,35 @@ try {
     assert.equal(await create.locator('a[href="/tools/ocr"]').count(), 1, "also offers text recognition");
     assert.equal(posts.length, 0, "nothing is sent to the model endpoint");
     ok("Ask Me explains Create Word Document, links to it, and offers PDF to Word and OCR for the other jobs");
+    // The two preset questions: selecting one asks it, answers step by step, and the links open real pages.
+    await visit(page, "/");
+    await launcher(page).click();
+    await panel(page).getByRole("button", { name: "How do I add a signature to a PDF or document?" }).click();
+    const sign = lastAnswer(page);
+    await sign.getByText(/Choose Done editing, then Create PDF and Download PDF/).waitFor();
+    const signText = await sign.innerText();
+    assert.match(signText, /Sign PDF/);
+    assert.match(signText, /Add signature/);
+    assert.match(signText, /not a certificate-based digital signature/);
+    assert.equal(await sign.locator('a[href="/tools/sign-pdf"]').count(), 1, "links to Sign PDF");
+    assert.equal(await sign.locator('a[href="/create-word-document"]').count(), 1, "links to Create Word Document");
+    assert.equal(posts.length, 0, "nothing is sent to the model endpoint");
+    ok("the signature preset asks the question, answers step by step and links Sign PDF and Create Word Document");
+    await Promise.all([page.waitForURL("**/tools/sign-pdf"), sign.locator('a[href="/tools/sign-pdf"]').click()]);
+    ok("the Sign PDF link opens the real page");
+    await visit(page, "/");
+    if (!(await panel(page).isVisible())) await launcher(page).click();
+    await panel(page).getByRole("button", { name: "How do I edit a PDF or document?" }).click();
+    const edit = lastAnswer(page);
+    await edit.getByText(/Choose Create PDF, then Download PDF/).first().waitFor();
+    const editText = await edit.innerText();
+    assert.match(editText, /cannot rewrite text that is already in a PDF/);
+    assert.equal(await edit.locator('a[href="/tools/pdf-editor"]').count(), 1, "links to the PDF Editor");
+    assert.equal(await edit.locator('a[href="/convert/pdf-to-word"]').count(), 1, "offers PDF to Word for changing existing words");
+    assert.equal(await edit.locator('a[href="/create-word-document"]').count(), 1, "offers Create Word Document");
+    ok("the edit preset asks the question, answers honestly and links the PDF Editor, PDF to Word and Create Word Document");
+    await visit(page, "/");
+    if (!(await panel(page).isVisible())) await launcher(page).click();
     await ask(page, "What's the difference between creating a Word document and converting a PDF to Word?");
     await lastAnswer(page).getByText("None of these changes your original PDF or image.").waitFor();
     ok("it tells creating, converting and text recognition apart");
