@@ -112,6 +112,8 @@ console.log("4. Policy s.7: Clarity is loaded only after opt-in, for every visit
   check("script is rendered only when consent is present", /if \(!CLARITY_PROJECT_ID \|\| !allowed\) return null/.test(clarity) && /hasConsent\("recordings"\)/.test(clarity));
   check("initial state is 'not allowed' (nothing loads before the stored choice is read)", /useState\(false\)/.test(clarity));
   check("withdrawal reloads the page so the running script is gone", /window\.location\.reload\(\)/.test(clarity));
+  check("withdrawal tells Clarity (consentv2, both denied) BEFORE the reload", /consentv2", \{ ad_Storage: "denied", analytics_Storage: "denied" \}/.test(clarity) && clarity.indexOf("denyClarityConsent();") < clarity.indexOf("window.location.reload()") && /setTimeout\(\(\) => window\.location\.reload\(\), REVOKE_SETTLE_MS\)/.test(clarity));
+  check("the deprecated v1 call clarity('consent', ...) is not used", !/clarity\("consent",/.test(clarity.replace(/\/\/.*$/gm, "")));
   check("Clarity's consent API is signalled", /clarity\("consentv2"/.test(clarity));
   check("no region check that could skip the prompt", !/EEA|GDPR|country|geolocation/i.test(clarity.replace(/\/\/.*$/gm, "")));
   const tagUsers = source.filter((f) => read(f).includes("clarity.ms/tag"));

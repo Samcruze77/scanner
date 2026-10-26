@@ -28,6 +28,20 @@ import { hasConsent, subscribeConsent } from "@/utils/consent/consent";
 
 const CLARITY_PROJECT_ID = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
 
+// Clarity's Consent API v2. Recordings are analytics storage; ad storage stays
+// denied whatever the other categories are set to.
+const REVOKE_SETTLE_MS = 300;
+
+function denyClarityConsent() {
+  const clarity = (window as unknown as { clarity?: (...args: unknown[]) => void }).clarity;
+  if (typeof clarity !== "function") return;
+  try {
+    clarity("consentv2", { ad_Storage: "denied", analytics_Storage: "denied" });
+  } catch {
+    /* Clarity unavailable: the reload below still removes the script */
+  }
+}
+
 export function MicrosoftClarity() {
   const [allowed, setAllowed] = useState(false);
 
@@ -38,8 +52,11 @@ export function MicrosoftClarity() {
     return subscribeConsent(() => {
       const now = hasConsent("recordings");
       if (wasAllowed && !now) {
-        // Withdrawn: reload so the already-running script is gone.
-        window.location.reload();
+        // Withdrawn: tell Clarity first (Microsoft: the site must inform Clarity of a
+        // revocation so it stops tracking and removes its cookies), then reload so the
+        // already-running script is gone. The short wait lets Clarity act on the signal.
+        denyClarityConsent();
+        window.setTimeout(() => window.location.reload(), REVOKE_SETTLE_MS);
         return;
       }
       wasAllowed = now;

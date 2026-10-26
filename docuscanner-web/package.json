@@ -47,6 +47,7 @@
     "test:install": "node --no-warnings tests/install/unit.mjs",
     "test:install:browser": "node tests/install/browser.mjs",
     "test:consent:browser": "node tests/consent/browser.mjs",
+    "test:consent:clarity": "node tests/consent/clarity-signals.mjs",
     "test:theme": "node tests/ui/theme.mjs",
     "test:analytics": "node tests/analytics/geo.mjs && node tests/analytics/edge-function-geo.mjs && node tests/analytics/geo-hierarchy.mjs && node tests/analytics/geography-levels.mjs && node tests/analytics/geo-providers.mjs && node tests/analytics/geo-precision.mjs && node tests/analytics/export-range.mjs && node tests/analytics/admin-summary.mjs && node tests/analytics/edge-handlers.mjs && node tests/analytics/admin-profile.mjs && node tests/analytics/export.mjs && node tests/analytics/clarity.mjs && node tests/analytics/authorization.mjs",
     "test:theme:visual": "node tests/ui/theme-visual.mjs",
