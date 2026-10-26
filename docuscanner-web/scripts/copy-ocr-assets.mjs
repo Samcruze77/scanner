@@ -32,4 +32,7 @@ for (const [from, to] of ASSETS) {
   copyFileSync(src, dest);
 }
 
+// What is compiled into the OCR core and where the English model comes from, with their licences.
+copyFileSync(join(root, "scripts", "notices", "ocr-core.txt"), join(outDir, "licenses", "ocr-core-NOTICE.txt"));
+
 console.log(`[copy-ocr-assets] Copied ${ASSETS.length} OCR assets to public/ocr/`);

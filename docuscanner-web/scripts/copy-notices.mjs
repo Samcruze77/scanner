@@ -69,12 +69,14 @@ try {
     ["qcms colour management (MIT)", join(root, "public", "pdfjs", "wasm", "LICENSE_QCMS")],
     ["qcms (PDF.js)", join(root, "public", "pdfjs", "wasm", "LICENSE_PDFJS_QCMS")],
   ]);
+  section("QuickJS (PDF.js form-scripting engine): /pdfjs/wasm", null, [["QuickJS and pdf.js.quickjs", join(root, "scripts", "notices", "pdfjs-quickjs.txt")]]);
   section(
     "Tesseract OCR: /ocr",
-    "Tesseract.js, its WebAssembly core (Tesseract and Leptonica) and the English model (tessdata_best, \"All data in the repository are licensed under the Apache-2.0 License\"). All Apache License 2.0; the licence text is the one printed under PDF.js above and in the files below.",
+    "Tesseract.js and tesseract.js-core are Apache License 2.0. The core WebAssembly build also contains Tesseract, Leptonica, libjpeg, libpng, giflib, libtiff, libwebp, zlib and openlibm, and the English model is the integer version of tessdata_best (Apache License 2.0); their notices follow.",
     [
       ["tesseract.js", join(root, "node_modules", "tesseract.js", "LICENSE.md")],
       ["tesseract.js-core", join(root, "node_modules", "tesseract.js-core", "LICENSE")],
+      ["What is inside the core, and the English model", join(root, "scripts", "notices", "ocr-core.txt")],
     ],
   );
   section("QPDF engine: /qpdf", null, [["QPDF, libjpeg-turbo and zlib", join(root, "scripts", "notices", "qpdf-wasm.txt")]]);
@@ -88,6 +90,11 @@ try {
 
   // ---- Part 2 ----------------------------------------------------------------------------------------------------------------
   add(rule, "PART 2: NPM PACKAGES USED BY THE APPLICATION", rule, "");
+  // Installed releases that declare no licence anywhere, with what is known about them (see docs/compliance/THIRD_PARTY_LICENSE_AUDIT.md).
+  const UNDECLARED = {
+    buffers:
+      "the installed release 0.1.1 ships no licence file or licence field; its upstream author is James Halliday and the Debian project records the package's licence as Expat (MIT)",
+  };
   const groups = new Map();
   const noFile = [];
   let count = 0;
@@ -120,7 +127,7 @@ try {
   if (noFile.length) {
     add(thin, `Packages that declare their licence in package.json but ship no licence file: ${noFile.length}`, thin);
     add("Each is used under the licence it declares (for MIT, ISC, BSD and similar licences the licence text is the standard one for that name, with the holder named below).", "");
-    for (const p of noFile.sort((a, b) => a.name.localeCompare(b.name))) add(`  ${p.name}@${p.version}  ${p.licence}${p.author ? "  by " + p.author : ""}`);
+    for (const p of noFile.sort((a, b) => a.name.localeCompare(b.name))) add(`  ${p.name}@${p.version}  ${UNDECLARED[p.name] ? "no licence declared: " + UNDECLARED[p.name] : p.licence}${p.author ? "  by " + p.author : ""}`);
     add("");
   }
 

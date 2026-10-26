@@ -19,7 +19,7 @@ interface PolicySection {
 }
 
 const EFFECTIVE = "September 30, 2026";
-const UPDATED = "September 30, 2026";
+const UPDATED = "October 26, 2026";
 
 const INTRO: string[] = [
   "FreePDFScanner.com (“FreePDFScanner”, “we”, “us”, or “our”) respects your privacy and is committed to protecting personal information you provide to us or that we collect when you use our website and services.",
@@ -197,6 +197,9 @@ const SECTIONS: PolicySection[] = [
         p: "Where applicable law requires consent before Clarity cookies or similar technologies are used, we will obtain and communicate that consent through an appropriate consent mechanism. Microsoft states that explicit consent is required for Clarity cookies in the EEA, UK and Switzerland.",
       },
       { p: "Microsoft provides additional information about Clarity's privacy practices in its own documentation and privacy statement. Clarity data is hosted using Microsoft Azure infrastructure." },
+      {
+        p: "Microsoft states that Clarity operates as a data controller for the information it receives, so Microsoft may collect and use that information as described in the Microsoft Privacy Statement: https://www.microsoft.com/privacy/privacystatement",
+      },
     ],
   },
   {
@@ -214,6 +217,9 @@ const SECTIONS: PolicySection[] = [
           "information needed to measure campaign performance.",
         ],
       },
+      {
+        p: "An advertisement's image or video may be loaded from servers run by the advertiser or its provider, which can then see your IP address and browser information. Some advertisements are videos played by a third-party player (YouTube or Vimeo); those load only after you allow advertising cookies in Cookie settings.",
+      },
       { p: "We do not intentionally provide advertisers with the contents of documents processed locally by FreePDFScanner." },
       { p: "Where an advertising provider uses cookies or similar technologies that require consent, those technologies will be subject to applicable consent requirements." },
       { p: "Because advertising providers can change over time, the specific providers active on the website may depend on the advertising configuration in use at a particular time." },
@@ -230,7 +236,8 @@ const SECTIONS: PolicySection[] = [
           "Supabase — authentication, database, and application infrastructure. Supabase publishes its own privacy policy describing its handling of personal information in connection with its services.",
           "Vercel — website hosting and application infrastructure. Vercel provides request-level geolocation information such as country, region, city and postal code based on public IP information.",
           "Microsoft Clarity — website behavior analytics where enabled.",
-          "Location-enrichment providers — where enabled, an IP geolocation service may be used to provide additional approximate geographic information.",
+          "Location-enrichment providers — where enabled, an IP geolocation service may be used to provide additional approximate geographic information. The service we support is IP2Location (api.ip2location.io): when it is switched on, your IP address is sent to it from our server to look up a place name; the raw IP address is not stored with the result; we keep only the place names returned and, as noted in section 2, an IP-derived identifier (a one-way hash of the IP address) for analytics.",
+          "Anthropic — where AI answers in the “Ask me” help assistant are switched on, the question you type, up to six earlier messages from that chat and the page you are on are sent to Anthropic's API to write the answer. Email addresses and long runs of digits (such as phone or card numbers) are removed first. Documents, file names, passwords and account details are not sent, and we do not store the conversation. When AI answers are off, the assistant is an automatic built-in guide that sends nothing to Anthropic.",
         ],
       },
       { p: "Third-party providers may process information on our behalf or independently according to their own privacy policies and contractual arrangements." },

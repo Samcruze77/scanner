@@ -1,6 +1,6 @@
 # Third-party licence, copyright and service audit: FreePDFScanner
 
-Audit date: 2026-10-26. Repository state: `web-only` at `32f7aef` plus the uncommitted working-tree changes described in section 8.
+Audit date: 2026-10-26 (two rounds the same day). Repository state: `web-only` at `c8ae67a` plus the second-round working-tree changes described in section 8.
 This is an engineering audit of what the project actually contains and uses. It is **not legal advice** and it does not certify that the
 website is free of licensing risk; sections 7 and 10 say exactly what was and was not established.
 
@@ -18,31 +18,44 @@ Status words used for every material item:
 
 ## 1. Executive summary
 
-**Overall: no copyleft or non-commercial licence blocks the website, but one hosting-terms conflict and several evidence gaps need decisions.
-The audit does not support calling the project "fully compliant".**
+**Overall: no GPL, AGPL, SSPL or non-commercial licence is among the 320 production npm packages of the website, and every resource the site serves is permissively or
+OFL licensed, with its notice now served. One hosting-terms conflict (Vercel Hobby plan with ads) needs a decision, and a few provenance and terms items could not be
+established. The audit does not support calling the whole project "fully compliant".** Two rounds of work are recorded here: the first audit and its notices, and a second
+round (2026-10-26, evidence matrix in section 11) that investigated each open finding.
 
-Most important findings, in order:
+### 1.1 Verified and resolved
 
-1. **Not approved: Vercel Hobby plan while the site carries advertisements.** Vercel's Fair Use Guidelines (page last updated 2026-09-14) say
-   "Hobby teams are restricted to non-commercial personal use only" and list "The inclusion of advertisements, including but not limited to online
-   advertising platforms like Google AdSense" as commercial usage. The site's footer says "Free to use and supported by ads", and the project
-   notes record the production project as Hobby (checked 2026-09-19 and 2026-10-06; the Vercel API refused the plan lookup today, so the current plan is
-   **unverified**). If it is still Hobby, the production deployment needs a Pro (or Enterprise) plan. This is a decision and a cost, so nothing was changed.
-2. **Fixed here: required licence notices were not being shown.** Almost every dependency is MIT, ISC, BSD or Apache-2.0, which permit commercial use
-   but require their copyright and licence notice to accompany copies. The site served no notices file. A generated
-   `public/licenses/third-party-notices.txt` (built before every `dev`/`build`, linked from the footer as "Open-source notices") now carries them.
-3. **Fixed here: the QPDF WebAssembly engine (`/qpdf/qpdf.wasm`) shipped without the licences of what is inside it.** Its npm wrapper declares ISC,
-   but the binary contains QPDF (Apache-2.0), libjpeg-turbo (IJG + BSD-3-Clause) and zlib. Their notices now ship with it (`/qpdf/NOTICE.txt`) and are in the notices file.
-4. **Needs review: IP2Location.io.** The optional geographic enrichment calls `api.ip2location.io`. The free plan requires attribution and does not
-   return district or neighbourhood data (the code stores both), the privacy policy does not name this provider, and it is not known whether the provider is enabled in production.
-5. **Needs review: privacy disclosures for two optional processors.** The AI assistant sends a scrubbed question to Anthropic when it is switched on
-   (the key was not set when last recorded), and IP2Location receives visitor IP addresses when enabled. The privacy page names neither.
-6. **Unverified provenance:** the logo and icon PNGs in `public/brand`, the in-house icon set, and the origin of one transitive package's licence (`buffers`).
-7. **Needs review (operations):** Supabase Free plan has no SLA, no automatic backups and pauses after a week of inactivity; its Terms do not state a free-plan
-   rule on commercial use that I could confirm. Which plan production uses is not recorded in the repository.
+1. **Missing licence notices.** The site served none. `public/licenses/third-party-notices.txt` is now generated before every `dev`/`build` from the lock file and the shipped
+   assets, linked from the footer ("Open-source notices"), and checked by `npm run test:compliance`.
+2. **QPDF engine notices.** `/qpdf/qpdf.wasm` contains QPDF (Apache-2.0), libjpeg-turbo and zlib; their notices ship beside it (`/qpdf/NOTICE.txt`).
+3. **QuickJS in PDF.js (`/pdfjs/wasm/quickjs-eval.*`): provenance and licence established.** The served files are byte-identical (SHA-256) to `external/quickjs/` in
+   mozilla/pdf.js, whose own `LICENSE_QUICKJS` (MIT, Bellard and Gordon) and `LICENSE_PDFJS_QUICKJS` (MIT, Mozilla Foundation) are now shipped with them. PDF.js runs the engine
+   only when `enableScripting` is set; nothing in the application sets it, and a test guards that.
+4. **OCR core and model inventoried.** What is compiled into `tesseract-core` was taken from the upstream repository's pinned sources (tag v7.0.0) and confirmed by strings in the binary:
+   Tesseract, Leptonica, libjpeg, libpng, giflib, libtiff, libwebp, zlib, openlibm. Their licence texts ship with the OCR assets. The English model is the integer version of tessdata_best (Apache-2.0).
+5. **Privacy policy matches the implementation.** It now names the AI assistant's provider (Anthropic) and what is sent, IP2Location (when enabled), Microsoft's controller role with a link to its
+   privacy statement, and advertisement images or videos loaded from advertiser or third-party servers. Each statement was checked against the code. This is a disclosure update, not a finding that the policy is legally sufficient.
+6. **IP2Location integration identified exactly**: the REST "IP Geolocation API" (`https://api.ip2location.io/`, server-side key), not a downloaded database or LITE data. It is **dormant**: the handover
+   document of 2026-10-05 records `GEO_PROVIDER` as "Not set", so no visitor IP address is sent to it today (the live environment was not read).
+7. **`buffers@0.1.1` traced**: `exceljs 4.4.0 > unzipper 0.10.14 > binary 0.3.0 > buffers 0.1.1`; it is in the server bundle of the admin analytics export, not in what browsers receive. The notices now say plainly that the installed release declares no licence.
+8. **Icon set compared** with Lucide 1.61.0, Feather 4.29.2 and Heroicons 2.2.0: no copied path (only trivial straight lines coincide).
 
-What is clean: no GPL, AGPL, SSPL, non-commercial or source-available licence among the 320 production npm packages of the website; the dual-licensed packages
-(`jszip`, `dompurify`) are used under their permissive option; every font bundled or served is SIL OFL 1.1, BSD or Apache; the OCR engine and model are Apache-2.0.
+### 1.2 Verified obligations that still require action
+
+1. **Vercel Hobby plan with advertisements: Not approved.** Terms of Service section 4: "You shall only use the Services under a Hobby plan for your personal or non-commercial use." The Fair Use Guidelines
+   count "The inclusion of advertisements" as commercial usage. The production project is recorded as Hobby (handover documents, 2026-10-05); the live plan could not be read today (API 403). Move to Pro before advertising or revenue.
+2. **Before IP2Location is enabled**: use a plan that returns the fields wanted, show the attribution the free plan requires, and settle the Terms' 30-day limit on retaining cached results against the place names the analytics tables keep (section 11, row 2).
+3. **Clarity: records of consent.** An excerpt of Microsoft's Terms says owners must retain records of consent from EU users; the site keeps the visitor's choice only in their own browser. Needs review.
+
+### 1.3 Unverified items needing further investigation
+
+Brand images and favicons (no source or licence record; committed 2026-10-08 by the repository owner), authorship of the in-house icons, the licence of `buffers@0.1.1` (probably MIT, from a secondary source), the full text of Microsoft Clarity's
+Terms of use (an application page that could not be read; only excerpts and the Microsoft Learn FAQ), the current Vercel and Supabase plans, and the backend and mobile app (inventoried only).
+
+### 1.4 Decisions that need your approval
+
+Upgrading Vercel to Pro; whether and on which plan to enable IP2Location (and showing its attribution); the wording of the privacy policy (it is operator-supplied legal text and was edited here, with its "Last Updated" date changed to October 26, 2026);
+the logo ownership declaration; whether to delete the unused template SVGs and, optionally, stop serving the unused QuickJS files; and whether to keep server-side records of consent.
 
 ---
 
@@ -116,16 +129,18 @@ therefore do ship: see section 3**) and `@tesseract.js-data/eng` (MIT wrapper, i
 | Resource | Where | Licence and source | Status |
 |---|---|---|---|
 | **Geist, Geist Mono** (site typeface) | `app/layout.tsx` via `next/font/google` (downloaded at build and self-hosted, no request to Google by visitors) | SIL OFL 1.1, "Copyright 2024 The Geist Project Authors" (`scripts/notices/geist-OFL.txt`, fetched from the vercel/geist-font repository) | Verified compatible; OFL text now in the notices file |
-| **Carlito, Arimo, Tinos, Caladea, Cousine** (metric twins of Calibri, Arial, Times New Roman, Cambria, Courier New) | copied from `@fontsource/*` to `/fonts/docx`; used by the Word→PDF converter and, new in this change, as web fonts for Create Word Document (`word-fonts.css`) | SIL OFL 1.1; licence texts shipped in `/fonts/docx/licenses` and in the notices file. No reserved font name is declared in the copyright lines. The OFL FAQ allows web-font use and embedding in documents; subsetting counts as modification (the @fontsource subsets are the standard Google-Fonts subsets). | Verified compatible |
+| **Carlito, Arimo, Tinos, Caladea, Cousine** (metric twins of Calibri, Arial, Times New Roman, Cambria, Courier New) | copied from `@fontsource/*` 5.3.0 to `/fonts/docx`; used by the Word→PDF converter and as web fonts for Create Word Document (`word-fonts.css`) | SIL OFL 1.1; licence texts shipped in `/fonts/docx/licenses` and in the notices file. No reserved font name is declared in the copyright lines. The OFL FAQ allows web-font use and embedding in documents; subsetting counts as modification (the @fontsource subsets are the standard Google-Fonts subsets). | Verified compatible |
 | Calibri, Arial, Times New Roman, Georgia, Verdana | named in the editor and in exported .docx files | **Not bundled.** Used only if the visitor's device has them; .docx files refer to them by name and never embed them. | Verified compatible (no redistribution) |
-| **PDF.js runtime** (`/pdfjs`): worker, CMaps, standard fonts, WASM decoders | `scripts/copy-pdf-assets.mjs` | Apache-2.0; Foxit-named fonts under the PDFium BSD-3 licence (`LICENSE_FOXIT`); Liberation Sans OFL; OpenJPEG BSD-2; qcms MIT; JBIG2 (PDFium + PDF.js). Licence files ship alongside. **`wasm/quickjs-eval.wasm` and `quickjs-eval.js` (a QuickJS build that PDF.js uses for PDF form scripts) ship with no licence file.** QuickJS is MIT-licensed upstream (https://raw.githubusercontent.com/bellard/quickjs/master/LICENSE), but this build reports "QuickJS ... 1.0.0", which suggests a fork whose copyright holders could not be confirmed, so no notice text was added. | Compatible with obligations for everything except QuickJS (**Unverified** notice) |
-| **OCR runtime** (`/ocr`): `worker.min.js`, three `tesseract-core` WASM builds, `eng.traineddata.gz` | `scripts/copy-ocr-assets.mjs` | tesseract.js and tesseract.js-core: Apache-2.0. Model: tessdata_best, "All data in the repository are licensed under the Apache-2.0 License" (repository README). The `@tesseract.js-data/eng` wrapper says MIT; the model's own licence is the Apache-2.0 one. | Compatible with obligations; the libraries compiled *into* the core WASM (e.g. Leptonica) are **unverified** |
-| **QPDF engine** (`/qpdf/qpdf.wasm`) | `scripts/copy-qpdf-assets.mjs` | QPDF Apache-2.0 (qpdf.readthedocs.io licence page); libjpeg-turbo and zlib detected inside the binary | Compatible with obligations (notices added, see 8) |
-| Logos and icons (`public/brand/*.png`, `app/icon.png`, `app/apple-icon.png`, `app/favicon.ico`) | site header, manifest, PWA install | No source or licence record in the repository | **Unverified**: the owner should confirm they created or hold the rights to them |
-| In-house icon set | `components/ui/icons.tsx` | File header says it is a drawn set (24 px grid, 1.75 px stroke). No third-party icon-set attribution found. | Unverified (self-authored claim not independently checkable) |
-| `public/next.svg`, `vercel.svg`, `file.svg`, `globe.svg`, `window.svg` | leftover `create-next-app` template files, **not referenced anywhere** | The template's own files; `next.svg`/`vercel.svg` are the Next.js and Vercel logos (trademarks) | Needs review: unused, recommend deleting |
+| **PDF.js runtime** (`/pdfjs`): worker, CMaps, standard fonts, WASM decoders | `scripts/copy-pdf-assets.mjs` (pdfjs-dist 6.3.289) | Apache-2.0; Foxit-named fonts under the PDFium BSD-3 licence (`LICENSE_FOXIT`); Liberation Sans OFL; OpenJPEG BSD-2; qcms MIT; JBIG2 (PDFium + PDF.js). Licence files ship alongside. | Verified compatible |
+| **QuickJS** (`/pdfjs/wasm/quickjs-eval.wasm`, `quickjs-eval.js`) | same package; byte-identical to mozilla/pdf.js `external/quickjs/` (SHA-256 compared 2026-10-26) | MIT: `LICENSE_QUICKJS` (Fabrice Bellard, Charlie Gordon) and `LICENSE_PDFJS_QUICKJS` (Mozilla Foundation) from that folder, which the npm package omits; now shipped as `/pdfjs/wasm/LICENSE_QUICKJS.txt` and in the notices file. Used by PDF.js only for PDF form scripting, which the application does not enable. | Verified compatible (provenance and notice resolved) |
+| **OCR runtime** (`/ocr`): `worker.min.js` (tesseract.js 7.0.0), three `tesseract-core` 7.0.0 WASM builds, `eng.traineddata.gz` | `scripts/copy-ocr-assets.mjs` | tesseract.js and tesseract.js-core Apache-2.0. The core compiles in Tesseract (Apache-2.0), Leptonica, libjpeg, libpng, giflib, libtiff, libwebp, zlib, openlibm (list from the upstream `.gitmodules` at v7.0.0, each confirmed by strings in the binary; commits recorded in `scripts/notices/ocr-core.txt`). Model: `@tesseract.js-data/eng` 1.0.0 `4.0.0_best_int`, "Integerized Version of 'Tessdata Best'" (https://github.com/naptha/tessdata README); tessdata_best is Apache-2.0. | Verified compatible; licence texts ship in `/ocr/licenses/ocr-core-NOTICE.txt` and the notices file (texts are the projects' current files, not the pinned commits) |
+| **QPDF engine** (`/qpdf/qpdf.wasm`) | `scripts/copy-qpdf-assets.mjs` | QPDF Apache-2.0 (qpdf.readthedocs.io licence page); libjpeg-turbo and zlib detected inside the binary | Verified compatible (notices shipped) |
+| Logos and icons (`public/brand/*.png`, `app/icon.png`, `app/apple-icon.png`, `app/favicon.ico`) | site header, manifest, PWA install | Added by commit `bafb7f2` (2026-10-08, Samuel Ajose, "update FreePDFScanner branding and logo") and `9f0fd5b`. The PNG files carry no author, software or licence metadata. No design source, licence or purchase record exists in the repository. | **Unverified / unresolved**: the owner must confirm they created, commissioned or licensed them |
+| In-house icon set | `components/ui/icons.tsx` (95 path elements) | File header calls it a drawn set (24 px grid, 1.75 px stroke). Compared against Lucide 1.61.0 (182 distinct paths), Feather 4.29.2 (1,474) and Heroicons 2.2.0 (8,549) from their npm packages: no non-trivial identical path (only two or eleven single-line paths such as `m5 12h14`). | Verified by comparison only (no copying detected); authorship remains the owner's statement |
+| `public/next.svg`, `vercel.svg`, `file.svg`, `globe.svg`, `window.svg` | leftover `create-next-app` template files added in the first commit (`04b071c`, 2026-09-09); **not referenced anywhere** | The template's own files; `next.svg`/`vercel.svg` are the Next.js and Vercel logos (trademarks) | Needs review: unused, recommend deleting |
 | Photographs, stock images, illustrations on pages | none found in `app/`, `components/`, `public/` besides the above | n/a | Verified (none found) |
 | Guides, tool descriptions, landing-page text, sample documents in tests | `utils/seo`, `utils/assistant`, `tests/*` | written for the project; test documents are generated from deterministic word lists | Verified (no third-party content found) |
+| `iso-3166-2` country and region data | `utils/admin/location.ts` (admin pages) | package 1.0.0, MIT licence file, Copyright 2014 Ola Holmström; the README does not state where its ISO 3166-2 data comes from | Needs review (low risk: admin-only names and codes) |
 
 Exported documents: DOCX files from Create Word Document contain no fonts and no third-party graphics (only pictures the user adds, and signature images the user draws). PDFs made by the
 Word→PDF converter embed *subsets* of Carlito/Arimo/Tinos/Caladea/Cousine; OFL FAQ 1.12 allows embedding a font (in full or subset) in a document, and says it does not change the document's licence. The
@@ -135,21 +150,22 @@ standard PDF base-14 fonts used by PDF libraries are referenced, not embedded. F
 
 ## 4. API and service inventory
 
-Checked against the providers' own pages on 2026-10-26 (URLs in section 10). Credentials were not read or printed.
+Checked against the providers' own pages on 2026-10-26 (URLs in sections 10 and 11). Credentials were not read or printed, and no hosted configuration was read or changed.
 
 | Service | Used for | What the terms say | Data sent | Status |
 |---|---|---|---|---|
-| **Vercel** | hosting, builds, request geolocation headers, image optimisation | **Hobby is non-commercial; the inclusion of advertisements is commercial use** (Fair Use Guidelines, updated 2026-09-14). Pro/Enterprise required for commercial deployments. | page requests, server logs | **Not approved** while on Hobby; plan **unverified** today (API 403) |
+| **Vercel** | hosting, builds, request geolocation headers, image optimisation. Pushing to `web-only` deploys production automatically. | Terms of Service section 4: "You shall only use the Services under a Hobby plan for your personal or non-commercial use." Fair Use Guidelines (updated 2026-09-14): "Hobby teams are restricted to non-commercial personal use only" and commercial usage includes "The inclusion of advertisements". Pro is $20 a month per Vercel's pricing page. | page requests, server logs | **Not approved** while on Hobby. Plan recorded as Hobby (handover documents 2026-10-05); live plan unverified (API 403) |
 | **Supabase** (Auth, Postgres, Edge Functions) | accounts, History, analytics and ads functions | Pricing page: Free = 500 MB database, 50,000 MAU, 5 GB egress, 500,000 Edge Function invocations, **paused after 1 week of inactivity, no SLA, no automatic backups**. Terms: customer owns Customer Data; AI training on it needs written consent; the access grant is for "internal business purposes"; no free-plan statement on commercial use found. | account emails, saved History documents (when the user saves), analytics events | Needs review (plan not recorded; backups/retention gaps already noted in the handover) |
-| **Microsoft Clarity** (`clarity.ms`) | session replay and heatmaps, only after consent | Clarity FAQ (updated 2026-10-16): "free service forever", no traffic limits; explicit consent needed for visitors in the EEA, UK and Switzerland; data kept up to 30 days; input boxes always masked. Using it without consent does not breach its terms but limits it. The **Terms of use page itself could not be retrieved** (JavaScript page), so it was not read. | interaction data, hosted on Azure | Compatible with obligations (consent gating exists in `components/consent`); Terms of use unread |
-| **IP2Location.io** (`api.ip2location.io`) | optional enrichment of visitor location (district, neighbourhood) in the analytics edge function | Free plan: 50,000 queries a month (keyless: 1,000 a day); the FAQ says **attribution is required on the free plan** and not on paid plans; the free plan sample returns region and city but not district or neighbourhood. Caching/storage rules not found. | visitor IP address and the API key as query parameters | **Needs review**: attribution, plan, disclosure |
-| **Anthropic API** (`api.anthropic.com`) | optional "Ask FreePDFScanner" AI answers; built-in guide works without it | Commercial Terms: customer owns outputs and may power its own products; Anthropic "may not train models on Customer Content from Services"; use must follow the Usage Policy; no competing-product or resale use. The code sends only the question, a few earlier turns and the page path, with contact details and long digit runs scrubbed, behind per-visitor and daily limits. The key is server-side only. | scrubbed question text | Compatible with obligations; privacy policy does not mention it |
+| **Microsoft Clarity** (`clarity.ms`, script only after consent) | session replay and heatmaps | Clarity FAQ (updated 2026-10-16): "free service forever", no traffic limits; explicit consent for visitors in the EEA, UK and Switzerland; operates as a data controller; data available to site owners up to 30 days; input boxes always masked. An excerpt of the Terms page (via search) adds: owners' privacy notices must disclose that Microsoft may collect personal data, and for EU users owners must obtain consent, keep records of it and allow withdrawal. The Terms page itself could not be read (it is an application page). | interaction data, hosted on Azure | Compatible with obligations; records of consent **needs review**; full Terms **unverified** |
+| **IP2Location.io** (`api.ip2location.io`, REST IP Geolocation API) | optional enrichment of visitor location in the analytics route; off unless `GEO_PROVIDER` and a key are set (recorded "Not set", 2026-10-05) | Terms of Service (https://www.ip2location.io/terms-of-service): access for the customer's "internal business operations"; cached results "must not be retained for more than thirty (30) consecutive calendar days"; API keys must not appear in client-side code. Pricing FAQ: "attribution is required if you are subscribed to our FREE plan or using keyless API" (a visible statement starting "[site] uses IP2Location.io" with a link "IP geolocation"); no attribution on paid plans. Free plan 50,000 queries a month; the free sample shows region and city, not district. | visitor IP address and the API key as query parameters, from our server | Dormant. **Needs review before enabling** (section 11, row 2) |
+| **Anthropic API** (`api.anthropic.com`) | optional "Ask me" AI answers; the built-in guide works without it. On when `ANTHROPIC_API_KEY` is set (recorded not set earlier; live value not read) | Commercial Terms: customer owns outputs and may power its own products; Anthropic "may not train models on Customer Content from Services"; use must follow the Usage Policy; no competing-product or resale use. | the question (500 characters at most), up to 6 earlier messages, the page path; emails and long digit runs removed first; never documents, file names, passwords or tokens | Compatible with obligations; privacy policy now discloses it |
 | **Google Fonts** | `next/font/google` downloads Geist at build time | Font licence is OFL; no visitor request to Google | none from visitors | Verified compatible |
+| **Vercel Analytics / Speed Insights** | not used | No `@vercel/analytics` or `@vercel/speed-insights` package, import or script in the code | none | Verified (not used) |
+| Advertisements | the site's own campaigns (`supabase/functions/ads-eligible`, `components/ads/AdSlot.tsx`): advertiser images (`<img src>` from the campaign's asset URL), click-through links, and YouTube/Vimeo embeds only from an allow-list and only after advertising consent | no ad-network SDK (AdSense, etc.) in the code; each advertiser's own terms are outside this audit | the browser's IP address and details reach the image host and, after consent, the video player host | Disclosed in the privacy policy (section 8); Needs review if a network is added |
 | Brevo and Namecheap (domain email forwarding and DNS) | operations outside the code (per project notes) | not part of the repository; terms not audited | n/a | Unverified (out of scope of the code audit) |
 | Stripe, Cloudinary, AWS S3, Neon, Redis (BullMQ) | **backend only** (`../backend/package.json`) | not part of the website; not audited. | | Out of scope; listed so they are not forgotten |
 
-There is no third-party content-delivery of fonts, scripts or images other than the Clarity script (consent-gated) and the services above. No Google AdSense or other
-ad-network SDK is present in the website code: ads are the site's own campaigns (`supabase/functions/ads-eligible`), with sponsor click-through links and allow-listed video embeds.
+There is no third-party content-delivery of fonts, scripts or images other than the Clarity script (consent-gated) and the services above.
 
 ---
 
@@ -177,51 +193,70 @@ ad-network SDK is present in the website code: ads are the site's own campaigns 
 
 | Obligation | Applies to | How it is met |
 |---|---|---|
-| Keep the copyright and licence notice with copies (MIT, ISC, BSD, Apache-2.0, Zlib, OFL) | all npm packages in the application, PDF.js assets, fonts, OCR assets | `public/licenses/third-party-notices.txt` (generated before every `dev` and `build`; linked in the footer as "Open-source notices"); licence files also remain beside the PDF.js, OCR and font assets |
+| Keep the copyright and licence notice with copies (MIT, ISC, BSD, Apache-2.0, Zlib, OFL) | all npm packages in the application, PDF.js assets, fonts, OCR assets | `public/licenses/third-party-notices.txt` (generated before every `dev` and `build`; linked in the footer as "Open-source notices"); licence files also remain beside the PDF.js, OCR, QuickJS and font assets |
 | Apache-2.0 NOTICE / licence text for QPDF, and the IJG acknowledgement for libjpeg-turbo | `/qpdf/qpdf.wasm` | `scripts/notices/qpdf-wasm.txt`, copied to `/qpdf/NOTICE.txt` and included in the notices file |
+| BSD/MIT/zlib/PNG/IJG/Leptonica notices for what is compiled into the OCR core, Apache-2.0 for the model | `/ocr/core/*.wasm.js`, `/ocr/lang/eng.traineddata.gz` | `scripts/notices/ocr-core.txt`, copied to `/ocr/licenses/ocr-core-NOTICE.txt` and included in the notices file |
+| MIT notices for QuickJS and pdf.js.quickjs | `/pdfjs/wasm/quickjs-eval.*` | `scripts/notices/pdfjs-quickjs.txt`, copied to `/pdfjs/wasm/LICENSE_QUICKJS.txt` and included in the notices file |
 | OFL: licence text must accompany the fonts; fonts may not be sold alone | Geist, Carlito, Arimo, Tinos, Caladea, Cousine | licence texts shipped in `/fonts/docx/licenses` and the notices file; the fonts are not sold |
-| Attribution on the free IP2Location.io plan | only if that provider is enabled on the free plan | **not implemented**: decision needed (section 7) |
+| Attribution on the free IP2Location.io plan; 30-day limit on retaining cached results | only if that provider is enabled | **not met, and not needed while it is off**; decision required before enabling (section 11, row 2) |
 | CC-BY-4.0 attribution for `caniuse-lite` | build-time data | listed in the notices file |
 | LGPL (libvips) | only if the binary is redistributed | not redistributed on Vercel; see 2.3 |
-| Disclose processors to visitors | Anthropic (if enabled), IP2Location (if enabled), Microsoft Clarity (done), Vercel geolocation (done) | privacy page covers Clarity and Vercel; **not** Anthropic or IP2Location |
+| Disclose processors to visitors | Anthropic (if enabled), IP2Location (if enabled), Microsoft Clarity, Vercel geolocation, advertisement hosts | privacy policy sections 7, 8 and 9, updated 2026-10-26 and checked against the code by `tests/compliance/notices.mjs` |
+| Keep records of EU consent (Clarity Terms excerpt) | Microsoft Clarity | **not met as read**: the choice is stored in the visitor's browser only (`ds_consent`); needs review |
 | Source disclosure | none required: no GPL/AGPL code is used (jszip is used under MIT) | n/a |
+| Hosting plan matches use | Vercel | **not met if Hobby** (Terms section 4) |
 
 ---
 
 ## 7. Problems and uncertainties
 
-1. **Vercel Hobby plan with ads: Not approved** (section 1). Action: confirm the plan in the Vercel dashboard; if Hobby, move the project to Pro. Source: Vercel Fair Use Guidelines.
-2. **IP2Location.io: Needs review.** Confirm whether `GEO_PROVIDER` is set in production and on which plan. On the free plan: add the required attribution, and note that district/neighbourhood fields are not returned (the stored values would be empty). Add the provider to the privacy policy. Caching/storage terms were not found in the pages read.
-3. **Privacy policy omits Anthropic (when the assistant's AI is on) and IP2Location.** Recommended text change; not a licence issue but a data-handling one under the services' own terms.
-4. **Supabase plan: Needs review.** Record which plan production uses. Free has no SLA or automatic backups and pauses after a week of inactivity, which is a business risk for a monetised site.
-5. **`buffers@0.1.1`: Unverified.** Probable MIT/Expat; confirm from the upstream repository, or remove `exceljs`'s dependency chain by upgrading to a release that no longer pulls `unzipper > binary > buffers`.
-6. **Brand images and icon set: Unverified provenance.** The owner should confirm authorship or licence (and keep that record).
-7. **Compiled-in libraries of `tesseract-core` (Leptonica and others): Unverified** notices. The package ships only the Apache-2.0 text; confirm upstream's third-party notice for the WASM build.
-8. **`@neslinesli93/qpdf-wasm` repository shows no LICENSE file** (the page listing had none; `package.json` says ISC). The licences of the binary's contents are established from QPDF's own repository and the strings in the binary, but the wrapper's own licence statement could not be confirmed from its repository.
-9. **`iso-3166-2` data provenance: Needs review.** MIT code carrying ISO/Wikipedia-derived data; confirm the data terms if names are shown publicly.
+Status after the second round (details and evidence in section 11):
+
+1. **Vercel Hobby plan with ads: Not approved.** Action: move the project to Pro before advertising or revenue; confirm the live plan in the dashboard.
+2. **IP2Location.io: Needs review before it is enabled.** Dormant today. Choose a plan that returns the wanted fields; add the free-plan attribution if the free plan is used; settle the 30-day retention limit on cached results against the stored place names.
+3. **Clarity: Needs review.** Keep records of EU consent if the Terms require it (they were read only in excerpt); the full Terms of use text could not be retrieved.
+4. **Supabase plan: Needs review.** Record which plan production uses; Free has no SLA or automatic backups and pauses after a week of inactivity.
+5. **`buffers@0.1.1`: Unverified.** Probable MIT (Expat) per Debian's copyright record; the upstream repository no longer resolves and the installed release ships no licence. It is only in server bundles. The notices say this plainly. To clear it, obtain the upstream licence text or upgrade `exceljs` to a release that no longer depends on `unzipper > binary > buffers`.
+6. **Brand images (logos, favicons, PWA icons): Unresolved.** No source or licence record, no embedded metadata; the repository owner added them on 2026-10-08. Needs the owner's declaration (and to keep the design files).
+7. **In-house icons: authorship unconfirmed, no copying detected** against three common icon sets.
+8. **`@neslinesli93/qpdf-wasm` repository shows no LICENSE file** (`package.json` says ISC). The licences of the binary's contents are established from QPDF's own repository and strings in the binary; the wrapper's own licence statement could not be confirmed from its repository.
+9. **`iso-3166-2` data provenance: Needs review** (admin-only; low risk).
 10. **Unused template SVGs (`next.svg`, `vercel.svg`, ...)**: delete when convenient (trademark logos, unreferenced).
-11. **Backend and mobile app:** inventoried only (section 2); their service terms (Stripe, Cloudinary, AWS, Neon, Redis, Apple/Google sign-in) and the LibreOffice binary the backend's Docker image relies on were **not** audited. `libreoffice-convert` is MIT but drives LibreOffice (MPL-2.0 / LGPL components); if that backend is deployed as a service it needs its own review.
-12. **QuickJS notice missing from `/pdfjs/wasm`** (found while validating this audit on the committed HEAD): PDF.js's `quickjs-eval.wasm` is MIT-licensed code shipped without its notice. Confirm which QuickJS fork pdf.js builds (its source repository) and add that project's licence text to `scripts/notices/` and to Part 1 of the notices file.
-13. **Microsoft Clarity Terms of use, Google Fonts FAQ, Vercel plan API and the `buffers` repository could not be retrieved** during this audit (sources in section 10); conclusions about them rest on the pages that could be read.
+11. **Backend and mobile app:** inventoried only (section 2); their service terms (Stripe, Cloudinary, AWS, Neon, Redis, Apple/Google sign-in) and the LibreOffice binary the backend's Docker image relies on were **not** audited.
+12. **Sources that could not be read in full:** Microsoft Clarity Terms of use (excerpts only), the Google Fonts FAQ, Vercel's live plan (API 403) and the `buffers` repository. Conclusions about them rest on the pages that could be read.
+
+**Resolved in the second round:** QuickJS provenance and notice; the contents and notices of the OCR core and model; privacy-policy disclosure of Anthropic, IP2Location, Microsoft's controller role and advertisement hosts; the exact IP2Location integration; the `buffers` dependency path.
 
 ---
 
 ## 8. Remediation
 
-Changes made in this working tree (uncommitted, nothing pushed):
+First round (committed as `9bcbec0`, `c8ae67a`):
 
 | Change | Files |
 |---|---|
 | Third-party notices generated before `dev`/`build`, linked from the footer, git-ignored like the other generated assets | `scripts/copy-notices.mjs`, `package.json` (`predev`, `prebuild`), `.gitignore`, `components/layout/Footer.tsx` |
-| Notices for QPDF, libjpeg-turbo and zlib (texts fetched from their repositories) served beside the engine | `scripts/notices/qpdf-wasm.txt`, `scripts/copy-qpdf-assets.mjs` |
+| Notices for QPDF, libjpeg-turbo and zlib served beside the engine | `scripts/notices/qpdf-wasm.txt`, `scripts/copy-qpdf-assets.mjs` |
 | Geist OFL text kept in the source | `scripts/notices/geist-OFL.txt` |
-| Licence inventory tool, review list and npm scripts (`license:inventory`, `license:check`) | `scripts/license-inventory.mjs`, `docs/compliance/license-review.json`, `package.json` |
-| This report and the three inventories | `docs/compliance/` |
+| Licence inventory tool, review list and npm scripts | `scripts/license-inventory.mjs`, `docs/compliance/license-review.json`, `package.json` |
 
-Not changed, on purpose: the Vercel plan, the privacy policy text, IP2Location configuration, any dependency or font, and the brand assets. Each of those needs a decision or evidence from the owner.
+Second round (2026-10-26, uncommitted working-tree changes):
+
+| Change | Files | Why (verified evidence) |
+|---|---|---|
+| QuickJS notice shipped beside the files and in the notices file | `scripts/notices/pdfjs-quickjs.txt`, `scripts/copy-pdf-assets.mjs`, `scripts/copy-notices.mjs` | files byte-identical to mozilla/pdf.js `external/quickjs/`; its licence files are MIT |
+| OCR core and model notices shipped beside the assets and in the notices file | `scripts/notices/ocr-core.txt`, `scripts/copy-ocr-assets.mjs`, `scripts/copy-notices.mjs` | upstream `.gitmodules` at v7.0.0 and strings in the binary; licence texts from each project |
+| `buffers` is described honestly in the notices (no licence declared, what is known) | `scripts/copy-notices.mjs` | installed release has no licence; Debian record says Expat |
+| Privacy policy: Anthropic, IP2Location, Microsoft's controller role and link, advertisement hosts; "Last Updated" date | `app/privacy/page.tsx` | each statement checked against `utils/assistant/server.ts`, `utils/assistant/sanitize.ts`, `utils/analytics/geoProviders.ts`, `components/analytics/MicrosoftClarity.tsx`, `components/ads/AdSlot.tsx` |
+| `--check` never writes; new compliance test and npm script `test:compliance` | `scripts/license-inventory.mjs`, `tests/compliance/notices.mjs`, `package.json` | a check must not change committed files |
+| This report: evidence matrix (section 11) and corrections | `docs/compliance/THIRD_PARTY_LICENSE_AUDIT.md` | |
+
+Corrections to the first round's text: the code never reads a neighbourhood from IP2Location (`neighborhoodSuburb` stays empty); the "QuickJS fork" worry and the "OCR libraries unverified" item are resolved; the Vercel plan evidence now includes the handover documents.
+
+Not changed, on purpose: the Vercel plan, any hosted setting or environment variable, IP2Location configuration, any dependency or font, the brand assets and the unused template SVGs. Each of those needs a decision or evidence from the owner.
 The notices script never fails a build (it prints a warning and exits 0), and the inventory tool is a development script with no dependencies, so the production dependency set is unchanged.
 
-Tests: see the final report in the conversation (lint, type check, production build, Ask Me, Word Creator and layout suites).
+Tests: `npx tsc --noEmit` clean; `npx eslint .` 0 errors, 17 warnings (none in files changed here); `npm run build` exit 0 three times (normal, with a placeholder Clarity id for the consent test, and normal again; the build runs the copy and notices scripts); `npm run test:compliance` 9 passed, 0 failed; `npm run license:check` "no production package needs a licence review"; `npm run test:consent` 66 passed, 0 failed; `NEXT_PUBLIC_CLARITY_PROJECT_ID=zzTESTzz1 npm run build` then `BASE_URL=http://localhost:3116 CLARITY_ID=zzTESTzz1 node tests/consent/browser.mjs` (exercises the privacy page) 35 passed, 0 failed; `npm run test:ocr` 7 checks passed and `npm run test:ocr:ui` 6 checks passed (the OCR asset copy script changed). `node tests/ui/theme-visual.mjs` still reports 34 passed, 3 failed ("dialog, input and scanned page" for each theme): the same three failures occur on the deployed baseline `32f7aef` (cookie banner `role="dialog"` stays open), so they are not caused by this work.
 
 ---
 
@@ -240,27 +275,62 @@ Before adding anything new:
 
 ## 10. Verification evidence and limits
 
-Checked on **2026-10-26**. "Local" means the licence file inside the installed package or shipped asset was read at the version shown in the inventory.
+Checked on **2026-10-26** (second round the same day). "Local" means the licence file inside the installed package or shipped asset was read at the version shown in the inventory.
 
 | Conclusion | Evidence |
 |---|---|
-| Vercel Hobby is non-commercial; advertisements count as commercial use | https://vercel.com/docs/limits/fair-use-guidelines (page `last_updated: 2026-09-14`) |
-| Project is on Hobby / scope has no team | project notes dated 2026-09-19 and 2026-10-06; Vercel API: `list_teams` returned no teams; `get_team` for the project's account returned 403 (plan not confirmed) |
-| IP2Location.io free plan: 50K queries/month, attribution required, no district field; keyless 1,000/day | https://www.ip2location.io/pricing and https://www.ip2location.io/ip2location-documentation |
+| Hobby is for personal, non-commercial use; advertisements are commercial use | Terms of Service section 4, https://vercel.com/legal/terms ; Fair Use Guidelines, https://vercel.com/docs/limits/fair-use-guidelines (`last_updated: 2026-09-14`); https://vercel.com/docs/plans/hobby (`last_updated: 2026-09-14`); https://vercel.com/pricing FAQ: "Our Hobby plan is for personal, non-commercial use." |
+| Project is on Hobby | `handover/src/developer.html` line 194 ("Hobby plan") and 201, `cofounder.html` line 112 (documents dated 2026-10-05); project notes 2026-09-19. Vercel API: `list_teams` returned no teams, `get_team` for the account returned 403; `get_project` and `list_deployments` worked (deployment `dpl_4jAxpdss...` of `32f7aef`, target production) |
+| IP2Location.io: free plan 50K queries/month, attribution template, no attribution on paid plans | https://www.ip2location.io/pricing (FAQ "Is attribution required to use IP2Location.io?") |
+| IP2Location.io Terms: internal business use, 30-day cache limit, keys not in client code, no attribution clause | https://www.ip2location.io/terms-of-service |
+| IP2Location integration is the REST API, server-side, optional | `utils/analytics/geoProviders.ts` (`https://api.ip2location.io/`, key in query string on the server); `GEO_PROVIDER` "Not set" in `handover/src/developer.html` line 186 |
 | Supabase Free plan limits, no SLA/backups, pausing | https://supabase.com/pricing ; terms: https://supabase.com/terms |
-| Clarity free, consent in EEA/UK/CH, 30-day retention | https://learn.microsoft.com/en-us/clarity/faq (`ms.date: 2026-10-16`) |
+| Clarity free, consent in EEA/UK/CH, controller role, 30-day access, masking | https://learn.microsoft.com/en-us/clarity/faq (`ms.date: 2026-10-16`); sample disclosure wording https://learn.microsoft.com/en-us/clarity/setup-and-installation/privacy-disclosure (`ms.date: 2025-05-14`) |
+| Clarity Terms of use: disclosure and EU consent-record duties | excerpts of https://clarity.microsoft.com/terms returned by a web search only (the page is a JavaScript application and returned no text): **secondary, not verified against the full Terms** |
 | Anthropic outputs owned by customer, no training on Customer Content from the Services | https://www.anthropic.com/legal/commercial-terms |
+| What the assistant sends to Anthropic | `utils/assistant/server.ts`, `utils/assistant/sanitize.ts` (`MAX_QUESTION_CHARS = 500`, `MAX_HISTORY_TURNS = 6`, `scrub`) |
 | QPDF is Apache-2.0; its NOTICE text | https://qpdf.readthedocs.io/en/stable/license.html ; https://raw.githubusercontent.com/qpdf/qpdf/main/NOTICE.md and `LICENSE.txt` |
 | libjpeg-turbo licences (IJG + BSD-3-Clause); zlib licence | https://raw.githubusercontent.com/libjpeg-turbo/libjpeg-turbo/main/LICENSE.md and `README.ijg`; https://raw.githubusercontent.com/madler/zlib/develop/LICENSE |
 | What is inside `qpdf.wasm` | strings in `public/qpdf/qpdf.wasm`: "qpdf is licensed under the Apache License", "Copyright (C) 1991-2021 The libjpeg-turbo Project", zlib messages; no OpenSSL |
-| Tesseract model is Apache-2.0 | https://github.com/tesseract-ocr/tessdata_best (README) |
+| What is inside `tesseract-core` | https://raw.githubusercontent.com/naptha/tesseract.js-core/v7.0.0/.gitmodules and the `third_party` entries of that tag (GitHub contents API, commit ids recorded in `scripts/notices/ocr-core.txt`); strings in `public/ocr/core/tesseract-core-lstm.wasm.js` (decoded WASM): Tesseract, leptonica, PNG, zlib, JPEG, GIF, TIFF, WebP |
+| Licence texts of those libraries | raw files from DanBloomberg/leptonica (`leptonica-license.txt`), mirrorer/giflib (`COPYING`), glennrp/libpng (`LICENSE`), libtiff on gitlab (`LICENSE.md`), webmproject/libwebp (`COPYING`), JuliaMath/openlibm (`LICENSE.md`), LuaDist/libjpeg (`README`), tesseract-ocr/tesseract (`LICENSE`), fetched 2026-10-26 (current branches, not the pinned commits) |
+| Tesseract model is Apache-2.0, and `4.0.0_best_int` is the integer version of tessdata_best | https://github.com/tesseract-ocr/tessdata_best (README and LICENSE) ; https://github.com/naptha/tessdata (README, LICENSE) |
+| QuickJS files are pdf.js's own and MIT | https://github.com/mozilla/pdf.js/tree/master/external/quickjs (`README.md`, `LICENSE_QUICKJS`, `LICENSE_PDFJS_QUICKJS`, `quickjs-eval.wasm`, `quickjs-eval.js`); SHA-256 of both served files equals the upstream files and the files in `node_modules/pdfjs-dist/wasm` |
 | OFL: embedding, web fonts, subsetting, licence text | https://openfontlicense.org/ofl-faq/ ; Geist: https://raw.githubusercontent.com/vercel/geist-font/main/OFL.txt ; `@fontsource/*/LICENSE` (local) |
 | `jszip` dual licence, `dompurify`/`rgbcolor` alternatives, all other package licences | `package.json` and licence files (local), inventories in `docs/compliance/` |
-| `buffers` probable Expat | https://metadata.ftp-master.debian.org/changelogs/main/n/node-buffers/stable_copyright (secondary source) |
+| `buffers`: path, version, probable Expat | `npm ls buffers`; `npm view buffers@0.1.1` (no licence field; tarball has no licence file); https://metadata.ftp-master.debian.org/changelogs/main/n/node-buffers/stable_copyright (secondary); github.com/substack/node-buffers returns 404 |
+| Brand image provenance | `git log` for `public/brand`, `app/icon.png` (commits `bafb7f2`, `9f0fd5b`, `04b071c`); PNG chunk scan (no text, EXIF or provenance chunks) |
+| Icon set comparison | `npm pack lucide-static@1.61.0 feather-icons@4.29.2 heroicons@2.2.0` into a temporary folder and a path-string comparison with `components/ui/icons.tsx` |
 | PDF.js asset licences | `public/pdfjs/LICENSE`, `standard_fonts/LICENSE_FOXIT`, `LICENSE_LIBERATION`, `wasm/LICENSE_*` (local) |
 
 **Limits of this audit.** Licences were read from package metadata and shipped files, not from every source file; a scanner or a licence field cannot prove the absence of copied code or unlicensed
 assets. Patents were not assessed. Transitive packages without a licence file (60 production packages) rely on their declared licence field. Trademark use (names, logos) was not assessed. Provider terms change; they were read
-on the date above and only for the plans and features the code uses. Sources that could not be read are listed in section 7, item 13. The backend, mobile app, infrastructure outside the repository (DNS, email, Supabase
-project settings, Vercel project settings other than the deployments) and the users' own content were not audited. This document does not replace advice from a lawyer, particularly for the ad business, the privacy policy and any
-decision where a status above says "Needs review".
+on the date above and only for the plans and features the code uses. Sources that could not be read are listed in section 7, item 12. The backend, mobile app, infrastructure outside the repository (DNS, email, Supabase
+project settings, Vercel project settings other than the deployments, and any environment variable value) and the users' own content were not audited. This document does not replace advice from a lawyer, particularly for the ad business, the privacy policy and any
+decision where a status says "Needs review".
+
+---
+
+## 11. Evidence matrix (second round, 2026-10-26)
+
+Columns: resource and exact package or asset; resolved version and source path; actual use in FreePDFScanner; licence or contract terms and source; obligations (attribution, notice, privacy, commercial use, redistribution); status; remediation and verification evidence.
+Status here is one of **Verified**, **Action required** or **Unverified**.
+
+| # | Resource / asset | Version and path | Actual use | Terms and source | Obligations | Status | Remediation and evidence |
+|---|---|---|---|---|---|---|---|
+| 1 | **Vercel** hosting plan | project `scanner`, `prj_Wuts1iprXJoo8ogxobppyQ6ebVmx`, team scope "sam-project4"; latest production deployment `dpl_4jAxpdssNNWfB2eGGbG3jjExgeNz` | hosts the production website that shows advertisements | Terms of Service §4: "You shall only use the Services under a Hobby plan for your personal or non-commercial use." Fair Use Guidelines: commercial usage includes "The inclusion of advertisements". Hobby may be disabled "with or without notice" (§4). Pricing: Pro $20/month. (https://vercel.com/legal/terms, /docs/limits/fair-use-guidelines, /docs/plans/hobby, /pricing) | commercial use requires Pro or Enterprise | **Action required** (plan recorded as Hobby in the 2026-10-05 handover documents; live plan unverified, API 403) | Recommended: upgrade to Pro before ads or revenue (the handover documents already say the same). Not changed: hosted configuration is out of scope. |
+| 2 | **IP2Location.io** IP Geolocation API | no package: a `fetch` to `https://api.ip2location.io/?key=...&ip=...&format=json` in `utils/analytics/geoProviders.ts` (`createIp2LocationProvider`), called from the analytics routes via `app/api/analytics/*` | optional: adds region, city, district, postal code to analytics geography; off unless `GEO_PROVIDER=ip2location` and a key are set; handover 2026-10-05: "Not set" | Terms (https://www.ip2location.io/terms-of-service): internal business operations; cached data not retained over 30 consecutive days; keys not in client-side code. Pricing FAQ: attribution required on the Free plan and keyless API, none on paid plans; Free = 50,000 queries/month. | before enabling: choose plan; attribution text on the site if Free; retention of derived place names vs the 30-day cache rule; privacy policy (done); keep the key server-side (it is) | **Action required before enabling**; dormant, so nothing is violated today | Policy now names it (`app/privacy/page.tsx` §9). Retention of the stored place names (`analytics_events` city/region/district) is a legal question the Terms do not settle; decide with the provider's support or counsel. |
+| 3 | **Anthropic API** | `fetch` to `https://api.anthropic.com/v1/messages` in `utils/assistant/server.ts`; default model `claude-haiku-5-5` | optional AI answers in the "Ask me" assistant when `ANTHROPIC_API_KEY` is set | Commercial Terms (https://www.anthropic.com/legal/commercial-terms): customer owns outputs; no training on Customer Content from the Services; Usage Policy applies | disclose to visitors what is sent; keep key server-side (it is) | **Verified** (use permitted); disclosure added | Privacy policy §9 now states what is sent (question ≤500 characters, ≤6 earlier messages, page path; emails and long digit runs removed; no documents, file names, passwords) and that the conversation is not stored. `tests/compliance/notices.mjs` ties the wording to `MAX_HISTORY_TURNS` and `scrub`. |
+| 4 | **Microsoft Clarity** | script `https://www.clarity.ms/tag/<id>` loaded by `components/analytics/MicrosoftClarity.tsx` after consent | session replay and heatmaps, consent-gated; `consentv2` signal sent | FAQ (2026-10-16): free, no limits, controller role, consent in EEA/UK/CH, access up to 30 days, inputs masked. Terms of use: excerpts only. | privacy notice must disclose Microsoft's collection (now with the Microsoft Privacy Statement link); EU consent, records and withdrawal | **Action required** (records of consent) / **Unverified** (full Terms text) | Policy §7 updated. The choice is stored only in the visitor's browser (`utils/consent/consent.ts`); whether a server-side record is needed depends on the full Terms and counsel. |
+| 5 | **Vercel Analytics / Speed Insights** | none | not used | n/a | n/a | **Verified** (not used) | no package, import or script in `app/`, `components/`, `utils/`, `package.json` |
+| 6 | **Fonts**: Geist, Geist Mono (`next/font/google`); Carlito, Arimo, Tinos, Caladea, Cousine (`@fontsource/*` 5.3.0 → `/fonts/docx`) | `app/layout.tsx`; `scripts/copy-font-assets.mjs`; `components/wordCreator/word-fonts.css` | site typeface; Word-compatible layout and Word→PDF output | SIL OFL 1.1 (licence files in each package and `scripts/notices/geist-OFL.txt`); OFL FAQ https://openfontlicense.org/ofl-faq/ | licence text with the font; no sale of the fonts alone | **Verified** | OFL texts ship in `/fonts/docx/licenses` and the notices file |
+| 7 | **Advertising resources** | `components/ads/AdSlot.tsx`, `supabase/functions/ads-eligible` | the site's own campaigns: advertiser image URL, click-through link, YouTube/Vimeo embed (allow-listed hosts, only after advertising consent) | each advertiser's terms are theirs; no ad-network SDK present | privacy disclosure of third-party hosts (done); consent gate for embeds (present) | **Verified** (as implemented) | Policy §8 updated; revisit if an ad network is added |
+| 8 | **`buffers`** | 0.1.1 via `exceljs 4.4.0 > unzipper 0.10.14 > binary 0.3.0 > buffers 0.1.1`; `node_modules/buffers`; registry `buffers@0.1.1` | server bundle of `app/api/admin/analytics-export` only (browser builds use exceljs's own dist); not in client chunks | no licence field or file in the installed release; Debian copyright record (secondary): Expat, James Halliday; the GitHub repository returns 404 | MIT would need its notice if redistributed; it is only run on the server | **Unverified** (probable MIT) | `scripts/copy-notices.mjs` records it as "no licence declared" with what is known; clear it by obtaining the upstream licence text or upgrading `exceljs` |
+| 9 | **Brand images**: `public/brand/*.png` (8 files), `app/icon.png`, `app/apple-icon.png`, `app/favicon.ico` | added by `bafb7f2` / `9f0fd5b` (2026-10-08, Samuel Ajose); first `04b071c` | header logo (`components/layout/Logo.tsx`), manifest, PWA and browser icons | no source, licence or purchase record; PNG chunks hold no author/software/licence text | rights must rest with the operator (copyright owner or licence) | **Unverified / unresolved** | Needs the owner's declaration of how the logo was made or licensed; keep the source files. Nothing changed. |
+| 10 | **In-house icons** | `components/ui/icons.tsx` (95 path elements) | UI icons | self-authored per the file header | none if authored in-house | **Verified by comparison** (no copying found); authorship unconfirmed | path-string comparison against Lucide 1.61.0, Feather 4.29.2, Heroicons 2.2.0: 0, 2 and 11 identical strings, all single straight lines |
+| 11 | **OCR core and model** | `tesseract.js` 7.0.0, `tesseract.js-core` 7.0.0, `@tesseract.js-data/eng` 1.0.0 (`4.0.0_best_int`) → `public/ocr/{worker.min.js,core/*.wasm.js,lang/eng.traineddata.gz}` | OCR (Extract text), in the browser | Apache-2.0 (tesseract.js, core, model); compiled-in Tesseract (fork `Balearica/tesseract` @ `2a9c1c4`), Leptonica `4af068b`, libjpeg `6c0fcb8`, libpng `a37d483`, giflib `fa37672`, libtiff `b51bb15`, libwebp `20ef03e`, zlib `21767c6`, openlibm `ae2d916` (upstream tag v7.0.0) | notices for each | **Verified** | `scripts/notices/ocr-core.txt` → `/ocr/licenses/ocr-core-NOTICE.txt` and the notices file. Limit: licence texts are the projects' current files, not the pinned commits. |
+| 12 | **QuickJS** | `pdfjs-dist` 6.3.289, `node_modules/pdfjs-dist/wasm/quickjs-eval.{wasm,js}` → `public/pdfjs/wasm/` | served with the PDF.js runtime; run only for PDF form scripting (`enableScripting`), which no application code sets | MIT: `LICENSE_QUICKJS` (Bellard, Gordon) and `LICENSE_PDFJS_QUICKJS` (Mozilla Foundation, 2026) in mozilla/pdf.js `external/quickjs/` | MIT notice with the files | **Verified** | files byte-identical to upstream (SHA-256); notices shipped as `/pdfjs/wasm/LICENSE_QUICKJS.txt` and in the notices file. Options if the payload matters: keep serving them (done), or stop copying them in `copy-pdf-assets.mjs`; scripting is off, so removal would not change behaviour, but it was not done. |
+| 13 | **Template SVGs** `public/{next,vercel,file,globe,window}.svg` | added by `04b071c` | none: no reference anywhere | create-next-app template files; two are the Next.js and Vercel logos (trademarks) | n/a | **Action required** (optional clean-up) | recommend deleting; not done (unrelated to any feature) |
+| 14 | **Supabase** plan | hosted project; client packages `@supabase/*` MIT | accounts, History, analytics, ads functions | pricing and terms as in section 4 | business plan with backups and no pause if monetised | **Unverified** (plan not recorded) | record the plan; Free has no SLA/backups |
+
+---

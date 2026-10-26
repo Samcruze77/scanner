@@ -42,4 +42,7 @@ for (const [from, to] of DIRS) {
   cpSync(join(pkg, from), join(outDir, to), { recursive: true });
 }
 
+// pdfjs-dist ships quickjs-eval.* without the licence files its source repository has beside them; they travel with the files here.
+copyFileSync(join(root, "scripts", "notices", "pdfjs-quickjs.txt"), join(outDir, "wasm", "LICENSE_QUICKJS.txt"));
+
 console.log("[copy-pdf-assets] Copied PDF.js runtime to public/pdfjs/");

@@ -3,7 +3,7 @@
 // It reads package-lock.json and the installed packages only: nothing is uploaded and no dependency is needed.
 //
 //   node scripts/license-inventory.mjs                                 write the inventory of this project and print a summary
-//   node scripts/license-inventory.mjs --check                         exit 1 when a production package has a licence that needs review
+//   node scripts/license-inventory.mjs --check                         exit 1 when a production package has a licence that needs review (writes nothing)
 //   node scripts/license-inventory.mjs --dir ../backend --label backend    the same for another project (read only), to ...-backend.json
 //
 // "dev" follows npm's own flag: a package that is only reachable from devDependencies. Development packages are not shipped in the
@@ -85,12 +85,14 @@ for (const [key, entry] of Object.entries(lock.packages)) {
 rows.sort((a, b) => a.name.localeCompare(b.name) || a.path.localeCompare(b.path));
 
 const out = path.join(here, "docs", "compliance", label ? `license-inventory-${label}.json` : "license-inventory.json");
-fs.mkdirSync(path.dirname(out), { recursive: true });
-fs.writeFileSync(out, JSON.stringify({ generated: new Date().toISOString().slice(0, 10), tool: "scripts/license-inventory.mjs", lockfileVersion: lock.lockfileVersion, packages: rows }, null, 1) + "\n");
+// --check only reads: it must never change a committed file
+const checkOnly = process.argv.includes("--check");
+if (!checkOnly) fs.mkdirSync(path.dirname(out), { recursive: true });
+if (!checkOnly) fs.writeFileSync(out, JSON.stringify({ generated: new Date().toISOString().slice(0, 10), tool: "scripts/license-inventory.mjs", lockfileVersion: lock.lockfileVersion, packages: rows }, null, 1) + "\n");
 
 const count = (list, f) => list.reduce((m, r) => m.set(f(r), (m.get(f(r)) ?? 0) + 1), new Map());
 const prod = rows.filter((r) => !r.dev);
-console.log(`${path.basename(root)}: ${rows.length} packages (${prod.length} not development-only) written to ${path.relative(here, out)}`);
+console.log(`${path.basename(root)}: ${rows.length} packages (${prod.length} not development-only) ${checkOnly ? "checked" : "written to " + path.relative(here, out)}`);
 console.log("by category, production:", Object.fromEntries(count(prod, (r) => r.category)));
 console.log("by category, development only:", Object.fromEntries(count(rows.filter((r) => r.dev), (r) => r.category)));
 // Licences that have been looked at and decided are listed, with the decision, in docs/compliance/license-review.json ("name" or "prefix*").

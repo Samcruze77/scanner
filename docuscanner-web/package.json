@@ -56,6 +56,7 @@
     "test:word-creator:layout": "node tests/wordCreator/layout.mjs",
     "license:inventory": "node scripts/license-inventory.mjs",
     "license:check": "node scripts/license-inventory.mjs --check",
+    "test:compliance": "node tests/compliance/notices.mjs",
     "test:docx:autofit": "node --no-warnings tests/docx/autofit.mjs",
     "test:guides": "node --no-warnings --import ./tests/scanner/register.mjs tests/guidance/guides.mjs"
   },
