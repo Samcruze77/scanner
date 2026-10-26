@@ -14,7 +14,7 @@ const CHROME = [process.env.CHROME, "C:/Program Files/Google/Chrome/Application/
 if (!CHROME) throw new Error("No Chrome/Edge found.");
 
 const browser = await chromium.launch({ executablePath: CHROME, headless: true });
-const sizes = [[320, 640, true], [375, 667, true], [390, 844, true], [1280, 800, false]];
+const sizes = [[320, 640, true], [375, 667, true], [390, 844, true], [768, 1024, true], [1280, 800, false]];
 let pass = 0;
 for (const [width, height, mobile] of sizes) {
   const context = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile });
