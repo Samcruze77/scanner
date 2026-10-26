@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/copy-ocr-assets.mjs && node scripts/copy-pdf-assets.mjs && node scripts/copy-font-assets.mjs && node scripts/copy-qpdf-assets.mjs",
+    "predev": "node scripts/copy-ocr-assets.mjs && node scripts/copy-pdf-assets.mjs && node scripts/copy-font-assets.mjs && node scripts/copy-qpdf-assets.mjs && node scripts/copy-notices.mjs",
     "dev": "next dev",
-    "prebuild": "node scripts/copy-ocr-assets.mjs && node scripts/copy-pdf-assets.mjs && node scripts/copy-font-assets.mjs && node scripts/copy-qpdf-assets.mjs",
+    "prebuild": "node scripts/copy-ocr-assets.mjs && node scripts/copy-pdf-assets.mjs && node scripts/copy-font-assets.mjs && node scripts/copy-qpdf-assets.mjs && node scripts/copy-notices.mjs",
     "build": "next build",
     "postbuild": "node scripts/verify-theme-css.mjs",
     "start": "next start",
@@ -54,6 +54,8 @@
     "test:word-creator": "node --no-warnings --import ./tests/scanner/register.mjs tests/wordCreator/unit.mjs && node --no-warnings --import ./tests/scanner/register.mjs tests/wordCreator/layout-rules.mjs",
     "test:word-creator:browser": "node tests/wordCreator/browser.mjs",
     "test:word-creator:layout": "node tests/wordCreator/layout.mjs",
+    "license:inventory": "node scripts/license-inventory.mjs",
+    "license:check": "node scripts/license-inventory.mjs --check",
     "test:docx:autofit": "node --no-warnings tests/docx/autofit.mjs",
     "test:guides": "node --no-warnings --import ./tests/scanner/register.mjs tests/guidance/guides.mjs"
   },

@@ -65,3 +65,5 @@ next-env.d.ts
 /tests/docx/fixtures/real/
 /tests/analytics/out/
 /tests/wordCreator/out/
+# generated third-party notices, written by scripts/copy-notices.mjs
+/public/licenses/

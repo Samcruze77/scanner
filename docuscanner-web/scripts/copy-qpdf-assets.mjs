@@ -17,4 +17,6 @@ if (!existsSync(pkg)) {
 
 mkdirSync(outDir, { recursive: true });
 copyFileSync(join(pkg, "dist", "qpdf.wasm"), join(outDir, "qpdf.wasm"));
+// The licences of what is inside the engine (QPDF, libjpeg-turbo, zlib) travel with it.
+copyFileSync(join(root, "scripts", "notices", "qpdf-wasm.txt"), join(outDir, "NOTICE.txt"));
 console.log("[copy-qpdf-assets] Copied the QPDF engine to public/qpdf/");

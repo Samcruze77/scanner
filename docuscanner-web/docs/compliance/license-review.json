@@ -1,0 +1,9 @@
+{
+  "note": "Production packages whose licence is not a plain permissive one and what was decided about each (see THIRD_PARTY_LICENSE_AUDIT.md, section 7). scripts/license-inventory.mjs --check lists anything not in here.",
+  "packages": {
+    "@img/sharp-*": "Compatible with obligations: libvips prebuilt binaries (LGPL-3.0-or-later) that Next.js uses for image optimisation. Not redistributed by us: Vercel runs it. Review again if the site is ever self-hosted or shipped as a container.",
+    "buffers": "Unverified: no licence field or file; upstream author/Debian record say MIT/Expat (not confirmed from the repository). Reached only through exceljs > unzipper > binary.",
+    "chainsaw": "Verified: \"MIT/X11\" is the MIT (Expat) licence.",
+    "traverse": "Verified: \"MIT/X11\" is the MIT (Expat) licence."
+  }
+}

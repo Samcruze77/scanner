@@ -82,6 +82,10 @@ export function Footer() {
             {" \u00B7 "}
             <CookieSettingsButton />
             {" · "}
+            <a href="/licenses/third-party-notices.txt" className="underline hover:no-underline">
+              Open-source notices
+            </a>
+            {" · "}
             <TipsToggle />
           </p>
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
