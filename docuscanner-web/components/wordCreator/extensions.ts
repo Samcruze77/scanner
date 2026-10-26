@@ -4,7 +4,7 @@ import { Extension, Node, mergeAttributes } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection, type EditorState } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
-import { layoutPages, type Spacer } from "@/utils/wordCreator/layout";
+import { layoutPages, type LayoutBlock } from "@/utils/wordCreator/layout";
 import {
   DEFAULT_MARGINS,
   FONT_SIZES,
@@ -246,6 +246,47 @@ export const FontSizeTools = Extension.create({
   },
 });
 
+// ---- line height follows the text -------------------------------------------------------------------------------------------
+// A browser always gives a line at least the height of the paragraph's own font (its "strut"), whatever font the text on the line uses;
+// Word does not. When all the text in a paragraph is in one font and size that differ from the paragraph's, the paragraph takes that
+// font and size itself, so its lines get the height Word gives them. (Paragraphs that mix fonts or sizes are left alone.)
+export const RunFonts = Extension.create({
+  name: "runFonts",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey("wcRunFonts"),
+        props: {
+          decorations(state) {
+            const decorations: Decoration[] = [];
+            state.doc.descendants((node, pos) => {
+              if (!node.isTextblock) return true;
+              let family: string | null | undefined;
+              let size: string | null | undefined;
+              let mixed = false;
+              let any = false;
+              node.forEach((child) => {
+                if (!child.isText || !child.text) return;
+                any = true;
+                const style = child.marks.find((m) => m.type.name === "textStyle");
+                const f = (style?.attrs.fontFamily as string | null | undefined) ?? null;
+                const z = (style?.attrs.fontSize as string | null | undefined) ?? null;
+                if (family === undefined) {
+                  family = f;
+                  size = z;
+                } else if (family !== f || size !== z) mixed = true;
+              });
+              if (any && !mixed && (family || size)) decorations.push(Decoration.node(pos, pos + node.nodeSize, { style: `${family ? `font-family:${family};` : ""}${size ? `font-size:${size};` : ""}` }));
+              return false;
+            });
+            return DecorationSet.create(state.doc, decorations);
+          },
+        },
+      }),
+    ];
+  },
+});
+
 // ---- page break --------------------------------------------------------------------------------------------------------------
 // A real page break: whatever follows starts on a new page. Shown in the editor as a labelled line, and written to the .docx as
 // "page break before" on the next paragraph, so Word separates the pages in the same place.
@@ -360,7 +401,7 @@ export const WordImage = Node.create({
   addNodeView() {
     return ({ node: initial, getPos, editor }) => {
       let node = initial;
-      // The width of the text area as it is drawn now (it changes with the page margins and the phone view).
+      // The width of the text area as it is drawn now (it changes with the page margins, never with the screen).
       const contentWidth = () => (editor.storage as unknown as { pagination?: { geometry: PageGeometry } }).pagination?.geometry.contentW ?? pageViewGeometry(DEFAULT_MARGINS).contentW;
       const dom = document.createElement("div");
       dom.className = "wc-img";
@@ -424,11 +465,31 @@ export const WordImage = Node.create({
 });
 
 // ---- pages ------------------------------------------------------------------------------------------------------------------------
-// The text runs down one long column; this puts it on A4 sheets. A grey strip is painted between
-// sheets by CSS, and here a block that would straddle the end of a sheet is moved whole onto the
-// next one by an invisible spacer. A block taller than a sheet (a huge picture) is left to cross.
-// Spacers exist only on screen: the .docx is laid out by Word itself.
-const paginationKey = new PluginKey<{ spacers: Spacer[] }>("wcPagination");
+// The text runs down one long column; this puts it on A4 sheets the way Word does. A grey strip is painted between sheets by
+// CSS, and an empty gap is inserted where a sheet ends: before a block that does not fit, or inside a paragraph between two of its
+// lines (a paragraph is split across sheets with at least two lines on each, as Word's widow/orphan control does). Where the
+// breaks fall is decided by layoutPages from the positions the browser really drew, never from character or word counts.
+// The gaps exist only on screen: the .docx is laid out by Word itself.
+interface PageGap {
+  pos: number;
+  height: number;
+  // true: inside a paragraph, between two lines; false: before a block
+  inline: boolean;
+}
+const paginationKey = new PluginKey<{ gaps: PageGap[] }>("wcPagination");
+
+// (Tiptap's Node is imported above, so the DOM's is named here.)
+type DomNode = globalThis.Node;
+const DOCUMENT_POSITION_FOLLOWING = 4;
+
+interface Leaf {
+  pos: number;
+  node: PMNode;
+  el: HTMLElement;
+}
+
+// Blocks that Word keeps on the same page as what follows, and never splits: the title, the subtitle and headings.
+const keepsWithNext = (node: PMNode) => node.type.name === "heading" || (node.type.name === "paragraph" && (node.attrs.variant === "title" || node.attrs.variant === "subtitle"));
 
 export const Pagination = Extension.create<{ onPages?: (pages: number) => void }>({
   name: "pagination",
@@ -462,65 +523,167 @@ export const Pagination = Extension.create<{ onPages?: (pages: number) => void }
       new Plugin({
         key: paginationKey,
         state: {
-          init: () => ({ spacers: [] as Spacer[] }),
+          init: () => ({ gaps: [] as PageGap[] }),
           apply: (tr, value) => tr.getMeta(paginationKey) ?? value,
         },
         props: {
           decorations(state) {
-            const { spacers } = paginationKey.getState(state)!;
-            if (!spacers.length) return DecorationSet.empty;
-            const heights = new Map(spacers.map((s) => [s.index, s.height]));
-            const decorations: Decoration[] = [];
-            state.doc.forEach((_node, offset, index) => {
-              const height = heights.get(index);
-              if (!height) return;
-              decorations.push(
+            const { gaps } = paginationKey.getState(state)!;
+            if (!gaps.length) return DecorationSet.empty;
+            return DecorationSet.create(
+              state.doc,
+              gaps.map((gap) =>
                 Decoration.widget(
-                  offset,
+                  gap.pos,
                   () => {
-                    const el = document.createElement("div");
-                    el.className = "wc-page-gap";
-                    el.dataset.pageGap = String(height);
-                    el.style.height = `${height}px`;
+                    const el = document.createElement(gap.inline ? "span" : "div");
+                    el.className = gap.inline ? "wc-page-gap wc-page-gap-line" : "wc-page-gap";
+                    el.dataset.wcGap = String(gap.height);
+                    el.style.height = `${gap.height}px`;
                     el.contentEditable = "false";
                     el.setAttribute("aria-hidden", "true");
                     return el;
                   },
-                  { side: -1, key: `gap-${index}-${height}`, ignoreSelection: true },
+                  { side: -1, key: `gap-${gap.inline ? "l" : "b"}-${gap.pos}-${gap.height}`, ignoreSelection: true },
                 ),
-              );
-            });
-            return DecorationSet.create(state.doc, decorations);
+              ),
+            );
           },
         },
         view(view) {
           let frame = 0;
           let lastPages = 0;
+          // How many measurements in a row had to change the gaps. A layout settles in two or three; if it never does (a font that keeps
+          // changing size, say) the gaps are left where they are rather than moving forever.
+          let changing = 0;
 
           const measure = () => {
             frame = 0;
             const root = view.dom as HTMLElement;
             if (!root.isConnected || root.offsetParent === null) return;
-            const paddingTop = parseFloat(getComputedStyle(root).paddingTop) || 0;
-            const blocks: { top: number; bottom: number; breakAfter?: boolean }[] = [];
-            let above = 0;
-            for (const child of Array.from(root.children) as HTMLElement[]) {
-              if (child.classList.contains("ProseMirror-gapcursor")) continue;
-              if (child.hasAttribute("data-page-gap")) {
-                above += Number(child.dataset.pageGap) || 0;
+            const geometry = storage.geometry;
+            const rootRect = root.getBoundingClientRect();
+            // The display zoom (the sheet is drawn scaled on a phone): everything below is converted back to the sheet's own pixels.
+            const scale = rootRect.width / geometry.pageW || 1;
+            const toSheet = (clientY: number) => (clientY - rootRect.top) / scale - geometry.mt;
+
+            const gapEls = Array.from(root.querySelectorAll<HTMLElement>("[data-wc-gap]")).map((el) => ({ el, height: Number(el.dataset.wcGap) || 0 }));
+            // The space inserted above a node (before its start), so positions can be read as if no gap had been inserted.
+            const gapsAbove = (node: DomNode) => gapEls.reduce((sum, g) => (g.el.compareDocumentPosition(node) & DOCUMENT_POSITION_FOLLOWING ? sum + g.height : sum), 0);
+
+            const leaves: Leaf[] = [];
+            let stale = false;
+            view.state.doc.descendants((node, pos) => {
+              if (node.isTextblock || (node.isAtom && node.isBlock)) {
+                const el = view.nodeDOM(pos);
+                if (el instanceof HTMLElement) leaves.push({ pos, node, el });
+                else stale = true;
+                return false;
+              }
+              return true;
+            });
+            if (stale) return; // mid-update; the next frame will be right
+
+            // The lines of one paragraph: for each line, the top edge, and where its first character is. Measured from the text itself.
+            const linesOf = (leaf: Leaf, above: number) => {
+              if (!leaf.node.isTextblock) return null;
+              const walker = document.createTreeWalker(leaf.el, NodeFilter.SHOW_TEXT);
+              const range = document.createRange();
+              const frags: { top: number; bottom: number; text: Text; index: number }[] = [];
+              for (let t = walker.nextNode() as Text | null; t; t = walker.nextNode() as Text | null) {
+                if (!t.data.length) continue;
+                const inner = above + gapsAbove(t) - gapsAbove(leaf.el);
+                range.selectNodeContents(t);
+                Array.from(range.getClientRects()).forEach((r, index) => {
+                  if (r.height > 0) frags.push({ top: toSheet(r.top) - inner, bottom: toSheet(r.bottom) - inner, text: t, index });
+                });
+              }
+              const lines: { top: number; bottom: number; first: (typeof frags)[number] }[] = [];
+              for (const f of frags) {
+                const last = lines[lines.length - 1];
+                const overlap = last ? Math.min(last.bottom, f.bottom) - Math.max(last.top, f.top) : 0;
+                if (last && overlap > 0.5 * Math.min(last.bottom - last.top, f.bottom - f.top)) {
+                  last.top = Math.min(last.top, f.top);
+                  last.bottom = Math.max(last.bottom, f.bottom);
+                } else lines.push({ top: f.top, bottom: f.bottom, first: f });
+              }
+              return lines;
+            };
+
+            const blocks: LayoutBlock[] = [];
+            const aboves: number[] = [];
+            leaves.forEach((leaf, i) => {
+              const cs = getComputedStyle(leaf.el);
+              const rect = leaf.el.getBoundingClientRect();
+              const above = gapsAbove(leaf.el);
+              aboves.push(above);
+              const marginTop = parseFloat(cs.marginTop) || 0;
+              const marginBottom = parseFloat(cs.marginBottom) || 0;
+              // a paragraph is drawn up a little for line spacing above single (see the CSS): where it really is lies below that
+              const drawnUp = parseFloat(cs.top) || 0;
+              // gaps inside this paragraph (where it is already split across two pages) are part of its drawn height, not of its natural one
+              const inside = gapEls.reduce((sum, g) => (leaf.el.contains(g.el) ? sum + g.height : sum), 0);
+              const top = toSheet(rect.top) - above - drawnUp;
+              const bottom = toSheet(rect.bottom) - above - drawnUp - inside;
+              const keep = keepsWithNext(leaf.node);
+              const multiple = parseFloat(cs.getPropertyValue("--wc-lh")) || 1.15;
+              blocks.push({
+                top,
+                bottom,
+                marginTop,
+                marginBottom,
+                ...(leaf.node.isTextblock && multiple > 1 ? { hang: (multiple - 1) / multiple } : {}),
+                keepNext: keep,
+                keepLines: keep,
+                ...(leaf.node.type.name === "pageBreak" ? { breakAfter: true } : {}),
+                lines: () => {
+                  const lines = linesOf(leaf, above + drawnUp);
+                  if (!lines || lines.length < 2) return null;
+                  const edges = [top];
+                  for (let k = 1; k < lines.length; k++) edges.push((lines[k - 1].bottom + lines[k].top) / 2);
+                  edges.push(bottom);
+                  return edges;
+                },
+              });
+              void i;
+            });
+
+            const { breaks, pages } = layoutPages(blocks, geometry);
+
+            // Where each break goes: before the block, or before the first character of the line that starts the next sheet.
+            const gaps: PageGap[] = [];
+            for (const b of breaks) {
+              const leaf = leaves[b.block];
+              if (b.line === 0) {
+                gaps.push({ pos: leaf.pos, height: b.height, inline: false });
                 continue;
               }
-              const cs = getComputedStyle(child);
-              const mt = parseFloat(cs.marginTop) || 0;
-              const mb = parseFloat(cs.marginBottom) || 0;
-              const top = child.offsetTop - paddingTop - above;
-              blocks.push({ top: top - mt, bottom: top + child.offsetHeight + mb, ...(child.hasAttribute("data-page-break") ? { breakAfter: true } : {}) });
+              const drawnUp = parseFloat(getComputedStyle(leaf.el).top) || 0;
+              const lines = linesOf(leaf, aboves[b.block] + drawnUp);
+              const start = lines?.[b.line]?.first;
+              if (!start) continue;
+              // the first character of that line: the first one in the text node whose own box lies in the line's band
+              const range = document.createRange();
+              let offset = 0;
+              for (let c = 0; c < start.text.data.length; c++) {
+                range.setStart(start.text, c);
+                range.setEnd(start.text, c + 1);
+                const r = range.getClientRects()[0];
+                if (!r || r.height === 0) continue;
+                const inner = aboves[b.block] + drawnUp + gapsAbove(start.text) - gapsAbove(leaf.el);
+                const mid = (toSheet(r.top) + toSheet(r.bottom)) / 2 - inner;
+                if (mid >= start.top - 0.5 && mid <= start.bottom + 0.5) {
+                  offset = c;
+                  break;
+                }
+              }
+              gaps.push({ pos: view.posAtDOM(start.text, offset), height: b.height, inline: true });
             }
-            if (blocks.length !== view.state.doc.childCount) return; // mid-update; the next frame will be right
-            const { spacers, pages } = layoutPages(blocks, storage.geometry);
-            const current = paginationKey.getState(view.state)!.spacers;
-            const same = spacers.length === current.length && spacers.every((s, i) => s.index === current[i].index && Math.abs(s.height - current[i].height) < 0.6);
-            if (!same) view.dispatch(view.state.tr.setMeta(paginationKey, { spacers }).setMeta("addToHistory", false));
+
+            const current = paginationKey.getState(view.state)!.gaps;
+            const same = gaps.length === current.length && gaps.every((g, i) => g.pos === current[i].pos && g.inline === current[i].inline && Math.abs(g.height - current[i].height) < 0.6);
+            if (same) changing = 0;
+            else if (changing++ < 12) view.dispatch(view.state.tr.setMeta(paginationKey, { gaps }).setMeta("addToHistory", false));
             if (pages !== lastPages) {
               lastPages = pages;
               options.onPages?.(pages);
@@ -531,12 +694,17 @@ export const Pagination = Extension.create<{ onPages?: (pages: number) => void }
           };
           const observer = new ResizeObserver(schedule);
           observer.observe(view.dom);
+          // A font that finishes loading changes where lines break, so the layout is measured again then (and only then, not on a timer).
+          const fonts = typeof document !== "undefined" ? document.fonts : undefined;
+          fonts?.addEventListener?.("loadingdone", schedule);
+          void fonts?.ready?.then(schedule);
           schedule();
           return {
             update: schedule,
             destroy() {
               if (frame) cancelAnimationFrame(frame);
               observer.disconnect();
+              fonts?.removeEventListener?.("loadingdone", schedule);
             },
           };
         },

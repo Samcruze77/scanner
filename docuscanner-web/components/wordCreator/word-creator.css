@@ -33,9 +33,7 @@
   min-height: var(--wc-paper-h, 1123px);
   /* The page margins, as drawn (WordCreator sets these from the document's real margins). */
   padding: var(--wc-mt, 96px) var(--wc-mr, 96px) var(--wc-mb, 96px) var(--wc-ml, 96px);
-  display: flex;
-  flex-direction: column; /* no margin collapsing, like Word: space after + space before add up */
-  align-items: stretch;
+  display: block; /* the space between two paragraphs is the larger of space after and space before (margins collapse), as in Word */
   outline: none;
   background: repeating-linear-gradient(to bottom, #fff 0, #fff var(--wc-h, 1123px), transparent var(--wc-h, 1123px), transparent calc(var(--wc-h, 1123px) + var(--wc-gap, 24px)));
   color: #000;
@@ -43,6 +41,15 @@
   color-scheme: light;
   font-family: Calibri, Carlito, "Segoe UI", sans-serif;
   font-size: 11pt;
+  /* Lay text out the way Word does, on every device: exact (unrounded) glyph widths, no kerning and no ligatures. Without
+     this Windows Chrome rounds each glyph to a whole pixel at 100% zoom while a phone does not, so the same paragraph
+     would wrap differently on the two. */
+  text-rendering: geometricPrecision;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-synthesis: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   word-break: normal;
@@ -55,7 +62,6 @@
 }
 
 .wc-page > * {
-  flex: none;
   min-width: 0;
 }
 .wc-page .wc-page-gap {
@@ -68,14 +74,40 @@
 .wc-page h1,
 .wc-page h2,
 .wc-page h3 {
-  /* Word's "single" line is about 1.2 x the font size; the multiplier is applied on top. */
-  line-height: calc(var(--wc-lh, 1.15) * 1.2);
+  /* A "single" line in Word is the font's own line height (ascent + descent + line gap, from the font file), which differs per
+     font; the line-spacing multiplier is applied on top. The factors are in model.ts (LINE_HEIGHT_FACTORS) and below. */
+  line-height: calc(var(--wc-lh, 1.15) * var(--wc-lhf, 1.2207));
+  /* Word puts the extra space of a line spacing above single BELOW the text, a browser splits it above and below. Moving the paragraph up
+     by half of it draws every line where Word does (it is only a visual shift: nothing else moves, and the page layout allows for it). */
+  position: relative;
+  top: calc((var(--wc-lh, 1.15) - 1) * var(--wc-lhf, 1.2207) * -0.5em);
   margin-top: calc(var(--wc-before, var(--wc-d-before, 0)) * 1pt);
   margin-bottom: calc(var(--wc-after, var(--wc-d-after, 8)) * 1pt);
   margin-left: var(--wc-left, calc(var(--wc-indent, 0) * 48px));
   margin-right: var(--wc-right, 0px);
   text-indent: var(--wc-first, 0px);
   min-height: 1.2em;
+}
+/* Text in another font carries that font's own line height (the font name is in the span's style). Calibri is the default. */
+.wc-page [style*="Arial"] {
+  --wc-lhf: 1.1499;
+  line-height: calc(var(--wc-lh, 1.15) * 1.1499);
+}
+.wc-page [style*="Times New Roman"] {
+  --wc-lhf: 1.1499;
+  line-height: calc(var(--wc-lh, 1.15) * 1.1499);
+}
+.wc-page [style*="Georgia"] {
+  --wc-lhf: 1.1362;
+  line-height: calc(var(--wc-lh, 1.15) * 1.1362);
+}
+.wc-page [style*="Verdana"] {
+  --wc-lhf: 1.2153;
+  line-height: calc(var(--wc-lh, 1.15) * 1.2153);
+}
+.wc-page [style*="Calibri"] {
+  --wc-lhf: 1.2207;
+  line-height: calc(var(--wc-lh, 1.15) * 1.2207);
 }
 .wc-page li > p {
   margin-left: 0;
@@ -163,6 +195,8 @@
 }
 .wc-page li {
   padding-left: 0;
+  /* The bullet or number sits on the first line of the paragraph inside; it must not make that line taller than Word's. */
+  line-height: 0;
 }
 .wc-page li::marker {
   color: inherit;
@@ -202,7 +236,8 @@
   position: relative;
   display: flex;
   max-width: 100%;
-  margin-bottom: 8pt;
+  /* Space after the paragraph (8pt) plus the 2pt Word leaves below a picture that sits on the line (measured against Word). */
+  margin-bottom: 10pt;
 }
 .wc-img[data-align="left"] {
   align-self: flex-start;
@@ -544,4 +579,48 @@
   .wc-docbar {
     gap: 0.375rem;
   }
+}
+
+/* ProseMirror's own stylesheet sets white-space: break-spaces, which counts the space after the last word on a line towards the
+   line's width. Word (and pre-wrap) let that space hang past the margin, so a word that just fits stays on the line. */
+.wc-page.ProseMirror {
+  white-space: pre-wrap;
+}
+
+/* A gap that splits a paragraph between two of its lines: a full-width float, so the next line starts below it. */
+.wc-page .wc-page-gap-line {
+  float: left;
+  clear: both;
+  width: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+/* Word lets a justified line squeeze its spaces by up to about a fifth (22%, fitted to Word's own line breaks) to fit one more word, then stretches the line to the full width. Browsers
+   do not squeeze, so the same words are allowed on a line by narrowing every space by that amount (the line is justified again to the full
+   width, so only the last line of the paragraph, which is not justified, shows it). The space width is each font's own. */
+.wc-page p[style*="justify"],
+.wc-page h1[style*="justify"],
+.wc-page h2[style*="justify"],
+.wc-page h3[style*="justify"] {
+  word-spacing: calc(-0.22 * 0.22607em);
+}
+.wc-page [style*="justify"] [style*="Arial"],
+.wc-page [style*="justify"][style*="Arial"] {
+  word-spacing: calc(-0.22 * 0.27783em);
+}
+.wc-page [style*="justify"] [style*="Times New Roman"],
+.wc-page [style*="justify"][style*="Times New Roman"] {
+  word-spacing: calc(-0.22 * 0.25em);
+}
+.wc-page [style*="justify"] [style*="Georgia"],
+.wc-page [style*="justify"][style*="Georgia"] {
+  word-spacing: calc(-0.22 * 0.24121em);
+}
+.wc-page [style*="justify"] [style*="Verdana"],
+.wc-page [style*="justify"][style*="Verdana"] {
+  word-spacing: calc(-0.22 * 0.35156em);
+}
+.wc-page [style*="justify"] [style*="Calibri"],
+.wc-page [style*="justify"][style*="Calibri"] {
+  word-spacing: calc(-0.22 * 0.22607em);
 }

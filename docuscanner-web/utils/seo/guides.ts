@@ -378,9 +378,9 @@ export const GUIDES: Guide[] = [
       {
         h2: "Writing on a phone",
         paragraphs: [
-          "On a phone the page is drawn as wide as your screen (Phone view) so the text stays a readable size, and the page scrolls normally with your finger. The most-used actions are in a bar at the bottom of the screen: Paragraph, Image, Add page, Save and Download. Everything else is under the three dots (More), including Font, colours, Link, Signature, Page margins and a switch to Page view, which shows the whole A4 sheet.",
+          "On a phone you see the real A4 page, drawn smaller so that the whole width fits your screen; it is never re-flowed into a narrower column. Zoom in to read and type: under the three dots (More) the Zoom buttons make the page bigger or smaller, 100% shows it at full size, and Fit to screen shows the whole width again. Scroll with your finger, sideways as well when you are zoomed in. The most-used actions are in a bar at the bottom of the screen: Paragraph, Image, Add page, Save and Download. Everything else is under the three dots (More), including Font, colours, Link, Signature, Page margins and Zoom.",
           "There are no arrow keys on a phone, so choose More, then Show navigation keys. A row of keys appears above the bottom bar: arrows, Home and End (start and end of the line), Page up and Page down, and Top and Bottom of the document. They move the caret without closing the keyboard or typing anything. A physical keyboard's arrow keys, Home, End, Page Up and Page Down work as usual.",
-          "The downloaded file always uses the real A4 page and the margins you chose, so Phone view shows a narrower page than Word will print.",
+          "Zooming changes only how big the page looks. The words, the line breaks and the page breaks are the same on your phone as on a computer, because the page is always the real A4 sheet with the margins you chose: a paragraph that takes five lines on a computer takes five lines on your phone.",
         ],
       },
       {

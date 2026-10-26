@@ -309,7 +309,8 @@ test("the improved editor's answers describe only what exists", () => {
   const ids = ["word-doc-font-size", "word-doc-margins", "word-doc-paragraph", "word-doc-add-page", "word-doc-phone-navigation", "word-doc-where-controls"];
   const text = entriesToPrompt(ids.map((i) => getEntry(i)), "/");
   // Real numbers: the list, the margin presets and limits, the font size range.
-  for (const n of ["8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48 or 72", "Normal, Narrow, Moderate or Wide", "0.25 to 4", "1 to 400", "Ctrl+Enter", "Show navigation keys", "Phone view", "Page view"]) assert.ok(text.includes(n), n);
+  for (const n of ["8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48 or 72", "Normal, Narrow, Moderate or Wide", "0.25 to 4", "1 to 400", "Ctrl+Enter", "Show navigation keys", "Fit to screen"]) assert.ok(text.includes(n), n);
+  assert.ok(!/Phone view|Page view/.test(text), "the old two-view wording is gone: the page is always the real A4 sheet");
   // The list in the answer is the list in the product.
   const sizes = fs.readFileSync(path.join(root, "utils/wordCreator/model.ts"), "utf8").match(/FONT_SIZES = \[([^\]]+)\]/)[1].replace(/\s/g, "");
   assert.equal(sizes, "8,9,10,11,12,14,16,18,20,24,28,32,36,48,72");

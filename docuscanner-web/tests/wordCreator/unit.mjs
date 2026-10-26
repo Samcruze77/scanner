@@ -13,7 +13,6 @@ import {
   inchesToTwips,
   marginPreset,
   pageViewGeometry,
-  phoneViewGeometry,
   sanitizeMargins,
   twipsToInches,
   validateMargins,
@@ -101,31 +100,31 @@ await check("empty-document detection and word count", () => {
 // ---- page layout ---------------------------------------------------------------------------------------------------------
 await check("layout: a short document is one page with no gaps", () => {
   const r = layoutPages([{ top: 0, bottom: 100 }, { top: 100, bottom: 200 }]);
-  assert.deepEqual(r, { spacers: [], pages: 1 });
+  assert.deepEqual(r, { breaks: [], pages: 1 });
   assert.equal(layoutPages([]).pages, 1);
 });
 await check("layout: a block that would straddle the page end moves whole to the next page", () => {
   // Three 400px blocks: the third would span 800-1200, past the 931px page.
   const r = layoutPages([{ top: 0, bottom: 400 }, { top: 400, bottom: 800 }, { top: 800, bottom: 1200 }]);
   assert.equal(r.pages, 2);
-  assert.equal(r.spacers.length, 1);
-  assert.equal(r.spacers[0].index, 2);
-  assert.equal(r.spacers[0].height, PITCH - 800); // from where it began to the next page's top
+  assert.equal(r.breaks.length, 1);
+  assert.deepEqual([r.breaks[0].block, r.breaks[0].line], [2, 0]);
+  assert.ok(Math.abs(r.breaks[0].height - (PITCH - 800)) < 0.01); // from where it began to the next page's top (heights are kept to 0.01 px)
 });
 await check("layout: pages keep counting across a long document (every page has the same pitch)", () => {
   const blocks = Array.from({ length: 200 }, (_, i) => ({ top: i * 50, bottom: i * 50 + 50 }));
   const r = layoutPages(blocks);
   const perPage = Math.floor(CONTENT_HEIGHT_PX / 50);
   assert.equal(r.pages, Math.ceil(200 / perPage));
-  assert.equal(r.spacers.length, r.pages - 1);
+  assert.equal(r.breaks.length, r.pages - 1);
 });
 await check("layout: a block taller than a page is left to cross it, and one that begins in the gap is moved to the next page", () => {
   const r = layoutPages([{ top: 0, bottom: 2000 }, { top: 2000, bottom: 2050 }]);
-  assert.deepEqual(r, { spacers: [], pages: 2 });
+  assert.deepEqual(r, { breaks: [], pages: 2 });
   const r2 = layoutPages([{ top: 0, bottom: 1000 }, { top: 1000, bottom: 1050 }]);
-  assert.equal(r2.spacers.length, 1);
-  assert.equal(r2.spacers[0].index, 1);
-  assert.equal(r2.spacers[0].height, PITCH - 1000);
+  assert.equal(r2.breaks.length, 1);
+  assert.equal(r2.breaks[0].block, 1);
+  assert.ok(Math.abs(r2.breaks[0].height - (PITCH - 1000)) < 0.01);
   assert.equal(r2.pages, 2);
 });
 
@@ -327,24 +326,29 @@ await check("margins: presets are valid and recognised; custom values are checke
   assert.deepEqual(sanitizeMargins({ ...ok, left: -5 }), ok, "damaged saved margins fall back to the defaults");
   assert.deepEqual(sanitizeMargins(undefined), ok);
 });
-await check("geometry: the default sheet matches the original A4 numbers; margins and the phone view change it", () => {
+await check("geometry: the sheet is exactly A4 (210 x 297 mm) and its text area is exactly what Word uses; margins change it, the screen never does", () => {
   const g = pageViewGeometry(DEFAULT_MARGINS);
-  assert.deepEqual([g.pageW, g.pageH, g.contentW, g.contentH, g.gapTotal, g.pitch], [794, 1123, 602, 931, 216, 1147]);
+  // The sizes in CSS pixels are the exact conversions of Word's twips (15 twips to a pixel), not rounded
+  assert.equal(g.pageW * 15, 11906);
+  assert.equal(g.pageH * 15, 16838);
+  assert.equal(g.contentW * 15, 11906 - 2880);
+  assert.equal(g.contentH * 15, 16838 - 2880);
+  assert.ok(Math.abs((g.pageW * 25.4) / 96 - 210) < 0.05 && Math.abs((g.pageH * 25.4) / 96 - 297) < 0.05, "210 x 297 mm");
+  assert.equal(g.pitch, g.contentH + g.gapTotal);
   const narrow = pageViewGeometry(MARGIN_PRESETS[1].margins);
-  assert.equal(narrow.contentW, 794 - 96);
+  assert.equal(narrow.contentW, g.pageW - 96);
   assert.ok(narrow.contentH > g.contentH);
-  const phone = phoneViewGeometry(DEFAULT_MARGINS, 350);
-  assert.equal(phone.pageW, 350);
-  assert.ok(Math.abs(phone.pageH / phone.pageW - 1123 / 794) < 0.01, "A4 proportions");
-  assert.ok(phone.ml >= 14 && phone.mt >= 14 && phone.contentW > 250);
+  // Nothing about the viewport takes part: the same margins always give the same sheet
+  assert.deepEqual(pageViewGeometry({ ...DEFAULT_MARGINS }), g);
+  assert.equal(typeof globalThis.window, "undefined", "model.ts uses no browser API");
 });
 await check("layout: a page break starts the next block on a new page even when the page is nearly empty", () => {
   const blocks = [{ top: 0, bottom: 30 }, { top: 30, bottom: 52, breakAfter: true }, { top: 52, bottom: 82 }];
   const r = layoutPages(blocks);
   assert.equal(r.pages, 2);
-  assert.equal(r.spacers.length, 1);
-  assert.equal(r.spacers[0].index, 2);
-  assert.equal(r.spacers[0].height, PITCH - 52);
+  assert.equal(r.breaks.length, 1);
+  assert.deepEqual([r.breaks[0].block, r.breaks[0].line], [2, 0]);
+  assert.ok(Math.abs(r.breaks[0].height - (PITCH - 52)) < 0.01);
 });
 await check("layout: several breaks, a break at the end, and a break already at the top of a page", () => {
   assert.equal(layoutPages([{ top: 0, bottom: 20, breakAfter: true }, { top: 20, bottom: 40, breakAfter: true }, { top: 40, bottom: 60 }]).pages, 3);
@@ -352,10 +356,14 @@ await check("layout: several breaks, a break at the end, and a break already at 
   // The marker is the last thing on the page: the next block still goes to the next page, once.
   const tight = layoutPages([{ top: 0, bottom: 900 }, { top: 900, bottom: 922, breakAfter: true }, { top: 922, bottom: 952 }]);
   assert.equal(tight.pages, 2);
-  assert.deepEqual(tight.spacers.map((x) => x.index), [2]);
-  // A page that is already full pushes the marker itself onto the next page, and the text after it to the one after.
-  const full = layoutPages([{ top: 0, bottom: 931 }, { top: 931, bottom: 953, breakAfter: true }, { top: 953, bottom: 983 }]);
-  assert.equal(full.pages, 3);
+  assert.deepEqual(tight.breaks.map((x) => x.block), [2]);
+  // A page break takes no room, as in Word: on a page that is already full it still ends that page, and the text after it opens the next
+  // one (the file has "page break before" on that paragraph, and Word adds no blank page for it).
+  const full = layoutPages([{ top: 0, bottom: 930 }, { top: 930, bottom: 952, breakAfter: true }, { top: 952, bottom: 982 }]);
+  assert.equal(full.pages, 2);
+  assert.deepEqual(full.breaks.map((x) => x.block), [2]);
+  // Two in a row make a blank page, three make two
+  assert.equal(layoutPages([{ top: 0, bottom: 20 }, { top: 20, bottom: 42, breakAfter: true }, { top: 42, bottom: 64, breakAfter: true }, { top: 64, bottom: 84 }]).pages, 3);
 });
 await check("layout: margins change how much fits on a page", () => {
   const blocks = Array.from({ length: 80 }, (_, i) => ({ top: i * 50, bottom: i * 50 + 50 }));

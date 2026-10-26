@@ -3,10 +3,12 @@
 // see and what is exported cannot drift apart. No browser APIs here: tests import this in Node.
 
 // ---- the page ------------------------------------------------------------------------------------------------
-// A4 at 96 dpi, with Word's default 2.54 cm margins. The browser measures in CSS pixels; Word in twips.
+// A4 (210 x 297 mm) at 96 dpi, with Word's default 2.54 cm margins. The browser measures in CSS pixels; Word in twips (1 px = 15
+// twips). The pixel sizes are the exact conversions, not rounded, so the text area in the editor is exactly as wide and as tall as
+// the one Word uses and a line that just fits in Word just fits here.
 export const PAGE = {
-  widthPx: 794,
-  heightPx: 1123,
+  widthPx: 11906 / 15,
+  heightPx: 16838 / 15,
   marginPx: 96,
   // The grey strip drawn between two pages in the editor (never exported).
   gapPx: 24,
@@ -15,8 +17,8 @@ export const PAGE = {
   marginTwips: 1440,
 } as const;
 
-export const CONTENT_WIDTH_PX = PAGE.widthPx - PAGE.marginPx * 2; // 602
-export const CONTENT_HEIGHT_PX = PAGE.heightPx - PAGE.marginPx * 2; // 931
+export const CONTENT_WIDTH_PX = PAGE.widthPx - PAGE.marginPx * 2; // 601.73
+export const CONTENT_HEIGHT_PX = PAGE.heightPx - PAGE.marginPx * 2; // 930.53
 
 // ---- defaults (the editor's CSS and the .docx styles both read these) ----------------------------------------------
 export const DEFAULTS = {
@@ -149,6 +151,20 @@ export function sizeToPt(value: unknown): number | null {
   return n > 0 && n <= 400 ? Math.round(n * 2) / 2 : null;
 }
 
+// Chrome lays text out at a font size cut down to two decimals of a pixel: 11pt is 14.6667px but is laid out at 14.66px, so every line is
+// 0.04% narrower than Word's and a word that just does not fit in Word can wrap onto the line here. The editor therefore asks for the nearest
+// hundredth of a pixel instead (it is laid out exactly as asked) and takes the small error that is left out of the letter spacing. The ASK is
+// a hair above the hundredth so that the cut lands on it. Sizes that are whole pixels (9, 12, 18, 24, 36, 48, 72pt) need nothing.
+// tests/wordCreator/gen-sizes.mjs writes word-sizes.css from this, and the unit tests check the file against it.
+export const AVERAGE_ADVANCE_EM = 0.49; // an average letter is about this wide, in ems, across the fonts the editor offers
+export function sizeFix(pt: number): { fontSizePx: number; askPx: number; letterSpacingPx: number } | null {
+  const px = (pt * 96) / 72;
+  const fontSizePx = Math.round(px * 100) / 100;
+  const error = (fontSizePx - px) / px; // relative: how much wider than asked
+  if (Math.abs(error) < 1e-5) return null;
+  return { fontSizePx, askPx: Math.round((fontSizePx + 0.0004) * 10000) / 10000, letterSpacingPx: Math.round(-error * AVERAGE_ADVANCE_EM * fontSizePx * 100000) / 100000 };
+}
+
 // The first family in a CSS font stack, without quotes: what Word needs as a font name.
 export function primaryFont(css: unknown): string | null {
   if (typeof css !== "string") return null;
@@ -247,9 +263,8 @@ export function marginPreset(m: Margins): "normal" | "narrow" | "moderate" | "wi
 }
 
 // ---- what is on screen -------------------------------------------------------------------------------------------------------
-// The size of the sheet and its margins in CSS pixels, as drawn. In "page" view this is the real A4 sheet. In the narrow
-// "phone" view the sheet is as wide as the screen allows (so text stays readable) with the same A4 proportions and small
-// margins; the downloaded file always uses the real margins.
+// The size of the sheet and its margins in CSS pixels, as laid out. This is always the real A4 sheet with the document's real
+// margins, on every screen: a phone shows the same sheet scaled down (or zoomed and scrolled), never a re-flowed narrower one.
 export interface PageGeometry {
   pageW: number;
   pageH: number;
@@ -266,8 +281,7 @@ export interface PageGeometry {
   pitch: number;
 }
 
-export function makeGeometry(pageW: number, marginsPx: { top: number; right: number; bottom: number; left: number }, gap: number = PAGE.gapPx): PageGeometry {
-  const pageH = Math.round((pageW * PAGE.heightPx) / PAGE.widthPx);
+export function makeGeometry(pageW: number, pageH: number, marginsPx: { top: number; right: number; bottom: number; left: number }, gap: number = PAGE.gapPx): PageGeometry {
   const contentH = pageH - marginsPx.top - marginsPx.bottom;
   const gapTotal = marginsPx.bottom + gap + marginsPx.top;
   return {
@@ -289,16 +303,7 @@ export const marginsToPx = (m: Margins) => ({ top: m.top / 15, right: m.right / 
 
 // The real A4 sheet with the chosen margins.
 export function pageViewGeometry(m: Margins): PageGeometry {
-  return makeGeometry(PAGE.widthPx, marginsToPx(m));
-}
-
-// The narrow view: `width` is the room the screen has; margins shrink in proportion but stay at least 14 px.
-export function phoneViewGeometry(m: Margins, width: number): PageGeometry {
-  const pageW = Math.max(280, Math.round(width));
-  const k = pageW / PAGE.widthPx;
-  const px = marginsToPx(m);
-  const scaled = { top: Math.max(14, px.top * k * 0.6), right: Math.max(14, px.right * k * 0.6), bottom: Math.max(14, px.bottom * k * 0.6), left: Math.max(14, px.left * k * 0.6) };
-  return makeGeometry(pageW, { top: Math.round(scaled.top), right: Math.round(scaled.right), bottom: Math.round(scaled.bottom), left: Math.round(scaled.left) });
+  return makeGeometry(PAGE.widthPx, PAGE.heightPx, marginsToPx(m));
 }
 
 // ---- paragraph indents ---------------------------------------------------------------------------------------------------------

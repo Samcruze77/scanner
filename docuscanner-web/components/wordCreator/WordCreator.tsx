@@ -5,6 +5,8 @@
 // you write or insert is sent anywhere.
 
 import "./word-creator.css";
+import "./word-sizes.css";
+import "./word-fonts.css";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { TextStyleKit } from "@tiptap/extension-text-style";
@@ -15,7 +17,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FontSizeTools, PageBreak, ParagraphFormat, Pagination, WordImage } from "./extensions";
+import { FontSizeTools, PageBreak, ParagraphFormat, Pagination, RunFonts, WordImage } from "./extensions";
 import { NavPad } from "./NavPad";
 import { Toolbar } from "./Toolbar";
 import { useMediaQuery } from "./useMediaQuery";
@@ -31,7 +33,7 @@ import {
   type DraftSummary,
 } from "@/utils/wordCreator/draftStore";
 import { ImageProblem, prepareImage } from "@/utils/wordCreator/imageFile";
-import { DEFAULT_MARGINS, DEFAULT_TITLE, EMPTY_DOC, isDocumentEmpty, pageViewGeometry, phoneViewGeometry, safeLinkHref, sanitizeFileName, type DocNode, type Margins } from "@/utils/wordCreator/model";
+import { DEFAULT_MARGINS, DEFAULT_TITLE, EMPTY_DOC, isDocumentEmpty, pageViewGeometry, safeLinkHref, sanitizeFileName, type DocNode, type Margins } from "@/utils/wordCreator/model";
 
 type Status = "ready" | "unsaved" | "saving" | "saved" | "error";
 interface Notice {
@@ -378,8 +380,6 @@ function Editing({
   const phone = useMediaQuery("(max-width: 767px)");
   const [pages, setPages] = useState(1);
   const [zoom, setZoom] = useState<number | "fit">("fit");
-  // On a phone the sheet is drawn as wide as the screen so the text stays readable ("phone view"); "page view" shows the real A4 sheet.
-  const [phoneView, setPhoneView] = useState(true);
   const [navOpen, setNavOpen] = useState(false);
   const [deskWidth, setDeskWidth] = useState(1000);
   const [keyboard, setKeyboard] = useState(0);
@@ -398,7 +398,6 @@ function Editing({
     saveRef.current = save;
     onDocChangeRef.current = onDocChange;
   });
-  const narrowView = phone && phoneView;
 
   const extensions = useMemo(
     () => [
@@ -417,6 +416,7 @@ function Editing({
       TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right", "justify"], defaultAlignment: "left" }),
       ParagraphFormat,
       FontSizeTools,
+      RunFonts,
       PageBreak,
       WordImage,
       Pagination.configure({ onPages: (n: number) => setPages(n) }),
@@ -499,14 +499,15 @@ function Editing({
     return () => ro.disconnect();
   }, []);
 
-  // What is drawn: the real A4 sheet with the chosen margins, or (phone view) a sheet as wide as the screen.
-  const geometry = useMemo(() => (narrowView ? phoneViewGeometry(margins, deskWidth) : pageViewGeometry(margins)), [narrowView, margins, deskWidth]);
+  // What is laid out: always the real A4 sheet with the chosen margins, on every screen. A phone shows it scaled down (fit to the screen) or
+  // zoomed and scrolled; the text never re-flows to fit the screen, so lines and pages are the same as on a computer and in Word.
+  const geometry = useMemo(() => pageViewGeometry(margins), [margins]);
   useEffect(() => {
     editor?.commands.setPageGeometry(geometry);
   }, [editor, geometry]);
 
   const fitScale = Math.min(1, Math.max(0.3, deskWidth / geometry.pageW));
-  const scale = narrowView ? 1 : zoom === "fit" ? fitScale : zoom / 100;
+  const scale = zoom === "fit" ? fitScale : zoom / 100;
   const paperH = pages * geometry.pageH + (pages - 1) * geometry.gap;
 
   // On-screen keyboard: how much of the layout viewport it covers, so the bottom bar and sheets sit above it.
@@ -618,16 +619,25 @@ function Editing({
   const moreExtras = (
     <div className="grid gap-3">
       <div>
-        <p className="panel-title mb-1">View</p>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn btn-secondary min-h-10" aria-pressed={phoneView} onClick={() => setPhoneView(true)}>
-            Phone view
+        <p className="panel-title mb-1">Zoom</p>
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Zoom">
+          <button type="button" className="btn btn-secondary min-h-10" aria-label="Zoom out" onClick={() => setZoom(Math.max(25, Math.round(scale * 100) - 10))}>
+            −
           </button>
-          <button type="button" className="btn btn-secondary min-h-10" aria-pressed={!phoneView} onClick={() => setPhoneView(false)}>
-            Page view
+          <span className="min-w-12 text-center text-sm" data-testid="wc-zoom-value">
+            {Math.round(scale * 100)}%
+          </span>
+          <button type="button" className="btn btn-secondary min-h-10" aria-label="Zoom in" onClick={() => setZoom(Math.min(300, Math.round(scale * 100) + 10))}>
+            +
+          </button>
+          <button type="button" className="btn btn-secondary min-h-10" aria-pressed={zoom === "fit"} onClick={() => setZoom("fit")}>
+            Fit to screen
+          </button>
+          <button type="button" className="btn btn-secondary min-h-10" aria-pressed={zoom === 100} onClick={() => setZoom(100)}>
+            100%
           </button>
         </div>
-        <p className="muted mt-1 text-xs">Phone view keeps the text a readable size. Page view shows the whole A4 sheet; zoom in with the browser to read it.</p>
+        <p className="muted mt-1 text-xs">The page is always the real A4 sheet, so lines and pages match the Word file. Zooming only changes how big it looks: zoom in to read and type, and scroll sideways to move around.</p>
       </div>
       <div>
         <p className="panel-title mb-1">Move through the document</p>
@@ -733,7 +743,7 @@ function Editing({
         }}
       />
 
-      <div className="wc-desk" ref={deskRef} data-testid="wc-desk" data-view={narrowView ? "phone" : "page"}>
+      <div className="wc-desk" ref={deskRef} data-testid="wc-desk" data-view="page" data-zoom={scale.toFixed(3)}>
         <div className="wc-scaler" style={{ width: geometry.pageW * scale, height: paperH * scale }}>
           <div
             className="wc-scaled"
@@ -756,9 +766,9 @@ function Editing({
 
       <div className="wc-docbar flex flex-wrap items-center justify-between gap-2 text-sm" style={{ color: "var(--text-2)" }}>
         <p data-testid="wc-counter">
-          {narrowView ? "Pages (about)" : "Page count"}: {pages} · {words} word{words === 1 ? "" : "s"}
+          Page count: {pages} · {words} word{words === 1 ? "" : "s"}
         </p>
-        {!narrowView && (
+        {!phone && (
           <div className="flex items-center gap-1" role="group" aria-label="Zoom">
             <button type="button" className="btn btn-ghost px-3" aria-label="Zoom out" onClick={() => setZoom(Math.max(25, Math.round(scale * 100) - 10))}>
               −
@@ -779,8 +789,7 @@ function Editing({
         )}
       </div>
       <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-        Your document and pictures stay in this browser: nothing is uploaded. Drafts live on this device only (they are not saved to an account), so download the .docx to keep or share a copy. Word lays pages out with its own engine, so line and page breaks can differ slightly from this view
-        {narrowView ? ", and phone view draws a narrower sheet than the A4 page Word will print" : ""}.
+        Your document and pictures stay in this browser: nothing is uploaded. Drafts live on this device only (they are not saved to an account), so download the .docx to keep or share a copy. Word lays pages out with its own engine, so line and page breaks can differ slightly from this view.
       </p>
       {phone && <div aria-hidden style={{ height: navOpen ? "11rem" : "7rem" }} />}
     </>

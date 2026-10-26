@@ -507,7 +507,9 @@ await check("keyboard: arrows, Home, End and Page Up/Down move the caret nativel
   await page.keyboard.type("#");
   assert.ok(await body(page).locator("p", { hasText: "#Line 0" }).count());
   // Arrow keys in a control belong to the control: the document does not change and does not move.
-  const textBefore = await body(page).innerText();
+  // the words of the document: its paragraphs (innerText would also count the empty gaps drawn between pages, which move with the layout)
+  const words = () => page.evaluate(() => Array.from(document.querySelectorAll(".wc-page p")).map((p) => p.textContent).join("\n"));
+  const textBefore = await words();
   await page.getByLabel("Paragraph style").focus();
   for (const k of ["ArrowDown", "ArrowUp"]) await page.keyboard.press(k);
   await sizeBox(page).focus();
@@ -517,8 +519,8 @@ await check("keyboard: arrows, Home, End and Page Up/Down move the caret nativel
   await field.focus();
   for (const k of ["ArrowLeft", "ArrowRight", "ArrowUp"]) await page.keyboard.press(k);
   await page.keyboard.press("Escape");
-  assert.equal(await body(page).innerText(), textBefore.replace(/\s+$/, "") === textBefore ? textBefore : await body(page).innerText());
-  assert.ok((await body(page).locator("p", { hasText: "#Line 0" }).count()) === 1 && !/Left/.test(await body(page).innerText()));
+  assert.equal(await words(), textBefore, "keys in a control do not change the document");
+  assert.ok((await body(page).locator("p", { hasText: "#Line 0" }).count()) === 1 && !/Left/.test(await words()));
 });
 
 // ---- phone ------------------------------------------------------------------------------------------------------------------------

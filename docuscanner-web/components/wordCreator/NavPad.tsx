@@ -50,7 +50,7 @@ export function moveCaret(editor: Editor, move: Move) {
   const at = view.domAtPos(head).node;
   const block = ((at.nodeType === 3 ? at.parentElement : (at as HTMLElement)) as HTMLElement | null)?.closest("p, h1, h2, h3, li") ?? view.dom;
   const box = block.getBoundingClientRect();
-  const target = move === "up" ? { left: c.left, top: c.top - lineH * 0.6 } : move === "down" ? { left: c.left, top: c.bottom + lineH * 0.6 } : move === "lineStart" ? { left: box.left + 1, top: midY } : { left: box.right - 1, top: midY };
+  const target = move === "up" ? { left: c.left, top: c.top - lineH * 0.6 } : move === "down" ? { left: c.left, top: c.bottom + lineH * 0.6 } : move === "lineStart" ? { left: box.left + 0.01, top: midY } : { left: box.right - 0.01, top: midY };
   const hit = view.posAtCoords(target);
   if (hit) put(hit.pos, move === "up" || move === "lineStart" ? -1 : 1);
 }

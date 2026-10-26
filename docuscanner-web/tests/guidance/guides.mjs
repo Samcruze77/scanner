@@ -87,11 +87,11 @@ test("other guides and pages link to it", () => {
 test("it explains font size, margins, paragraph options, page breaks and writing on a phone, using the real labels and limits", () => {
   const text = all(guide);
   const ui = ["components/wordCreator/Toolbar.tsx", "components/wordCreator/WordCreator.tsx", "components/wordCreator/NavPad.tsx", "components/wordCreator/extensions.ts"].map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n");
-  for (const label of ["Add page", "Page break", "Apply custom margins", "Show navigation keys", "Increase font size", "Decrease font size", "Page view", "Phone view", "Paragraph", "More"]) {
+  for (const label of ["Add page", "Page break", "Apply custom margins", "Show navigation keys", "Increase font size", "Decrease font size", "Zoom", "Fit to screen", "100%", "Paragraph", "More"]) {
     assert.ok(text.includes(label), `the guide never mentions ${label}`);
     assert.ok(ui.includes(label), `${label} is not in the interface`);
   }
-  for (const phrase of ["8 to 72 points", "from 1 to 400", "Normal, Narrow, Moderate or Wide", "each from 0.25 to 4", "Ctrl+Enter", "Mixed", "Single, 1.15, 1.5, Double", "first-line or hanging indent", "narrower page than Word will print"]) assert.ok(text.includes(phrase), phrase);
+  for (const phrase of ["8 to 72 points", "from 1 to 400", "Normal, Narrow, Moderate or Wide", "each from 0.25 to 4", "Ctrl+Enter", "Mixed", "Single, 1.15, 1.5, Double", "first-line or hanging indent", "never re-flowed into a narrower column"]) assert.ok(text.includes(phrase), phrase);
   const headings = guide.sections.map((s) => s.h2);
   assert.ok(headings.includes("Set the page margins and add pages") && headings.includes("Writing on a phone"));
   const model = fs.readFileSync(path.join(root, "utils/wordCreator/model.ts"), "utf8");
