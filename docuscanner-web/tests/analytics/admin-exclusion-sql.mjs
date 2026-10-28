@@ -1,4 +1,4 @@
-// Runs migration 20261029090000_exclude_admin_traffic_from_reports.sql in a real (in-process) Postgres and
+// Runs migration 20261028134500_exclude_admin_traffic_from_reports.sql in a real (in-process) Postgres and
 // checks that the dashboard's SQL aggregation leaves out administrator accounts and the browser/session an
 // administrator signed in from, keeps guests and customers, is idempotent, and changes no stored rows.
 // Needs @electric-sql/pglite, which is NOT a project dependency: install it somewhere (npm i @electric-sql/pglite)
@@ -29,6 +29,7 @@ insert into analytics_events (event_name, visitor_id, session_id, user_id, creat
  ('page_view','vb','sb','22222222-2222-4222-8222-222222222222', now()),   -- inactive analyst still administrator traffic
  ('page_view','vg','sg',null, now()),                                      -- guest
  ('page_view','vc','sc','33333333-3333-4333-8333-333333333333', now()),   -- customer
+ ('page_view',null,'sa',null, now()),                                      -- administrator's session, no visitor id
  ('page_view','vold','so',null, now() - interval '40 days');              -- earlier visit by guest (returning)
 insert into ad_events (event_type, user_id, session_id, created_at) values
  ('impression','11111111-1111-4111-8111-111111111111',null, now()),
@@ -36,7 +37,7 @@ insert into ad_events (event_type, user_id, session_id, created_at) values
  ('impression',null,'sg', now()),            -- guest
  ('impression','33333333-3333-4333-8333-333333333333','sc', now());
 `);
-const mig = readFileSync(root + "/supabase/migrations/20261029090000_exclude_admin_traffic_from_reports.sql", "utf8");
+const mig = readFileSync(root + "/supabase/migrations/20261028134500_exclude_admin_traffic_from_reports.sql", "utf8");
 await db.exec(mig);
 await db.exec(mig); // idempotent
 const q = async (s) => (await db.query(s)).rows;
@@ -46,6 +47,6 @@ console.log("event groups:", ev.map((g) => g.visitor_id).sort().join(","), "| to
 console.log("ad groups:", ad.map((g) => `${g.event_type}:${g.n}`).sort().join(","));
 const tables = await q(`select (select count(*) from analytics_events)::int events, (select count(*) from ad_events)::int ads`);
 console.log("rows untouched:", JSON.stringify(tables[0]));
-const ok = JSON.stringify(ev.map((g) => g.visitor_id).sort()) === JSON.stringify(["vc", "vg"]) && ad.map((g) => `${g.event_type}:${g.n}`).sort().join(",") === "impression:2" && tables[0].events === 6 && tables[0].ads === 4;
+const ok = JSON.stringify(ev.map((g) => g.visitor_id).sort()) === JSON.stringify(["vc", "vg"]) && ad.map((g) => `${g.event_type}:${g.n}`).sort().join(",") === "impression:2" && ev.reduce((sum, g) => sum + g.n, 0) === 2 && tables[0].events === 7 && tables[0].ads === 4;
 console.log(ok ? "SQL CHECK PASS" : "SQL CHECK FAIL");
 process.exit(ok ? 0 : 1);

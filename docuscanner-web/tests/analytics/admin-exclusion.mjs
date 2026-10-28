@@ -15,6 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { EMPTY_ADMIN_TRAFFIC, clearAdminCache, isAdminTraffic, isAdminUser, loadAdminTraffic } from "../../supabase/functions/_shared/adminTraffic.ts";
+import { resolveAudience } from "../../utils/analytics/audienceCheck.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FN = path.join(here, "..", "..", "supabase", "functions");
@@ -56,6 +57,7 @@ function makeDb(seed = {}) {
     const filters = [];
     let mode = "select";
     let patch = null;
+    let slice = null;
     const q = {
       select() { return q; },
       insert(payload) { mode = "insert"; (Array.isArray(payload) ? payload : [payload]).forEach((r) => tables[name].push({ ...r })); return q; },
@@ -68,18 +70,20 @@ function makeDb(seed = {}) {
       gt(c, v) { filters.push((r) => r[c] > v); return q; },
       order() { return q; },
       limit() { return q; },
+      range(a, b) { slice = [a, b + 1]; return q; },
       maybeSingle() { return Promise.resolve({ data: run()[0] ?? null, error: null }); },
       then(res, rej) { return Promise.resolve({ data: mode === "insert" ? null : run(), error: null }).then(res, rej); },
     };
     function run() {
       reads.push(name);
-      const matched = rows.filter((r) => filters.every((f) => f(r)));
+      let matched = rows.filter((r) => filters.every((f) => f(r)));
+      if (slice) matched = matched.slice(slice[0], slice[1]);
       if (mode === "update") for (const r of matched) Object.assign(r, patch);
       return matched;
     }
     return q;
   }
-  return { tables, reads, client: { from, rpc: async () => ({ data: null, error: { message: "not installed" } }), auth: { admin: { listUsers: async () => ({ data: { users: [] }, error: null }) } } } };
+  return { tables, reads, client: { from, rpc: async () => ({ data: null, error: { message: "not installed" } }), auth: { admin: { listUsers: async () => ({ data: { users: [] }, error: null }), getUserById: async (id) => ({ data: { user: { id, email: "owner@example.test" } } }) } } } };
 }
 
 // ---- load real handlers with platform wrapper + supabase-js stubbed --------------------------------------------
@@ -200,7 +204,7 @@ const reportDb = () =>
       { session_id: "s-cust", visitor_id: "v-cust", user_id: CUSTOMER, path: "/", last_seen: new Date().toISOString(), started_at: new Date(Date.now() - 90000).toISOString() },
     ],
   });
-// The dashboard's fast path leaves administrators out inside SQL (migration 20261029090000, verified against a
+// The dashboard's fast path leaves administrators out inside SQL (migration 20261028134500, verified against a
 // real Postgres in tests/analytics/admin-exclusion-sql.mjs). This exercises the real handler's fallback path,
 // which reads the raw tables and applies the same rule in code.
 const ev = (id, o) => ({ id, event_name: "page_view", visitor_id: null, session_id: null, user_id: null, country_code: "NG", region: "LA", city: "Lagos", county_district_lga: null, neighborhood_suburb: null, location_source: "vercel", device_type: "desktop", browser: "chrome", operating_system: "windows", referrer: null, properties: {}, created_at: day, ...o });
@@ -254,8 +258,198 @@ await check("administrator actions stay in the audit logs (exclusion never touch
   for (const file of ["_shared/adminTraffic.ts", "track-analytics/index.ts", "heartbeat/index.ts", "track-ad-event/index.ts"]) {
     assert.ok(!fs.readFileSync(path.join(FN, file), "utf8").replace(/\/\/.*$/gm, "").includes("admin_audit_logs"), `${file} must not reference the audit log`);
   }
-  const mig = fs.readFileSync(path.join(here, "..", "..", "supabase", "migrations", "20261029090000_exclude_admin_traffic_from_reports.sql"), "utf8").replace(/--.*$/gm, "");
+  const mig = fs.readFileSync(path.join(here, "..", "..", "supabase", "migrations", "20261028134500_exclude_admin_traffic_from_reports.sql"), "utf8").replace(/--.*$/gm, "");
   assert.ok(!/admin_audit_logs/.test(mig) && !/\bdelete\b|\btruncate\b|\bupdate\s+public\./i.test(mig), "migration must neither read audit logs nor change/delete rows");
+});
+
+// ---- export handler (runtime) ----------------------------------------------------------------------------------------
+const adminExport = await load("admin-analytics-export");
+const exportEvent = (id, o) => ({ id, event_name: "page_view", visitor_id: null, session_id: null, user_id: null, path: "/scan", referrer: null, country_code: "NG", region: "LA", city: "Lagos", county_district_lga: null, neighborhood_suburb: null, postal_code: null, location_source: "vercel", device_type: "desktop", browser: "chrome", operating_system: "windows", properties: {}, created_at: day, ...o });
+const exportAd = (id, o) => ({ id, event_type: "impression", campaign_id: "a0000000-0000-4000-8000-000000000001", creative_id: null, slot_code: "top", session_id: null, user_id: null, path: "/", country_code: "NG", region: "LA", city: "Lagos", county_district_lga: null, neighborhood_suburb: null, postal_code: null, location_source: "vercel", device_type: "desktop", created_at: day, ...o });
+function exportDb({ sqlPath }) {
+  const events = [
+    exportEvent(1, { visitor_id: "v-admin", session_id: "s1", user_id: ADMIN }), // administrator, signed in
+    exportEvent(2, { visitor_id: "v-admin", session_id: "s0" }), // same browser, before sign-in
+    exportEvent(3, { visitor_id: null, session_id: "s1" }), // administrator's session, no visitor id
+    exportEvent(4, { visitor_id: "v-guest", session_id: "s-guest" }), // guest
+    exportEvent(5, { visitor_id: "v-cust", session_id: "s-cust", user_id: CUSTOMER }), // customer
+    exportEvent(6, { visitor_id: "v-other", session_id: "s-other", device_type: "mobile" }), // another guest
+    exportEvent(7, { visitor_id: "v-analyst", session_id: "s-an", user_id: ANALYST }), // analyst account
+  ];
+  const ads = [
+    exportAd(1, { user_id: ADMIN }), // administrator's own impression
+    exportAd(2, { session_id: "s1", event_type: "click" }), // session in which the administrator was signed in
+    exportAd(3, { session_id: "s-guest" }), // guest
+    exportAd(4, { user_id: CUSTOMER, session_id: "s-cust", event_type: "click" }), // customer
+  ];
+  const db = makeDb({ analytics_events: events, ad_events: ads, user_profiles: [] });
+  db.tables.admin_users[0].display_name = "Owner";
+  db.client.rpc = async (fn, args) => {
+    if (fn === "returning_visitor_ids") return { data: [], error: null };
+    if (fn === "admin_export_events_page" && sqlPath) {
+      const rows = events.filter((e) => e.created_at >= args.p_from && e.created_at < args.p_to && e.id > args.p_after).map((e) => ({ ...e, is_returning: false }));
+      return { data: { scanned: rows.length, last_id: rows.at(-1)?.id ?? null, rows }, error: null };
+    }
+    return { data: null, error: { message: "not installed" } };
+  };
+  return db;
+}
+const exportReq = (dataset) => get(`?report_type=full&dataset=${dataset}&from=2026-10-01&to=2026-10-28&limit=1000`);
+for (const sqlPath of [true, false]) {
+  await check(`export (events, ${sqlPath ? "SQL page function" : "raw-table fallback"}): administrators out, guests and customers present`, async () => {
+    const db = exportDb({ sqlPath });
+    useDb(db, { id: ADMIN });
+    const res = await adminExport(exportReq("events"));
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.deepEqual(body.rows.map((r) => r.record_id).sort((a, b) => a - b), [4, 5, 6], "only the guest, customer and other guest remain");
+    assert.ok(body.rows.every((r) => r.user_id !== ADMIN && r.user_id !== ANALYST && r.visitor_id !== "v-admin" && r.session_id !== "s1"));
+    assert.ok(body.rows.find((r) => r.user_id === CUSTOMER), "the customer's events stay");
+    assert.ok(body.rows.find((r) => r.device_type === "mobile"), "mobile guest stays");
+  });
+}
+await check("export (ads): administrator impressions/clicks out (by account and by session), visitor and customer ones present", async () => {
+  const db = exportDb({ sqlPath: true });
+  useDb(db, { id: ADMIN });
+  const res = await adminExport(exportReq("ads"));
+  assert.equal(res.status, 200);
+  assert.deepEqual((await res.json()).rows.map((r) => r.record_id).sort(), [3, 4]);
+});
+await check("the export itself is still written to the audit log", async () => {
+  const db = exportDb({ sqlPath: true });
+  useDb(db, { id: ADMIN });
+  await adminExport(exportReq("events"));
+  assert.equal(db.tables.admin_audit_logs.length, 1);
+  assert.equal(db.tables.admin_audit_logs[0].admin_user_id, ADMIN);
+  assert.equal(db.tables.admin_audit_logs[0].action, "analytics_export");
+});
+
+// ---- trust: identity and roles come from the verified session + admin_users, never the client ------------------------
+const failingAdminLookup = (db) => {
+  const orig = db.client.from;
+  db.client.from = (name) =>
+    name === "admin_users" ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: "boom" } }) }), then: (r) => r({ data: null, error: { message: "boom" } }) }) } : orig(name);
+};
+const endpoints = [
+  ["admin-analytics-export", adminExport, () => exportReq("events")],
+  ["admin-analytics", adminAnalytics, () => get("?from=2026-10-01&to=2026-10-28")],
+  ["admin-live", adminLive, () => get()],
+];
+for (const [name, handler, mkReq] of endpoints) {
+  await check(`${name}: no verified user -> 401, no data`, async () => {
+    const db = exportDb({ sqlPath: true });
+    useDb(db, undefined);
+    const res = await handler(mkReq());
+    assert.equal(res.status, 401);
+    assert.deepEqual(Object.keys(await res.json()), ["error"]);
+  });
+  await check(`${name}: signed in but not in admin_users -> 403, no data (a role header/flag cannot help)`, async () => {
+    const db = exportDb({ sqlPath: true });
+    useDb(db, { id: CUSTOMER, role: "super_admin", app_metadata: { role: "admin" }, user_metadata: { is_admin: true } });
+    const req = mkReq();
+    const res = await handler(new Request(req.url, { method: "GET", headers: { "x-role": "super_admin", "x-is-admin": "true" } }));
+    assert.equal(res.status, 403);
+    assert.deepEqual(Object.keys(await res.json()), ["error"]);
+  });
+  await check(`${name}: an inactive administrator row -> 403, no data`, async () => {
+    const db = exportDb({ sqlPath: true });
+    db.tables.admin_users.push({ user_id: CUSTOMER, role: "super_admin", is_active: false });
+    useDb(db, { id: CUSTOMER });
+    const res = await handler(mkReq());
+    assert.equal(res.status, 403);
+    assert.deepEqual(Object.keys(await res.json()), ["error"]);
+  });
+  await check(`${name}: the admin_users lookup failing -> 403, no data (fails closed)`, async () => {
+    const db = exportDb({ sqlPath: true });
+    failingAdminLookup(db);
+    useDb(db, { id: ADMIN });
+    const res = await handler(mkReq());
+    assert.equal(res.status, 403);
+    assert.deepEqual(Object.keys(await res.json()), ["error"]);
+  });
+}
+await check("export is refused for an analyst (read-only role) while dashboard/live still allow them", async () => {
+  const db = exportDb({ sqlPath: true });
+  useDb(db, { id: ANALYST });
+  assert.equal((await adminExport(exportReq("events"))).status, 403);
+  assert.equal((await adminLive(get())).status, 200);
+});
+
+// ---- the audience probe ------------------------------------------------------------------------------------------------
+const forbidden = Object.assign(new Error("Edge Function returned a non-2xx status code"), { context: { status: 403 } });
+const answer = (deps) => resolveAudience({ getClaims: async () => ({ claims: { sub: "u" } }), fetchRole: async () => "admin", ...deps });
+await check("audience: guest -> not excluded, and no role lookup is made", async () => {
+  let looked = false;
+  const a = await resolveAudience({ getClaims: async () => ({ claims: null }), fetchRole: async () => { looked = true; return "admin"; } });
+  assert.deepEqual(a, { status: 200, body: { excluded: false } });
+  assert.equal(looked, false);
+});
+await check("audience: every administrator role -> excluded; unknown / malformed roles -> not excluded", async () => {
+  for (const role of ["super_admin", "admin", "analyst"]) assert.equal((await answer({ fetchRole: async () => role })).body.excluded, true, role);
+  for (const role of ["user", "root", "ADMIN", "", null, undefined, 1, { role: "admin" }, ["admin"]]) assert.equal((await answer({ fetchRole: async () => role })).body.excluded, false, String(role));
+});
+await check("audience: 403 / 401 from the role check -> signed in, not an administrator", async () => {
+  assert.deepEqual(await answer({ fetchRole: async () => { throw forbidden; } }), { status: 200, body: { excluded: false } });
+  assert.equal((await answer({ fetchRole: async () => { throw Object.assign(new Error("x"), { context: { status: 401 } }); } })).status, 200);
+});
+await check("audience: network / 5xx / thrown errors -> 503, never a guess, never 'excluded'", async () => {
+  for (const err of [new Error("fetch failed"), Object.assign(new Error("x"), { context: { status: 500 } }), Object.assign(new Error("x"), { context: { status: 502 } }), "string error", null]) {
+    const a = await answer({ fetchRole: async () => { throw err; } });
+    assert.equal(a.status, 503);
+    assert.deepEqual(a.body, { error: "unavailable" });
+  }
+  assert.equal((await answer({ getClaims: async () => { throw new Error("jwks down"); } })).status, 503);
+});
+await check("audience: the answer never contains a role, id or analytics (only a yes/no)", async () => {
+  for (const a of [await answer({}), await answer({ fetchRole: async () => "super_admin" }), await answer({ fetchRole: async () => { throw new Error("x"); } })]) {
+    assert.ok(JSON.stringify(a.body) === '{"excluded":true}' || JSON.stringify(a.body) === '{"excluded":false}' || JSON.stringify(a.body) === '{"error":"unavailable"}');
+  }
+});
+await check("audience route reads nothing from the request (no body, query, header or cookie value of its own)", async () => {
+  const src = fs.readFileSync(path.join(here, "..", "..", "app", "api", "analytics", "audience", "route.ts"), "utf8").replace(/\/\/.*$/gm, "");
+  assert.ok(/export async function GET\(\)/.test(src), "GET must take no request argument");
+  assert.ok(!/request|req\.|headers\(|searchParams|\.json\(\)|formData/.test(src));
+});
+
+// ---- helper edge cases -------------------------------------------------------------------------------------------------
+await check("browser/session links are complete beyond one 1000-row page", async () => {
+  const many = Array.from({ length: 2500 }, (_, i) => ({ id: i + 1, user_id: ADMIN, visitor_id: `va-${i}`, session_id: `sa-${i}`, created_at: day }));
+  const db = makeDb({ analytics_events: many });
+  const t = await loadAdminTraffic(db.client);
+  assert.equal(t.visitorIds.size, 2500);
+  assert.equal(t.sessionIds.size, 2500);
+});
+await check("a visitor id that only ever appeared with customers/guests is never linked to an administrator", async () => {
+  const db = makeDb({ analytics_events: [{ id: 1, user_id: CUSTOMER, visitor_id: "v-shared-with-customer", session_id: "sx" }, { id: 2, user_id: null, visitor_id: "v-guest", session_id: "sg" }, { id: 3, user_id: ADMIN, visitor_id: "v-admin", session_id: "sa" }] });
+  const t = await loadAdminTraffic(db.client);
+  assert.deepEqual([...t.visitorIds], ["v-admin"]);
+  assert.deepEqual([...t.sessionIds], ["sa"]);
+});
+
+// ---- campaign performance (admin-ads) ----------------------------------------------------------------------------------
+const adminAds = await load("admin-ads");
+await check("campaign stats leave out administrator ad events (account and session) and keep visitor/customer ones", async () => {
+  const CAMP = "a0000000-0000-4000-8000-000000000001";
+  const db = makeDb({
+    analytics_events: [{ id: 1, user_id: ADMIN, visitor_id: "v-admin", session_id: "s1" }],
+    ad_campaigns: [{ id: CAMP, name: "Camp", status: "active", start_at: null, end_at: null, created_at: day }],
+    ad_creatives: [],
+    ad_events: [
+      { id: 1, campaign_id: CAMP, event_type: "impression", user_id: ADMIN, session_id: null, created_at: day },
+      { id: 2, campaign_id: CAMP, event_type: "click", user_id: null, session_id: "s1", created_at: day },
+      { id: 3, campaign_id: CAMP, event_type: "impression", user_id: null, session_id: "s-guest", created_at: day },
+      { id: 4, campaign_id: CAMP, event_type: "impression", user_id: CUSTOMER, session_id: "s-cust", created_at: day },
+      { id: 5, campaign_id: CAMP, event_type: "click", user_id: CUSTOMER, session_id: "s-cust", created_at: day },
+    ],
+  });
+  useDb(db, { id: ADMIN });
+  const list = await (await adminAds(get())).json();
+  const c = list.campaigns.find((x) => x.id === CAMP);
+  assert.equal(c.impressions, 2, "guest + customer impressions");
+  assert.equal(c.clicks, 1, "customer click only");
+  const detail = await (await adminAds(get(`?id=${CAMP}`))).json();
+  assert.equal(detail.analytics.impressions, 2);
+  assert.equal(detail.analytics.clicks, 1);
 });
 
 process.exit(failed ? 1 : 0);

@@ -2,8 +2,8 @@
 --
 -- The dashboard's SQL aggregation (admin_analytics_event_groups / admin_analytics_ad_groups)
 -- now leaves out (a) events carrying an administrator's user_id and (b) events from a
--- browser (visitor_id) that ever recorded a signed-in administrator, which also removes
--- the administrator's own pre-sign-in testing. "Administrator" = any row in
+-- browser (visitor_id) or session (session_id) that ever recorded a signed-in administrator,
+-- which also removes the administrator's own pre-sign-in testing. "Administrator" = any row in
 -- public.admin_users (every role, active or not).
 --
 -- Nothing is deleted or updated: rows stay in analytics_events / ad_events / live_sessions
@@ -33,11 +33,16 @@ set search_path = public
 as $$
   with admin_u as materialized (select user_id from public.admin_users),
   admin_v as materialized (select public.admin_traffic_visitor_ids() as visitor_id),
+  admin_s as materialized (
+    select distinct e2.session_id from public.analytics_events e2
+    where e2.session_id is not null and e2.user_id in (select user_id from admin_u)
+  ),
   win as (
     select e.* from public.analytics_events e
     where e.created_at >= p_from and e.created_at < p_to
       and (e.user_id is null or e.user_id not in (select user_id from admin_u))
       and (e.visitor_id is null or e.visitor_id not in (select visitor_id from admin_v))
+      and (e.session_id is null or e.session_id not in (select session_id from admin_s))
   ),
   returning_v as (
     select v.visitor_id

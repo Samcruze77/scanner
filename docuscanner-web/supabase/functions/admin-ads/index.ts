@@ -284,7 +284,7 @@ export default {
 
         const { data: events } = await admin
           .from("ad_events")
-          .select("event_type,slot_code,device_type,country_code,region,path,created_at,user_id")
+          .select("event_type,slot_code,device_type,country_code,region,path,created_at,user_id,session_id")
           .eq("campaign_id", id)
           .order("created_at", { ascending: false })
           .limit(50000)
@@ -330,7 +330,7 @@ export default {
         })
       }
 
-      const { data: eventCounts } = await admin.from("ad_events").select("campaign_id,event_type,user_id")
+      const { data: eventCounts } = await admin.from("ad_events").select("campaign_id,event_type,user_id,session_id")
       const listTraffic = await loadAdminTraffic(admin)
       const statsByCampaign = new Map<string, { impressions: number; clicks: number }>()
       for (const e of eventCounts ?? []) {

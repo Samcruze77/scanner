@@ -93,6 +93,7 @@ function makeAdmin({ rpcInstalled, role = "admin", active = true, counters }) {
       gt: (c, v) => (q.rows = q.rows.filter((r) => r[c] > v), api),
       order: (c) => (q.rows.sort((a, b) => (a[c] < b[c] ? -1 : a[c] > b[c] ? 1 : 0)), api),
       limit: (n) => ((q.lim = n), api),
+      range: (a, b) => ((q.rows = q.rows.slice(a, b + 1)), api),
       maybeSingle: () => Promise.resolve({ data: q.rows[0] ?? null, error: null }),
       insert: () => Promise.resolve({ error: null }),
       then: (resolve) => {

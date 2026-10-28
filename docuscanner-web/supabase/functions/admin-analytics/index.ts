@@ -60,7 +60,7 @@ async function loadRowsLegacy(ctx: LegacyCtx, from: Date, toExclusive: Date, ret
     fetchAllByKeyset<AdEventRow>((afterId, pageSize) =>
       ctx.supabaseAdmin
         .from("ad_events")
-        .select("id,event_type,user_id,country_code,region,city,county_district_lga,neighborhood_suburb,device_type,created_at")
+        .select("id,event_type,user_id,session_id,country_code,region,city,county_district_lga,neighborhood_suburb,device_type,created_at")
         .gte("created_at", from.toISOString())
         .lt("created_at", toExclusive.toISOString())
         .gt("id", afterId)
@@ -139,11 +139,11 @@ export default {
       const legacy = await loadRowsLegacy(ctx, from, toExclusive, returningIds)
       if (legacy.error) return response({ error: legacy.error }, 500)
       // The SQL functions above already leave administrator traffic out (migration
-      // 20261029090000). This fallback reads the raw tables, so it applies the same rule here:
+      // 20261028134500). This fallback reads the raw tables, so it applies the same rule here:
       // administrator accounts and the browsers they signed in from are not visitors.
       const traffic = await loadAdminTraffic(ctx.supabaseAdmin)
       rows = legacy.rows.filter((r) => !isAdminTraffic(traffic, r))
-      adRows = legacy.adRows.filter((r) => !isAdminTraffic(traffic, r as { user_id?: string | null }))
+      adRows = legacy.adRows.filter((r) => !isAdminTraffic(traffic, r as { user_id?: string | null; session_id?: string | null }))
     }
 
     if (filters.visitor_type) {
