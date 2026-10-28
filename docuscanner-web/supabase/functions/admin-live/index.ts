@@ -16,6 +16,7 @@
 
 import { withSupabase } from "npm:@supabase/server"
 import { createClient } from "npm:@supabase/supabase-js@2"
+import { isAdminTraffic, loadAdminTraffic } from "../_shared/adminTraffic.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,7 +80,7 @@ export default {
     const admin = serviceClient()
     const cutoff = new Date(Date.now() - LIVE_WINDOW_MS).toISOString()
 
-    const [{ data: sessions }, { data: profiles }, { data: events }] = await Promise.all([
+    const [{ data: allSessions }, { data: profiles }, { data: allEvents }, traffic] = await Promise.all([
       admin
         .from("live_sessions")
         .select("session_id,visitor_id,user_id,path,tool,activity,device_type,browser,operating_system,country_code,region,started_at,last_seen")
@@ -91,7 +92,11 @@ export default {
         .select("event_name,visitor_id,user_id,path,device_type,country_code,region,properties,created_at")
         .order("created_at", { ascending: false })
         .limit(100),
+      loadAdminTraffic(admin),
     ])
+    // Administrators are not live visitors: leave them out of the counts and the feed.
+    const sessions = (allSessions ?? []).filter((s) => !isAdminTraffic(traffic, s))
+    const events = (allEvents ?? []).filter((e) => !isAdminTraffic(traffic, e))
 
     const needsEmail = (sessions ?? []).some((s) => s.user_id) || (events ?? []).some((e) => e.user_id)
     const userById = needsEmail ? await getUserCache(admin) : new Map<string, { email: string | null }>()

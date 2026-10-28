@@ -18,13 +18,22 @@
 // HTML); it is not a credential. If it is unset nothing loads. The separate,
 // secret CLARITY_API_TOKEN (server-side reporting only) is never used here.
 //
+// Administrators: Clarity is never started for a verified administrator on ANY page (public
+// pages included, not just /admin), and not until the sign-in state and the server-side
+// administrator check have finished (utils/analytics/audience.ts). If the check could not
+// be completed ("unverified") Clarity stays off, because unlike first-party events only the
+// browser can stop it. An administrator who signs in on a page where Clarity already
+// started gets the same treatment as a withdrawal: Clarity is told to stop and the page
+// reloads without the script.
+//
 // Masking: pages that show a visitor's documents, extracted text, or account
 // and sign-in forms carry data-clarity-mask="true" so their content is not
 // captured in recordings.
 
 import Script from "next/script";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { hasConsent, subscribeConsent } from "@/utils/consent/consent";
+import { useAudience } from "./useAudience";
 
 const CLARITY_PROJECT_ID = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID;
 
@@ -44,6 +53,8 @@ function denyClarityConsent() {
 
 export function MicrosoftClarity() {
   const [allowed, setAllowed] = useState(false);
+  const audience = useAudience();
+  const started = useRef(false);
 
   useEffect(() => {
     const sync = () => setAllowed(hasConsent("recordings"));
@@ -64,7 +75,21 @@ export function MicrosoftClarity() {
     });
   }, []);
 
-  if (!CLARITY_PROJECT_ID || !allowed) return null;
+  // Administrator signed in after Clarity had already started on this page: stop and reload.
+  useEffect(() => {
+    if (audience === "excluded" && started.current) {
+      denyClarityConsent();
+      const t = window.setTimeout(() => window.location.reload(), REVOKE_SETTLE_MS);
+      return () => window.clearTimeout(t);
+    }
+  }, [audience]);
+
+  // Only a settled, non-administrator visitor ("visitor") ever loads the script.
+  const load = !!CLARITY_PROJECT_ID && allowed && audience === "visitor";
+  useEffect(() => {
+    if (load) started.current = true;
+  }, [load]);
+  if (!load) return null;
 
   return (
     <Script id="microsoft-clarity" strategy="afterInteractive">

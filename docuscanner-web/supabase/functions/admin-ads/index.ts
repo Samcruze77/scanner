@@ -16,6 +16,7 @@
 // launched) can be deleted outright.
 
 import { withSupabase } from "npm:@supabase/server"
+import { isAdminTraffic, loadAdminTraffic } from "../_shared/adminTraffic.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -283,12 +284,14 @@ export default {
 
         const { data: events } = await admin
           .from("ad_events")
-          .select("event_type,slot_code,device_type,country_code,region,path,created_at")
+          .select("event_type,slot_code,device_type,country_code,region,path,created_at,user_id")
           .eq("campaign_id", id)
           .order("created_at", { ascending: false })
           .limit(50000)
 
-        const rows = events ?? []
+        // Administrator testing does not count towards campaign performance.
+        const adTraffic = await loadAdminTraffic(admin)
+        const rows = (events ?? []).filter((r) => !isAdminTraffic(adTraffic, r))
         const impressions = rows.filter((r) => r.event_type === "impression").length
         const clicks = rows.filter((r) => r.event_type === "click").length
         const topCounts = (values: (string | null)[]) => {
@@ -327,9 +330,11 @@ export default {
         })
       }
 
-      const { data: eventCounts } = await admin.from("ad_events").select("campaign_id,event_type")
+      const { data: eventCounts } = await admin.from("ad_events").select("campaign_id,event_type,user_id")
+      const listTraffic = await loadAdminTraffic(admin)
       const statsByCampaign = new Map<string, { impressions: number; clicks: number }>()
       for (const e of eventCounts ?? []) {
+        if (isAdminTraffic(listTraffic, e)) continue
         const entry = statsByCampaign.get(e.campaign_id) ?? { impressions: 0, clicks: 0 }
         if (e.event_type === "impression") entry.impressions += 1
         if (e.event_type === "click") entry.clicks += 1

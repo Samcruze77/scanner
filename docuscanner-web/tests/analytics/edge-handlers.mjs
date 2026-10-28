@@ -87,6 +87,7 @@ function makeAdmin({ rpcInstalled, role = "admin", active = true, counters }) {
       select: () => api,
       eq: (c, v) => (q.rows = q.rows.filter((r) => r[c] === v), api),
       in: (c, vs) => (q.rows = q.rows.filter((r) => vs.includes(r[c])), api),
+      not: (c, op, v) => (op === "is" && v === null ? (q.rows = q.rows.filter((r) => r[c] != null)) : 0, api),
       gte: (c, v) => (q.rows = q.rows.filter((r) => r[c] >= v), api),
       lt: (c, v) => (q.rows = q.rows.filter((r) => r[c] < v), api),
       gt: (c, v) => (q.rows = q.rows.filter((r) => r[c] > v), api),
@@ -106,6 +107,7 @@ function makeAdmin({ rpcInstalled, role = "admin", active = true, counters }) {
   const tables = {
     admin_users: () => table([{ user_id: "u1", role, is_active: active, display_name: null, created_at: "2026-09-22T00:00:00Z", updated_at: "2026-09-22T00:00:00Z" }]),
     user_profiles: () => table([]),
+    live_sessions: () => table([]),
     analytics_events: () => table(events),
     ad_events: () => table(ads),
     ad_campaigns: () => table([]),

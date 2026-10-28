@@ -1,5 +1,6 @@
 
 import { withSupabase } from "npm:@supabase/server"
+import { isAdminTraffic, loadAdminTraffic } from "../_shared/adminTraffic.ts"
 import { type AnalyticsEventRow as GeoAnalyticsEventRow, type AdEventRow as GeoAdEventRow } from "../_shared/geoHierarchy.ts"
 import { buildAdminSummary } from "../_shared/adminSummary.ts"
 import { matchesFilters, parseFilters, resolveRange } from "../_shared/analyticsFilters.ts"
@@ -59,7 +60,7 @@ async function loadRowsLegacy(ctx: LegacyCtx, from: Date, toExclusive: Date, ret
     fetchAllByKeyset<AdEventRow>((afterId, pageSize) =>
       ctx.supabaseAdmin
         .from("ad_events")
-        .select("id,event_type,country_code,region,city,county_district_lga,neighborhood_suburb,device_type,created_at")
+        .select("id,event_type,user_id,country_code,region,city,county_district_lga,neighborhood_suburb,device_type,created_at")
         .gte("created_at", from.toISOString())
         .lt("created_at", toExclusive.toISOString())
         .gt("id", afterId)
@@ -137,8 +138,12 @@ export default {
     } else {
       const legacy = await loadRowsLegacy(ctx, from, toExclusive, returningIds)
       if (legacy.error) return response({ error: legacy.error }, 500)
-      rows = legacy.rows
-      adRows = legacy.adRows
+      // The SQL functions above already leave administrator traffic out (migration
+      // 20261029090000). This fallback reads the raw tables, so it applies the same rule here:
+      // administrator accounts and the browsers they signed in from are not visitors.
+      const traffic = await loadAdminTraffic(ctx.supabaseAdmin)
+      rows = legacy.rows.filter((r) => !isAdminTraffic(traffic, r))
+      adRows = legacy.adRows.filter((r) => !isAdminTraffic(traffic, r as { user_id?: string | null }))
     }
 
     if (filters.visitor_type) {

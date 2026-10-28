@@ -109,7 +109,7 @@ const source = [...walk("app"), ...walk("components"), ...walk("utils")].map((f)
 console.log("4. Policy s.7: Clarity is loaded only after opt-in, for every visitor");
 {
   const clarity = read("components/analytics/MicrosoftClarity.tsx");
-  check("script is rendered only when consent is present", /if \(!CLARITY_PROJECT_ID \|\| !allowed\) return null/.test(clarity) && /hasConsent\("recordings"\)/.test(clarity));
+  check("script is rendered only when consent is present (and the visitor is not an administrator)", /const load = !!CLARITY_PROJECT_ID && allowed && audience === "visitor";/.test(clarity) && /if \(!load\) return null/.test(clarity) && /hasConsent\("recordings"\)/.test(clarity));
   check("initial state is 'not allowed' (nothing loads before the stored choice is read)", /useState\(false\)/.test(clarity));
   check("withdrawal reloads the page so the running script is gone", /window\.location\.reload\(\)/.test(clarity));
   check("withdrawal tells Clarity (consentv2, both denied) BEFORE the reload", /consentv2", \{ ad_Storage: "denied", analytics_Storage: "denied" \}/.test(clarity) && clarity.indexOf("denyClarityConsent();") < clarity.indexOf("window.location.reload()") && /setTimeout\(\(\) => window\.location\.reload\(\), REVOKE_SETTLE_MS\)/.test(clarity));
@@ -133,7 +133,7 @@ console.log("5. Policy s.6 / s.4: analytics identifiers and events need opt-in")
   const hb = read("components/presence/PresenceHeartbeat.tsx");
   check("presence heartbeat needs the ids (which need consent)", /if \(!visitorId \|\| !sessionId\) return;/.test(hb));
   check("presence starts/stops as consent changes", /subscribeConsent/.test(hb) && /!hasConsent\("analytics"\)\) return;/.test(hb));
-  check("page views only count with consent", /if \(!hasConsent\("analytics"\)\) return;/.test(read("components/analytics/AnalyticsListener.tsx")));
+  check("page views only count with consent (and never for an administrator / before the check)", /if \(!hasConsent\("analytics"\) \|\| !mayTrack\(audience\)\) return;/.test(read("components/analytics/AnalyticsListener.tsx")));
   const routes = ["track", "heartbeat", "ad-event"].map((n) => read(`app/api/analytics/${n}/route.ts`)).join("\n");
   check("IP-based location enrichment only runs inside the analytics routes (i.e. after consent)", (routes.match(/enrichRequestGeo/g) ?? []).length >= 3);
 }
@@ -149,7 +149,10 @@ console.log("6. Policy s.8: advertising storage, measurement and embeds need opt
 
 console.log("7. Every browser storage key is classified (new storage must be reviewed)");
 {
-  const ESSENTIAL = ["pdfscanner.theme", "docuscanner.signature.v1", "ds_consent", "ds_password_recovery", "ds_install_reminder", "docuscanner.guidance.v1", "docuscanner.assist.ignored"];
+  // ds_audience:<user id> (sessionStorage, signed-in users only) caches the server's yes/no answer to "is this an
+  // administrator?" for a few minutes. It records nothing about behaviour and exists to keep administrators OUT of
+  // tracking, so it is strictly necessary for that purpose, like ds_password_recovery.
+  const ESSENTIAL = ["ds_audience:", "pdfscanner.theme", "docuscanner.signature.v1", "ds_consent", "ds_password_recovery", "ds_install_reminder", "docuscanner.guidance.v1", "docuscanner.assist.ignored"];
   const ANALYTICS = ["ds_visitor_id", "ds_session_id", "ds_session_last_seen"];
   const ADVERTISING = ["ds_ad_seen_", "ds_ad_"];
   // Not browser storage (font-name marker in the DOCX converter).

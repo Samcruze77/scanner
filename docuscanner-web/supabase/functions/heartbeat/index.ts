@@ -4,6 +4,7 @@
 // caller-supplied geo/user_id is the trusted model here now.
 
 import { withSupabase } from "npm:@supabase/server"
+import { isAdminUser } from "../_shared/adminTraffic.ts"
 import {
   normalizeString,
   extractTrustedGeo,
@@ -37,6 +38,9 @@ export default {
     const userAgent = req.headers.get("user-agent") ?? ""
     const userId = typeof body.user_id === "string" ? body.user_id : null
 
+    // Administrators are not counted as live visitors (see _shared/adminTraffic.ts).
+    if (await isAdminUser(ctx.supabaseAdmin, userId)) return json({ ok: true, excluded: "admin" }, 202)
+
     const fields = {
       visitor_id: visitorId,
       user_id: userId,
@@ -65,7 +69,7 @@ export default {
     if (updateError) return json({ error: "Unable to record heartbeat" }, 500)
 
     if (!updated || updated.length === 0) {
-      const { error: insertError } = await ctx.supabaseAdmin.from("live_sessions").insert({ session_id: sessionId, ...fields })
+      const { error: insertError } = await ctx.supabaseAdmin.from("live_sessions").insert({ session_id: sessionId, started_at: fields.last_seen, ...fields })
       if (insertError) return json({ error: "Unable to record heartbeat" }, 500)
     }
 

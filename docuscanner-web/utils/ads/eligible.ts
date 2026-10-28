@@ -12,6 +12,7 @@
 
 import { getSessionId, getVisitorId } from "@/utils/analytics/identity";
 import { hasConsent } from "@/utils/consent/consent";
+import { whenTrackingAllowed } from "@/utils/analytics/audience";
 import type { AdSlotCode } from "@/utils/admin/ads";
 
 const FUNCTIONS_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1`;
@@ -91,6 +92,8 @@ async function sendAdEvent(ad: EligibleAd, eventType: "impression" | "click", pa
   // Ad impression/click measurement runs only with "advertising" consent.
   if (!hasConsent("advertising")) return;
   try {
+    // Administrator testing must not inflate impressions/clicks (see utils/analytics/audience.ts).
+    if (!(await whenTrackingAllowed())) return;
     // Recording (impression/click) goes through this app's own proxy route
     // so the write carries Vercel's real geolocation -- see
     // app/api/analytics/ad-event/route.ts. `ads-eligible` above (the

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { getAdminLiveBrowser } from "@/utils/admin/live.browser";
 import type { AdminLiveResponse } from "@/utils/admin/live";
 import { formatLocation } from "@/utils/admin/location";
+import { formatDuration, sessionDurationSeconds } from "@/utils/analytics/sessionDuration";
 
 const POLL_MS = 18_000;
 
@@ -55,7 +56,7 @@ export function LiveClient({ initial }: { initial: AdminLiveResponse | null }) {
       <section>
         <h2 className="mb-2 text-sm font-semibold">Active sessions</h2>
         <div tabIndex={0} role="region" aria-label="Table, scrolls sideways on small screens" className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[860px] text-left text-sm">
             <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
               <tr>
                 <th className="px-3 py-2">User</th>
@@ -65,6 +66,7 @@ export function LiveClient({ initial }: { initial: AdminLiveResponse | null }) {
                 <th className="px-3 py-2">Device</th>
                 <th className="px-3 py-2">Location</th>
                 <th className="px-3 py-2">Started</th>
+                <th className="px-3 py-2">Session length</th>
                 <th className="px-3 py-2">Last heartbeat</th>
               </tr>
             </thead>
@@ -82,6 +84,7 @@ export function LiveClient({ initial }: { initial: AdminLiveResponse | null }) {
                   <td className="px-3 py-2">{s.device_type ?? "—"} · {s.browser ?? "—"}</td>
                   <td className="px-3 py-2">{formatLocation(s.country_code, s.region)}</td>
                   <td className="px-3 py-2">{fmtDate(s.started_at)}</td>
+                  <td className="px-3 py-2 tabular-nums">{formatDuration(sessionDurationSeconds(s.started_at, s.last_seen))}</td>
                   <td className="px-3 py-2">{fmtDate(s.last_seen)}</td>
                 </tr>
               ))}

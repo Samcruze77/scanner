@@ -11,6 +11,7 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import { AudienceProvider } from "@/components/analytics/AudienceProvider";
 import { MobileActionBar } from "@/components/layout/MobileActionBar";
 import { THEME_INIT_SCRIPT } from "@/components/theme/theme";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/utils/seo/site";
@@ -82,6 +83,7 @@ export default function RootLayout({
         <MicrosoftClarity />
         <PresenceHeartbeat />
         <AuthProvider>
+          <AudienceProvider />
           <Header />
           {children}
           <Footer />

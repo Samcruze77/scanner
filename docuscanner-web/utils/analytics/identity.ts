@@ -14,7 +14,7 @@ import { hasConsent } from "@/utils/consent/consent";
 const VISITOR_ID_KEY = "ds_visitor_id";
 const SESSION_ID_KEY = "ds_session_id";
 const SESSION_LAST_SEEN_KEY = "ds_session_last_seen";
-const SESSION_IDLE_MS = 30 * 60 * 1000; // 30 minutes
+export const SESSION_IDLE_MS = 30 * 60 * 1000; // 30 minutes of no user activity ends a session
 
 function newId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -69,6 +69,35 @@ export function getSessionId(): string | null {
 
   safeSet(window.localStorage, SESSION_LAST_SEEN_KEY, String(now));
   return id;
+}
+
+// Reads the current session id WITHOUT refreshing its idle timer, and returns null when the
+// session has already been idle longer than SESSION_IDLE_MS. The presence heartbeat uses
+// this: a background heartbeat is not user activity, so it must neither keep a session
+// alive forever nor revive an expired one (that is how one visible-but-idle tab used to
+// stay a single session indefinitely).
+export function peekSessionId(now = Date.now()): string | null {
+  if (typeof window === "undefined" || !hasConsent("analytics")) return null;
+  const lastSeen = Number(safeGet(window.localStorage, SESSION_LAST_SEEN_KEY) ?? 0);
+  const id = safeGet(window.sessionStorage, SESSION_ID_KEY);
+  if (!id || !lastSeen || now - lastSeen > SESSION_IDLE_MS) return null;
+  return id;
+}
+
+const ACTIVITY_THROTTLE_MS = 5_000;
+let lastActivityMark = 0;
+
+// Real user activity (pointer, key, touch, scroll): refreshes the idle timer, and starts a
+// new session if the previous one had expired. Throttled so scrolling is cheap.
+export function markActivity(now = Date.now()): void {
+  if (typeof window === "undefined" || !hasConsent("analytics")) return;
+  if (now - lastActivityMark < ACTIVITY_THROTTLE_MS) return;
+  lastActivityMark = now;
+  getSessionId();
+}
+
+export function resetActivityThrottleForTests(): void {
+  lastActivityMark = 0;
 }
 
 export function isNewSessionThisPageLoad(): boolean {

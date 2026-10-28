@@ -11,8 +11,10 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { getSessionId, getVisitorId } from "@/utils/analytics/identity";
+import { getSessionId, getVisitorId, markActivity, peekSessionId } from "@/utils/analytics/identity";
 import { hasConsent, subscribeConsent } from "@/utils/consent/consent";
+import { mayTrack } from "@/utils/analytics/audience";
+import { useAudience } from "@/components/analytics/useAudience";
 
 const HEARTBEAT_MS = 30_000;
 
@@ -28,10 +30,13 @@ function toolFromPath(path: string): string | null {
   return null;
 }
 
-async function sendHeartbeat(path: string) {
+// `activity` heartbeats (page load, tab becoming visible again) count as the visitor being
+// present and may start/refresh the session. Interval heartbeats are only a pulse: they
+// report the session while it is live and never extend it (see peekSessionId).
+async function sendHeartbeat(path: string, activity = false) {
   try {
     const visitorId = getVisitorId();
-    const sessionId = getSessionId();
+    const sessionId = activity ? getSessionId() : peekSessionId();
     if (!visitorId || !sessionId) return;
 
     await fetch("/api/analytics/heartbeat", {
@@ -54,12 +59,14 @@ async function sendHeartbeat(path: string) {
 export function PresenceHeartbeat() {
   const pathname = usePathname();
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // No presence until the administrator check has settled; none for administrators.
+  const trackable = mayTrack(useAudience());
 
   useEffect(() => {
     function start() {
       // Presence needs "analytics" consent (utils/consent/consent.ts).
-      if (timer.current || !hasConsent("analytics")) return;
-      void sendHeartbeat(pathname || "/");
+      if (timer.current || !trackable || !hasConsent("analytics")) return;
+      void sendHeartbeat(pathname || "/", true);
       timer.current = setInterval(() => void sendHeartbeat(pathname || "/"), HEARTBEAT_MS);
     }
     function stop() {
@@ -75,18 +82,29 @@ export function PresenceHeartbeat() {
 
     // Consent granted mid-visit starts presence at once; withdrawn stops it.
     const unsubscribe = subscribeConsent(() => {
-      if (hasConsent("analytics") && document.visibilityState === "visible") start();
+      if (trackable && hasConsent("analytics") && document.visibilityState === "visible") start();
       else stop();
     });
+
+    // Real interaction keeps a session alive (and begins a new one after 30 idle minutes).
+    function onActivity() {
+      if (!trackable || document.visibilityState !== "visible") return;
+      const wasLive = peekSessionId() !== null;
+      markActivity();
+      if (!wasLive && peekSessionId() !== null) void sendHeartbeat(pathname || "/");
+    }
+    const ACTIVITY_EVENTS = ["pointerdown", "keydown", "touchstart", "wheel", "scroll"] as const;
+    for (const name of ACTIVITY_EVENTS) window.addEventListener(name, onActivity, { passive: true, capture: true });
 
     if (document.visibilityState === "visible") start();
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
+      for (const name of ACTIVITY_EVENTS) window.removeEventListener(name, onActivity, { capture: true });
       unsubscribe();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       stop();
     };
-  }, [pathname]);
+  }, [pathname, trackable]);
 
   return null;
 }

@@ -12,6 +12,7 @@
 // value: only the columns listed in ../_shared/exportRows.ts.
 
 import { withSupabase } from "npm:@supabase/server"
+import { isAdminTraffic, loadAdminTraffic } from "../_shared/adminTraffic.ts"
 import { hasAdFilters, matchesAdFilters, matchesFilters, parseFilters, resolveRange } from "../_shared/analyticsFilters.ts"
 import { chunk } from "../_shared/paginate.ts"
 import { buildAdminProfile } from "../_shared/adminProfile.ts"
@@ -156,6 +157,9 @@ export default {
       })
     }
 
+    // Administrator accounts (and the browsers they signed in from) are not visitor traffic.
+    const traffic = await loadAdminTraffic(ctx.supabaseAdmin)
+
     if (dataset === "events") {
       const typeOfFactory = (returning: Set<string>) => (r: EventSourceRow) => (!r.visitor_id ? "unknown" : returning.has(r.visitor_id) ? "returning" : "new")
 
@@ -178,7 +182,7 @@ export default {
         const returning = new Set(scanned.filter((r) => r.is_returning && r.visitor_id).map((r) => r.visitor_id as string))
         const typeOf = typeOfFactory(returning)
         const rows = scanned
-          .filter((r) => matchesFilters(r, filters))
+          .filter((r) => matchesFilters(r, filters) && !isAdminTraffic(traffic, r))
           .filter((r) => !filters.visitor_type || typeOf(r) === filters.visitor_type)
           .map((r) => eventToRecord(r, typeOf(r)))
         const effective = Math.min(pageSize, MAX_LARGE_PAGE)
@@ -206,7 +210,7 @@ export default {
       if (error) return response({ error: "Unable to load analytics" }, 500)
 
       const scanned = (data ?? []) as EventSourceRow[]
-      const visible = scanned.filter((r) => matchesFilters(r, filters))
+      const visible = scanned.filter((r) => matchesFilters(r, filters) && !isAdminTraffic(traffic, r))
 
       // New vs returning: any event strictly before `from` (same definition
       // as the dashboard).
@@ -252,7 +256,7 @@ export default {
     if (error) return response({ error: "Unable to load ad analytics" }, 500)
 
     const scanned = (data ?? []) as AdSourceRow[]
-    const visible = scanned.filter((r) => matchesFilters(r, filters) && matchesAdFilters(r, filters))
+    const visible = scanned.filter((r) => matchesFilters(r, filters) && matchesAdFilters(r, filters) && !isAdminTraffic(traffic, r))
 
     // Campaign names come from a single id -> name lookup (never a join), so
     // an ad event can't be duplicated by its campaign.

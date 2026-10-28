@@ -7,6 +7,7 @@
 // version of this function.
 
 import { withSupabase } from "npm:@supabase/server"
+import { isAdminUser } from "../_shared/adminTraffic.ts"
 import {
   normalizeString,
   extractTrustedGeo,
@@ -97,6 +98,10 @@ export default {
     const geo = extractTrustedGeo(req, body)
     const userAgent = req.headers.get("user-agent") ?? ""
     const userId = typeof body.user_id === "string" ? body.user_id : null
+
+    // Administrator traffic is not visitor analytics. user_id comes from the secret-key-
+    // authenticated proxy (verified session cookie), never from a client-supplied flag.
+    if (await isAdminUser(ctx.supabaseAdmin, userId)) return json({ ok: true, excluded: "admin" }, 202)
 
     const payload = {
       event_name: eventName,

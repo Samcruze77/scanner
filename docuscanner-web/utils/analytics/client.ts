@@ -30,6 +30,7 @@
 // throw, block, or slow down the scanner/document workflows it's attached to.
 
 import { hasConsent } from "@/utils/consent/consent";
+import { whenTrackingAllowed } from "./audience";
 import { getSessionId, getVisitorId } from "./identity";
 
 export type AnalyticsEventType =
@@ -75,6 +76,9 @@ export async function trackEvent(
     if (typeof window === "undefined") return;
     // No analytics without the visitor's opt-in (see utils/consent/consent.ts).
     if (!hasConsent("analytics")) return;
+    // Wait for the sign-in / administrator check; a verified administrator (or a check that
+    // never finishes) produces no event.
+    if (!(await whenTrackingAllowed())) return;
 
     const properties: Record<string, unknown> = { ...options.properties };
     if (options.conversionType) properties.conversion_type = options.conversionType;

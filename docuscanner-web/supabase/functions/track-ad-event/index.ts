@@ -12,6 +12,7 @@
 // This is reasonable-effort integrity, not cryptographic proof of delivery.
 
 import { withSupabase } from "npm:@supabase/server"
+import { isAdminUser } from "../_shared/adminTraffic.ts"
 import { normalizeString, extractTrustedGeo, deviceFromUserAgent, corsHeaders, json } from "../_shared/geo.ts"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -56,6 +57,9 @@ export default {
     const userAgent = req.headers.get("user-agent") ?? ""
     const userId = typeof body.user_id === "string" ? body.user_id : null
     const sessionId = normalizeString(body.session_id, 128)
+
+    // Administrator testing must not inflate impressions/clicks.
+    if (await isAdminUser(admin, userId)) return json({ ok: true, excluded: "admin" }, 202)
 
     const { error } = await admin.from("ad_events").insert({
       campaign_id: campaignId,
