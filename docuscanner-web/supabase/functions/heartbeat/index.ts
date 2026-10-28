@@ -4,7 +4,7 @@
 // caller-supplied geo/user_id is the trusted model here now.
 
 import { withSupabase } from "npm:@supabase/server"
-import { isAdminUser } from "../_shared/adminTraffic.ts"
+import { checkAdminUser } from "../_shared/adminTraffic.ts"
 import {
   normalizeString,
   extractTrustedGeo,
@@ -39,7 +39,9 @@ export default {
     const userId = typeof body.user_id === "string" ? body.user_id : null
 
     // Administrators are not counted as live visitors (see _shared/adminTraffic.ts).
-    if (await isAdminUser(ctx.supabaseAdmin, userId)) return json({ ok: true, excluded: "admin" }, 202)
+    const check = await checkAdminUser(ctx.supabaseAdmin, userId)
+    if (check === "admin") return json({ ok: true, excluded: "admin" }, 202)
+    if (check === "unknown") return json({ error: "Exclusion check unavailable; event not recorded" }, 503)
 
     const fields = {
       visitor_id: visitorId,

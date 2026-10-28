@@ -141,7 +141,12 @@ export default {
       // The SQL functions above already leave administrator traffic out (migration
       // 20261028134500). This fallback reads the raw tables, so it applies the same rule here:
       // administrator accounts and the browsers they signed in from are not visitors.
-      const traffic = await loadAdminTraffic(ctx.supabaseAdmin)
+      let traffic: Awaited<ReturnType<typeof loadAdminTraffic>>
+      try {
+        traffic = await loadAdminTraffic(ctx.supabaseAdmin)
+      } catch {
+        return response({ error: "Administrator exclusion unavailable; report not produced" }, 503)
+      }
       rows = legacy.rows.filter((r) => !isAdminTraffic(traffic, r))
       adRows = legacy.adRows.filter((r) => !isAdminTraffic(traffic, r as { user_id?: string | null; session_id?: string | null }))
     }

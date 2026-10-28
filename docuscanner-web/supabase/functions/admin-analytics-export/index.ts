@@ -158,7 +158,12 @@ export default {
     }
 
     // Administrator accounts (and the browsers they signed in from) are not visitor traffic.
-    const traffic = await loadAdminTraffic(ctx.supabaseAdmin)
+    let traffic: Awaited<ReturnType<typeof loadAdminTraffic>>
+    try {
+      traffic = await loadAdminTraffic(ctx.supabaseAdmin)
+    } catch {
+      return response({ error: "Administrator exclusion unavailable; report not produced" }, 503)
+    }
 
     if (dataset === "events") {
       const typeOfFactory = (returning: Set<string>) => (r: EventSourceRow) => (!r.visitor_id ? "unknown" : returning.has(r.visitor_id) ? "returning" : "new")

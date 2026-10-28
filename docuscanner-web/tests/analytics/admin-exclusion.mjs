@@ -14,8 +14,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { EMPTY_ADMIN_TRAFFIC, clearAdminCache, isAdminTraffic, isAdminUser, loadAdminTraffic } from "../../supabase/functions/_shared/adminTraffic.ts";
+import { CHECK_CACHE_MS, EMPTY_ADMIN_TRAFFIC, STALE_MS, AdminTrafficUnavailable, checkAdminUser, clearAdminCache, isAdminTraffic, loadAdminTraffic } from "../../supabase/functions/_shared/adminTraffic.ts";
 import { resolveAudience } from "../../utils/analytics/audienceCheck.ts";
+import { lookupAdminAccount } from "../../utils/analytics/adminAccount.ts";
+import http from "node:http";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FN = path.join(here, "..", "..", "supabase", "functions");
@@ -35,12 +37,14 @@ async function check(name, fn) {
 const ADMIN = "11111111-1111-4111-8111-111111111111"; // super_admin
 const ANALYST = "22222222-2222-4222-8222-222222222222"; // analyst (also an administrator role)
 const CUSTOMER = "33333333-3333-4333-8333-333333333333"; // ordinary signed-in customer
+const INACTIVE = "44444444-4444-4444-8444-444444444444"; // deactivated administrator (row still in admin_users)
 
 function makeDb(seed = {}) {
   const tables = {
     admin_users: [
       { user_id: ADMIN, role: "super_admin", is_active: true },
       { user_id: ANALYST, role: "analyst", is_active: true },
+      { user_id: INACTIVE, role: "admin", is_active: false },
     ],
     analytics_events: [],
     live_sessions: [],
@@ -178,18 +182,6 @@ await check("administrator ad impressions/clicks are not recorded; visitor and c
   await adEvent(ev({ user_id: CUSTOMER, event_type: "click" }));
   assert.equal(db.tables.ad_events.length, 2);
 });
-await check("guests never trigger an admin lookup; the lookup is cached; a failing lookup keeps the event", async () => {
-  const db = makeDb(); useDb(db);
-  assert.equal(await isAdminUser(db.client, null), false);
-  assert.equal(db.reads.length, 0);
-  assert.equal(await isAdminUser(db.client, ADMIN), true);
-  await isAdminUser(db.client, ADMIN);
-  assert.equal(db.reads.length, 1, "second call should be cached");
-  const broken = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: "down" } }) }) }) }) };
-  clearAdminCache();
-  assert.equal(await isAdminUser(broken, CUSTOMER), false);
-});
-
 // ---- reporting ------------------------------------------------------------------------------------------------
 const day = "2026-10-20T10:00:00.000Z";
 const group = (o) => ({ created_at: day.slice(0, 10), event_name: "page_view", country_code: "NG", region: "LA", city: "Lagos", county_district_lga: null, neighborhood_suburb: null, location_source: "vercel", device_type: "desktop", browser: "chrome", operating_system: "windows", referrer: null, n: 1, returning: false, user_id: null, ...o });
@@ -375,40 +367,83 @@ await check("export is refused for an analyst (read-only role) while dashboard/l
   assert.equal((await adminLive(get())).status, 200);
 });
 
-// ---- the audience probe ------------------------------------------------------------------------------------------------
-const forbidden = Object.assign(new Error("Edge Function returned a non-2xx status code"), { context: { status: 403 } });
-const answer = (deps) => resolveAudience({ getClaims: async () => ({ claims: { sub: "u" } }), fetchRole: async () => "admin", ...deps });
-await check("audience: guest -> not excluded, and no role lookup is made", async () => {
+// ---- the audience probe (browser-side Clarity decision) ----------------------------------------------------------------
+const SUB = CUSTOMER;
+const answer = (deps) => resolveAudience({ getClaims: async () => ({ claims: { sub: SUB } }), isAdminAccount: async () => false, ...deps });
+await check("audience: guest / missing session -> not excluded, and no account lookup is made", async () => {
   let looked = false;
-  const a = await resolveAudience({ getClaims: async () => ({ claims: null }), fetchRole: async () => { looked = true; return "admin"; } });
-  assert.deepEqual(a, { status: 200, body: { excluded: false } });
+  for (const claims of [null, undefined]) {
+    const a = await resolveAudience({ getClaims: async () => ({ claims }), isAdminAccount: async () => { looked = true; return true; } });
+    assert.deepEqual(a, { status: 200, body: { excluded: false } });
+  }
   assert.equal(looked, false);
 });
-await check("audience: every administrator role -> excluded; unknown / malformed roles -> not excluded", async () => {
-  for (const role of ["super_admin", "admin", "analyst"]) assert.equal((await answer({ fetchRole: async () => role })).body.excluded, true, role);
-  for (const role of ["user", "root", "ADMIN", "", null, undefined, 1, { role: "admin" }, ["admin"]]) assert.equal((await answer({ fetchRole: async () => role })).body.excluded, false, String(role));
+await check("audience: an account in admin_users is excluded; an ordinary customer is not", async () => {
+  assert.deepEqual(await answer({ isAdminAccount: async () => true }), { status: 200, body: { excluded: true } });
+  assert.deepEqual(await answer({ isAdminAccount: async () => false }), { status: 200, body: { excluded: false } });
 });
-await check("audience: 403 / 401 from the role check -> signed in, not an administrator", async () => {
-  assert.deepEqual(await answer({ fetchRole: async () => { throw forbidden; } }), { status: 200, body: { excluded: false } });
-  assert.equal((await answer({ fetchRole: async () => { throw Object.assign(new Error("x"), { context: { status: 401 } }); } })).status, 200);
-});
-await check("audience: network / 5xx / thrown errors -> 503, never a guess, never 'excluded'", async () => {
-  for (const err of [new Error("fetch failed"), Object.assign(new Error("x"), { context: { status: 500 } }), Object.assign(new Error("x"), { context: { status: 502 } }), "string error", null]) {
-    const a = await answer({ fetchRole: async () => { throw err; } });
-    assert.equal(a.status, 503);
-    assert.deepEqual(a.body, { error: "unavailable" });
+await check("audience: malformed identities (verified claims without a valid user id) -> 503, never a guess", async () => {
+  for (const sub of [undefined, null, "", "u", "123", 42, {}, ["x"], "not-a-uuid", "33333333-3333-4333-8333-33333333333", "33333333-3333-4333-8333-3333333333333x", "' or 1=1 --"]) {
+    let looked = false;
+    const a = await answer({ getClaims: async () => ({ claims: { sub } }), isAdminAccount: async () => { looked = true; return true; } });
+    assert.equal(a.status, 503, String(sub));
+    assert.equal(looked, false, "a malformed id must never reach the database");
   }
+  assert.equal((await answer({ getClaims: async () => ({ claims: "string claims" }) })).status, 503);
+});
+await check("audience: lookup failures / non-boolean answers -> 503 (browser keeps Clarity off), never 'excluded'", async () => {
+  for (const out of [new Error("fetch failed"), "boom", null, undefined]) {
+    const a = await answer({ isAdminAccount: async () => { throw out; } });
+    assert.deepEqual(a, { status: 503, body: { error: "unavailable" } });
+  }
+  for (const weird of [undefined, null, "true", 1, {}]) assert.equal((await answer({ isAdminAccount: async () => weird })).status, 503);
   assert.equal((await answer({ getClaims: async () => { throw new Error("jwks down"); } })).status, 503);
 });
-await check("audience: the answer never contains a role, id or analytics (only a yes/no)", async () => {
-  for (const a of [await answer({}), await answer({ fetchRole: async () => "super_admin" }), await answer({ fetchRole: async () => { throw new Error("x"); } })]) {
-    assert.ok(JSON.stringify(a.body) === '{"excluded":true}' || JSON.stringify(a.body) === '{"excluded":false}' || JSON.stringify(a.body) === '{"error":"unavailable"}');
+await check("audience: the answer never contains a role, id or analytics (only a yes/no, or the error)", async () => {
+  for (const a of [await answer({ isAdminAccount: async () => true }), await answer({}), await answer({ isAdminAccount: async () => { throw new Error("x"); } })]) {
+    assert.ok(['{"excluded":true}', '{"excluded":false}', '{"error":"unavailable"}'].includes(JSON.stringify(a.body)));
   }
 });
-await check("audience route reads nothing from the request (no body, query, header or cookie value of its own)", async () => {
+await check("audience route reads nothing from the request and no longer uses the active-only role probe", async () => {
   const src = fs.readFileSync(path.join(here, "..", "..", "app", "api", "analytics", "audience", "route.ts"), "utf8").replace(/\/\/.*$/gm, "");
   assert.ok(/export async function GET\(\)/.test(src), "GET must take no request argument");
   assert.ok(!/request|req\.|headers\(|searchParams|\.json\(\)|formData/.test(src));
+  assert.ok(!/fetchAdminRole|is_active|mode=role/.test(src), "must not use the active-administrator role probe");
+  assert.ok(/lookupAdminAccount/.test(src));
+});
+
+// the real account lookup against a local PostgREST stand-in: ANY admin_users row counts, active or not
+async function withRest(handler, fn) {
+  const calls = [];
+  const server = http.createServer((req, res) => { calls.push({ url: req.url, headers: req.headers }); handler(req, res); });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  try { return await fn({ url: `http://127.0.0.1:${server.address().port}`, key: "test-secret", calls }); } finally { server.close(); }
+}
+const rows = (body, status = 200) => (_req, res) => { res.statusCode = status; res.setHeader("content-type", "application/json"); res.end(typeof body === "string" ? body : JSON.stringify(body)); };
+await check("account lookup: an ACTIVE administrator row -> true; a DEACTIVATED administrator row -> true; no row -> false", async () => {
+  await withRest(rows([{ user_id: ADMIN }]), async (o) => { assert.equal(await lookupAdminAccount(ADMIN, o), true); });
+  await withRest(rows([{ user_id: INACTIVE }]), async (o) => { assert.equal(await lookupAdminAccount(INACTIVE, o), true); });
+  await withRest(rows([]), async (o) => { assert.equal(await lookupAdminAccount(CUSTOMER, o), false); });
+});
+await check("account lookup: exact one-row query on admin_users using the server key, no is_active filter, no client input", async () => {
+  await withRest(rows([]), async (o) => {
+    await lookupAdminAccount(CUSTOMER, o);
+    const u = new URL(o.calls[0].url, "http://x");
+    assert.equal(u.pathname, "/rest/v1/admin_users");
+    assert.equal(u.searchParams.get("user_id"), `eq.${CUSTOMER}`);
+    assert.equal(u.searchParams.get("limit"), "1");
+    assert.ok(!u.searchParams.has("is_active") && !/role/.test(u.search));
+    assert.equal(o.calls[0].headers.apikey, "test-secret");
+  });
+});
+await check("account lookup: 5xx, 401, malformed JSON, non-array, wrong row, several rows, timeout, bad config, bad id all THROW (never 'false')", async () => {
+  for (const h of [rows([], 500), rows({}, 401), rows("not json"), rows({ user_id: ADMIN }), rows([{ user_id: ANALYST }]), rows([{ user_id: ADMIN }, { user_id: ADMIN }]), rows([null]), rows(["x"])]) {
+    await withRest(h, async (o) => { await assert.rejects(lookupAdminAccount(ADMIN, o)); });
+  }
+  await withRest(() => {}, async (o) => { await assert.rejects(lookupAdminAccount(ADMIN, { ...o, timeoutMs: 150 })); }); // never answers
+  await assert.rejects(lookupAdminAccount(ADMIN, { url: "", key: "k" }));
+  await assert.rejects(lookupAdminAccount(ADMIN, { url: "http://127.0.0.1:1", key: "" }));
+  await assert.rejects(lookupAdminAccount("not-a-uuid", { url: "http://127.0.0.1:1", key: "k" }));
 });
 
 // ---- helper edge cases -------------------------------------------------------------------------------------------------
@@ -450,6 +485,274 @@ await check("campaign stats leave out administrator ad events (account and sessi
   const detail = await (await adminAds(get(`?id=${CAMP}`))).json();
   assert.equal(detail.analytics.impressions, 2);
   assert.equal(detail.analytics.clicks, 1);
+});
+
+// ---- deactivated administrators are excluded everywhere an active one is ----------------------------------------------
+await check("a DEACTIVATED administrator (row still in admin_users) generates no event, presence row or ad event", async () => {
+  const db = makeDb(); useDb(db);
+  await track(post(view({ user_id: INACTIVE, visitor_id: "v-inact", session_id: "s-inact" })));
+  await heartbeat(post({ session_id: "s-inact", visitor_id: "v-inact", path: "/", user_id: INACTIVE }));
+  await adEvent(post({ campaign_id: "a0000000-0000-4000-8000-000000000001", creative_id: "c0000000-0000-4000-8000-000000000001", event_type: "impression", user_id: INACTIVE }));
+  assert.equal(db.tables.analytics_events.length + db.tables.live_sessions.length + db.tables.ad_events.length, 0);
+});
+
+// ---- ingestion: an exclusion lookup that fails is never proof of "not an administrator" --------------------------------
+// state: how the admin_users lookup (select().eq().maybeSingle()) behaves
+function faultyLookup(db, state) {
+  const orig = db.client.from;
+  db.client.from = (name) => {
+    if (name !== "admin_users" || state.mode === "ok") return orig(name);
+    const q = {
+      select: () => q,
+      eq: () => q,
+      maybeSingle: () => {
+        state.calls = (state.calls ?? 0) + 1;
+        switch (state.mode) {
+          case "error": return Promise.resolve({ data: null, error: { message: "relation does not exist" } });
+          case "throw": return Promise.reject(new Error("connection reset"));
+          case "hang": return new Promise(() => {});
+          case "undefined-data": return Promise.resolve({ error: null });
+          case "array": return Promise.resolve({ data: [{ user_id: CUSTOMER }], error: null });
+          case "other-row": return Promise.resolve({ data: { user_id: ADMIN }, error: null });
+          case "string": return Promise.resolve({ data: "yes", error: null });
+          case "non-object": return Promise.resolve(null);
+          case "undefined": return Promise.resolve(undefined);
+        }
+      },
+    };
+    return q;
+  };
+  return state;
+}
+const withConsoleErrors = async (fn) => {
+  const orig = console.error;
+  const logged = [];
+  console.error = (...a) => logged.push(a.map(String).join(" "));
+  try { await fn(); } finally { console.error = orig; }
+  return logged;
+};
+const ingestEndpoints = [
+  ["track-analytics", track, (u) => post(view({ user_id: u, visitor_id: u ? "v-signed-in" : "v-anon", session_id: u ? "s-signed-in" : "s-anon" })), (db) => db.tables.analytics_events],
+  ["heartbeat", heartbeat, (u) => post({ session_id: u ? "s-signed-in" : "s-anon", visitor_id: u ? "v-signed-in" : "v-anon", path: "/", user_id: u }), (db) => db.tables.live_sessions],
+  ["track-ad-event", adEvent, (u) => post({ campaign_id: "a0000000-0000-4000-8000-000000000001", creative_id: "c0000000-0000-4000-8000-000000000001", event_type: "impression", session_id: u ? "s-signed-in" : "s-anon", user_id: u }), (db) => db.tables.ad_events],
+];
+for (const [name, handler, mk, rowsOf] of ingestEndpoints) {
+  for (const mode of ["error", "throw", "undefined-data", "array", "other-row", "string", "non-object", "undefined"]) {
+    await check(`${name}: lookup failure (${mode}) -> signed-in event dropped with 503 and logged without content; guests unaffected`, async () => {
+      const db = makeDb(); useDb(db);
+      faultyLookup(db, { mode });
+      const logged = await withConsoleErrors(async () => {
+        const res = await handler(mk(CUSTOMER));
+        assert.equal(res.status, 503, "must not answer 2xx when the exclusion decision is unknown");
+        assert.equal(rowsOf(db).length, 0, "nothing may be stored while the decision is unknown");
+        const guest = await handler(mk(null));
+        assert.equal(guest.status, 202);
+        assert.equal(rowsOf(db).length, 1, "a guest needs no lookup and is still tracked");
+      });
+      assert.equal(logged.length, 1, "one operational error is logged");
+      for (const secret of [CUSTOMER, "v-signed-in", "s-signed-in", "/scan"]) assert.ok(!logged[0].includes(secret), `log must not contain ${secret}`);
+    });
+  }
+}
+await check("a lookup that never answers is bounded by a timeout, then fails closed (no event)", async () => {
+  const db = makeDb(); useDb(db);
+  faultyLookup(db, { mode: "hang" });
+  const started = Date.now();
+  let res;
+  await withConsoleErrors(async () => { res = await track(post(view({ user_id: CUSTOMER }))); });
+  assert.equal(res.status, 503);
+  assert.equal(db.tables.analytics_events.length, 0);
+  assert.ok(Date.now() - started < 6000, "must not wait indefinitely");
+});
+await check("healthy exclusion service: guests and customers tracked, administrators excluded, nothing 503", async () => {
+  const db = makeDb(); useDb(db);
+  assert.equal((await track(post(view()))).status, 202);
+  assert.equal((await track(post(view({ user_id: CUSTOMER, visitor_id: "v-c", session_id: "s-c" })))).status, 202);
+  assert.equal((await track(post(view({ user_id: INACTIVE })))).status, 202);
+  assert.equal(db.tables.analytics_events.length, 2);
+});
+
+await check("cache: a hit does not ask the database; an expired entry does; the answers stay correct", async () => {
+  const db = makeDb(); const st = { mode: "ok", calls: 0 }; faultyLookup(db, st);
+  const counted = db.client.from; let reads = 0;
+  db.client.from = (n) => { if (n === "admin_users") reads++; return counted(n); };
+  clearAdminCache();
+  const t0 = 1_000_000;
+  assert.equal(await checkAdminUser(db.client, ADMIN, { now: t0 }), "admin");
+  assert.equal(await checkAdminUser(db.client, ADMIN, { now: t0 + CHECK_CACHE_MS - 1 }), "admin");
+  assert.equal(reads, 1, "second call is a cache hit");
+  assert.equal(await checkAdminUser(db.client, ADMIN, { now: t0 + CHECK_CACHE_MS }), "admin");
+  assert.equal(reads, 2, "an expired entry is looked up again");
+  assert.equal(await checkAdminUser(db.client, CUSTOMER, { now: t0 }), "not_admin");
+  assert.equal(await checkAdminUser(db.client, CUSTOMER, { now: t0 + 1 }), "not_admin");
+  assert.equal(reads, 3, "a confirmed 'not an administrator' is cached too");
+  assert.equal(await checkAdminUser(db.client, null, { now: t0 }), "not_admin");
+  assert.equal(await checkAdminUser(db.client, undefined, { now: t0 }), "not_admin");
+  assert.equal(reads, 3, "guests are never looked up");
+});
+await check("outage: a VERIFIED answer is reused for up to 10 minutes, then the answer is unknown (never not_admin)", async () => {
+  const db = makeDb(); const st = faultyLookup(db, { mode: "ok" }); clearAdminCache();
+  const t0 = 5_000_000;
+  await checkAdminUser(db.client, ADMIN, { now: t0 });
+  await checkAdminUser(db.client, CUSTOMER, { now: t0 });
+  st.mode = "error";
+  await withConsoleErrors(async () => {
+    const afterCache = t0 + CHECK_CACHE_MS + 1;
+    assert.equal(await checkAdminUser(db.client, ADMIN, { now: afterCache }), "admin", "verified admin stays excluded through the outage");
+    assert.equal(await checkAdminUser(db.client, CUSTOMER, { now: afterCache }), "not_admin", "verified customer keeps being tracked");
+    assert.equal(await checkAdminUser(db.client, ADMIN, { now: t0 + STALE_MS - 1 }), "admin");
+    assert.equal(await checkAdminUser(db.client, ADMIN, { now: t0 + STALE_MS }), "unknown", "grace is bounded");
+    assert.equal(await checkAdminUser(db.client, "55555555-5555-4555-8555-555555555555", { now: afterCache }), "unknown", "a never-verified account is unknown");
+  });
+});
+await check("recovery: once the lookup works again the real answer is returned and cached", async () => {
+  const db = makeDb(); const st = faultyLookup(db, { mode: "error" }); clearAdminCache();
+  let r;
+  await withConsoleErrors(async () => { r = await checkAdminUser(db.client, INACTIVE, { now: 9_000_000 }); });
+  assert.equal(r, "unknown");
+  st.mode = "ok";
+  assert.equal(await checkAdminUser(db.client, INACTIVE, { now: 9_000_001 }), "admin");
+  st.mode = "error";
+  assert.equal(await checkAdminUser(db.client, INACTIVE, { now: 9_000_002 }), "admin", "recovered answer is cached");
+});
+await check("the operational error is logged at most once per 30 seconds per instance", async () => {
+  const db = makeDb(); faultyLookup(db, { mode: "error" }); clearAdminCache();
+  const logged = await withConsoleErrors(async () => {
+    for (let i = 0; i < 20; i++) await checkAdminUser(db.client, CUSTOMER, { now: 100_000 + i * 1000 });
+    await checkAdminUser(db.client, CUSTOMER, { now: 100_000 + 31_000 });
+  });
+  assert.equal(logged.length, 2);
+});
+
+// ---- reports fail closed ----------------------------------------------------------------------------------------------
+const unavailable = async (res) => {
+  assert.equal(res.status, 503);
+  assert.deepEqual(Object.keys(await res.json()), ["error"], "no report data may accompany the error");
+};
+const withBrokenLinks = (db) => {
+  const orig = db.client.from;
+  db.client.from = (name) => {
+    const q = orig(name);
+    if (name === "live_sessions" || name === "analytics_events") {
+      const realIn = q.in;
+      q.in = (c, v) => (c === "user_id" ? { order: () => ({ range: async () => ({ data: null, error: { message: "timeout" } }) }) } : realIn(c, v));
+    }
+    return q;
+  };
+};
+const reportCases = [
+  ["export events", () => adminExport(exportReq("events")), () => exportDb({ sqlPath: true })],
+  ["export ads", () => adminExport(exportReq("ads")), () => exportDb({ sqlPath: true })],
+  ["live", () => adminLive(get()), () => reportDb()],
+  ["campaign list", () => adminAds(get()), () => exportDb({ sqlPath: true })],
+  ["dashboard (raw-table fallback)", () => adminAnalytics(get("?from=2026-10-01&to=2026-10-28")), () => { const d = exportDb({ sqlPath: false }); return d; }],
+];
+for (const [name, run, mk] of reportCases) {
+  await check(`${name}: unreadable administrator accounts -> 503, no figures`, async () => {
+    const db = mk();
+    db.tables.admin_users.push({ user_id: null, role: "x", is_active: false }); // a malformed row makes the account list unusable
+    useDb(db, { id: ADMIN });
+    await unavailable(await run());
+  });
+  await check(`${name}: browser/session lookup failing -> 503, no figures (never a silent bypass)`, async () => {
+    const db = mk();
+    withBrokenLinks(db);
+    useDb(db, { id: ADMIN });
+    await unavailable(await run());
+  });
+}
+await check("link lookup that cannot be read completely (never-ending full pages) is an error, not a partial answer", async () => {
+  const db = makeDb();
+  const orig = db.client.from;
+  db.client.from = (n) => { const q = orig(n); if (n === "analytics_events") q.in = () => ({ order: () => ({ range: async () => ({ data: Array.from({ length: 1000 }, (_, i) => ({ visitor_id: `v${i}`, session_id: `s${i}` })), error: null }) }) }); return q; };
+  await assert.rejects(loadAdminTraffic(db.client), AdminTrafficUnavailable);
+});
+await check("no administrator accounts at all is a valid, empty answer (not an error)", async () => {
+  const db = makeDb({ admin_users: [] });
+  const t = await loadAdminTraffic(db.client);
+  assert.equal(t.userIds.size + t.visitorIds.size + t.sessionIds.size, 0);
+});
+
+// ---- the whole boundary agrees on the same people -----------------------------------------------------------------------
+await check("ingestion, dashboard fallback, live, export (both paths), ads, campaign stats all exclude the same accounts, browsers and sessions", async () => {
+  const CAMP = "a0000000-0000-4000-8000-000000000001";
+  const E = (id, o) => exportEvent(id, o);
+  const events = [
+    E(1, { visitor_id: "v-admin", session_id: "s-admin", user_id: ADMIN }), // active administrator, signed in
+    E(2, { visitor_id: "v-admin", session_id: "s-admin0" }), //  same browser, before sign-in
+    E(3, { visitor_id: null, session_id: "s-admin" }), //        same session, no visitor id
+    E(4, { visitor_id: "v-inact", session_id: "s-inact", user_id: INACTIVE }), // DEACTIVATED administrator
+    E(5, { visitor_id: "v-inact", session_id: "s-inact0" }), //  its browser, before sign-in
+    E(6, { visitor_id: "v-guest", session_id: "s-guest" }), //   guest
+    E(7, { visitor_id: "v-cust", session_id: "s-cust", user_id: CUSTOMER }), // customer
+    E(8, { visitor_id: "v-other", session_id: "s-other", device_type: "mobile" }), // another guest, unrelated browser
+  ];
+  const now = new Date().toISOString();
+  const live = [
+    { session_id: "s-admin", visitor_id: "v-admin", user_id: ADMIN, path: "/", last_seen: now, started_at: now },
+    { session_id: "s-inact0", visitor_id: "v-inact", user_id: null, path: "/", last_seen: now, started_at: now },
+    { session_id: "s-inact", visitor_id: "v-inact", user_id: INACTIVE, path: "/", last_seen: now, started_at: now },
+    { session_id: "s-guest", visitor_id: "v-guest", user_id: null, path: "/scan", last_seen: now, started_at: now },
+    { session_id: "s-cust", visitor_id: "v-cust", user_id: CUSTOMER, path: "/", last_seen: now, started_at: now },
+    { session_id: "s-other", visitor_id: "v-other", user_id: null, path: "/", last_seen: now, started_at: now },
+  ];
+  const ads = [
+    exportAd(1, { user_id: ADMIN }), exportAd(2, { session_id: "s-admin" }), exportAd(3, { user_id: INACTIVE }), exportAd(4, { session_id: "s-inact" }),
+    exportAd(5, { session_id: "s-guest" }), exportAd(6, { user_id: CUSTOMER, session_id: "s-cust" }),
+  ].map((a) => ({ ...a, campaign_id: CAMP }));
+  const mk = (sqlPath) => {
+    const db = exportDb({ sqlPath });
+    db.tables.analytics_events = events.map((e) => ({ ...e }));
+    db.tables.live_sessions = live.map((l) => ({ ...l }));
+    db.tables.ad_events = ads.map((a) => ({ ...a }));
+    db.tables.ad_campaigns = [{ id: CAMP, name: "Camp", status: "active", start_at: null, end_at: null, created_at: day }];
+    db.tables.ad_creatives = [];
+    db.tables.admin_users.push(); // ADMIN, ANALYST, INACTIVE already present
+    const baseRpc = db.client.rpc;
+    db.client.rpc = async (fn, args) => {
+      if (fn === "admin_export_events_page" && sqlPath) {
+        const rows = db.tables.analytics_events.filter((e) => e.created_at >= args.p_from && e.created_at < args.p_to && e.id > args.p_after).map((e) => ({ ...e, is_returning: false }));
+        return { data: { scanned: rows.length, last_id: rows.at(-1)?.id ?? null, rows }, error: null };
+      }
+      return baseRpc(fn, args);
+    };
+    return db;
+  };
+  const survivorsEvents = [6, 7, 8];
+  for (const sqlPath of [true, false]) {
+    const db = mk(sqlPath); useDb(db, { id: ADMIN });
+    const ex = await (await adminExport(exportReq("events"))).json();
+    assert.deepEqual(ex.rows.map((r) => r.record_id).sort((a, b) => a - b), survivorsEvents, `export events (sqlPath=${sqlPath})`);
+    assert.deepEqual((await (await adminExport(exportReq("ads"))).json()).rows.map((r) => r.record_id).sort(), [5, 6], `export ads (sqlPath=${sqlPath})`);
+  }
+  {
+    const db = mk(false); useDb(db, { id: ADMIN });
+    db.client.rpc = async (fn) => (fn === "returning_visitor_ids" ? { data: [], error: null } : { data: null, error: { message: "not installed" } });
+    const dash = await (await adminAnalytics(get("?from=2026-10-01&to=2026-10-28"))).json();
+    assert.equal(dash.overview.unique_visitors, 3, "dashboard visitors");
+    assert.equal(dash.overview.page_views, 3, "dashboard page views");
+    assert.equal(dash.overview.ad_impressions, 2, "dashboard ad impressions");
+  }
+  {
+    const db = mk(true); useDb(db, { id: ADMIN });
+    const lv = await (await adminLive(get())).json();
+    assert.deepEqual(lv.sessions.map((x) => x.session_id).sort(), ["s-cust", "s-guest", "s-other"], "live sessions");
+    assert.equal(lv.online_count, 3);
+  }
+  {
+    const db = mk(true); useDb(db, { id: ADMIN });
+    const c = (await (await adminAds(get())).json()).campaigns.find((x) => x.id === CAMP);
+    assert.equal(c.impressions, 2, "campaign impressions");
+  }
+  {
+    const db = makeDb(); useDb(db);
+    for (const u of [ADMIN, INACTIVE, ANALYST]) {
+      await track(post(view({ user_id: u }))); await heartbeat(post({ session_id: "x" + u, visitor_id: "y" + u, path: "/", user_id: u }));
+    }
+    for (const u of [null, CUSTOMER]) { await track(post(view({ user_id: u, visitor_id: "v" + u, session_id: "s" + u }))); }
+    assert.equal(db.tables.analytics_events.length, 2, "ingestion keeps only the guest and the customer");
+    assert.equal(db.tables.live_sessions.length, 0);
+  }
 });
 
 process.exit(failed ? 1 : 0);

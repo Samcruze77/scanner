@@ -92,8 +92,9 @@ export default {
         .select("event_name,visitor_id,user_id,path,device_type,country_code,region,properties,created_at")
         .order("created_at", { ascending: false })
         .limit(100),
-      loadAdminTraffic(admin),
+      loadAdminTraffic(admin).catch(() => null),
     ])
+    if (!traffic) return response({ error: "Administrator exclusion unavailable; report not produced" }, 503)
     // Administrators are not live visitors: leave them out of the counts and the feed.
     const sessions = (allSessions ?? []).filter((s) => !isAdminTraffic(traffic, s))
     const events = (allEvents ?? []).filter((e) => !isAdminTraffic(traffic, e))

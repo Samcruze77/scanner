@@ -290,7 +290,12 @@ export default {
           .limit(50000)
 
         // Administrator testing does not count towards campaign performance.
-        const adTraffic = await loadAdminTraffic(admin)
+        let adTraffic: Awaited<ReturnType<typeof loadAdminTraffic>>
+        try {
+          adTraffic = await loadAdminTraffic(admin)
+        } catch {
+          return response({ error: "Administrator exclusion unavailable; report not produced" }, 503)
+        }
         const rows = (events ?? []).filter((r) => !isAdminTraffic(adTraffic, r))
         const impressions = rows.filter((r) => r.event_type === "impression").length
         const clicks = rows.filter((r) => r.event_type === "click").length
@@ -331,7 +336,12 @@ export default {
       }
 
       const { data: eventCounts } = await admin.from("ad_events").select("campaign_id,event_type,user_id,session_id")
-      const listTraffic = await loadAdminTraffic(admin)
+      let listTraffic: Awaited<ReturnType<typeof loadAdminTraffic>>
+      try {
+        listTraffic = await loadAdminTraffic(admin)
+      } catch {
+        return response({ error: "Administrator exclusion unavailable; report not produced" }, 503)
+      }
       const statsByCampaign = new Map<string, { impressions: number; clicks: number }>()
       for (const e of eventCounts ?? []) {
         if (isAdminTraffic(listTraffic, e)) continue
