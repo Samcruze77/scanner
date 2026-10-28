@@ -196,7 +196,7 @@ const reportDb = () =>
       { session_id: "s-cust", visitor_id: "v-cust", user_id: CUSTOMER, path: "/", last_seen: new Date().toISOString(), started_at: new Date(Date.now() - 90000).toISOString() },
     ],
   });
-// The dashboard's fast path leaves administrators out inside SQL (migration 20261028134500, verified against a
+// The dashboard's fast path leaves administrators out inside SQL (migration 20261028141446, verified against a
 // real Postgres in tests/analytics/admin-exclusion-sql.mjs). This exercises the real handler's fallback path,
 // which reads the raw tables and applies the same rule in code.
 const ev = (id, o) => ({ id, event_name: "page_view", visitor_id: null, session_id: null, user_id: null, country_code: "NG", region: "LA", city: "Lagos", county_district_lga: null, neighborhood_suburb: null, location_source: "vercel", device_type: "desktop", browser: "chrome", operating_system: "windows", referrer: null, properties: {}, created_at: day, ...o });
@@ -250,7 +250,7 @@ await check("administrator actions stay in the audit logs (exclusion never touch
   for (const file of ["_shared/adminTraffic.ts", "track-analytics/index.ts", "heartbeat/index.ts", "track-ad-event/index.ts"]) {
     assert.ok(!fs.readFileSync(path.join(FN, file), "utf8").replace(/\/\/.*$/gm, "").includes("admin_audit_logs"), `${file} must not reference the audit log`);
   }
-  const mig = fs.readFileSync(path.join(here, "..", "..", "supabase", "migrations", "20261028134500_exclude_admin_traffic_from_reports.sql"), "utf8").replace(/--.*$/gm, "");
+  const mig = fs.readFileSync(path.join(here, "..", "..", "supabase", "migrations", "20261028141446_exclude_admin_traffic_from_reports.sql"), "utf8").replace(/--.*$/gm, "");
   assert.ok(!/admin_audit_logs/.test(mig) && !/\bdelete\b|\btruncate\b|\bupdate\s+public\./i.test(mig), "migration must neither read audit logs nor change/delete rows");
 });
 

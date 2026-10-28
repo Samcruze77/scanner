@@ -6,13 +6,13 @@
 | Where | What happens |
 |---|---|
 | Ingestion (Edge Functions `track-analytics`, `heartbeat`, `track-ad-event`) | The proxy passes the user id from the verified session cookie; the function looks it up in `admin_users` (`_shared/adminTraffic.ts`, cached 60 s) and drops the event/presence/ad event (HTTP 202, `excluded: "admin"`). A client-supplied role/flag is never read. |
-| Reports (`admin-analytics`, `admin-analytics-export`, `admin-live`, `admin-ads`) | Rows are left out when `user_id` is an administrator **or** the row's browser (`visitor_id`) also recorded a signed-in administrator (removes their pre-sign-in testing). The dashboard's SQL aggregation does the same in SQL (migration `20261028134500_exclude_admin_traffic_from_reports.sql`). |
+| Reports (`admin-analytics`, `admin-analytics-export`, `admin-live`, `admin-ads`) | Rows are left out when `user_id` is an administrator **or** the row's browser (`visitor_id`) also recorded a signed-in administrator (removes their pre-sign-in testing). The dashboard's SQL aggregation does the same in SQL (migration `20261028141446_exclude_admin_traffic_from_reports.sql`). |
 | Browser (`utils/analytics/audience.ts`, `AudienceProvider`, `/api/analytics/audience`) | After the auth state is known the server says whether the signed-in account is a row in `admin_users` (ANY row: active or deactivated, same policy as ingestion/reporting; the route reads the table with the server-side secret key for one exact `user_id`, from the verified session). Until then nothing is sent. Administrators send nothing and never load Clarity, on any page. If the check cannot be completed (HTTP 503) Clarity stays off; first-party events are still sent and decided on the server. |
 
 Nothing is deleted or rewritten, and `admin_audit_logs` is untouched.
 
 ### Historical data: how it is matched, and what it can wrongly exclude
-Three links, the same in code (`_shared/adminTraffic.ts`) and SQL (migration `20261028134500`):
+Three links, the same in code (`_shared/adminTraffic.ts`) and SQL (migration `20261028141446`):
 1. `user_id` is an administrator's account id (events, live sessions, ad events).
 2. `visitor_id` equals one that ALSO appeared on an event with an administrator's `user_id`. `visitor_id` is a random id kept in that browser profile's `localStorage` (created only after analytics consent); it is not an IP address, fingerprint or cookie shared between browsers. So this removes the administrator's own pre-sign-in testing from that browser.
 3. `session_id` equals one that appeared on an event with an administrator's `user_id` (the only link available for ad events, which have no visitor id).
@@ -39,7 +39,7 @@ Nothing is deleted, updated or backfilled: the exclusion is applied when reports
 - Trade-off: while the `admin_users` lookup is down, events from signed-in visitors whose status was never verified on that instance in the last 10 minutes are lost. Guests are unaffected. Lost events are not replayed.
 - Audit logs and admin activity logs are not involved and keep working.
 
-**Reports** (dashboard fallback path, export, live view, campaign stats) call `loadAdminTraffic()`, which throws if it cannot read every administrator account, their browsers/sessions completely (paged), or gets a malformed or incomplete answer. The endpoint then answers HTTP 503 with only an error, never figures that still contain administrators. The dashboard's SQL fast path excludes inside SQL (migration `20261028134500`); if the SQL function fails the handler falls back to the raw-table path, which is subject to the same rule.
+**Reports** (dashboard fallback path, export, live view, campaign stats) call `loadAdminTraffic()`, which throws if it cannot read every administrator account, their browsers/sessions completely (paged), or gets a malformed or incomplete answer. The endpoint then answers HTTP 503 with only an error, never figures that still contain administrators. The dashboard's SQL fast path excludes inside SQL (migration `20261028141446`); if the SQL function fails the handler falls back to the raw-table path, which is subject to the same rule.
 
 **Browser** (`/api/analytics/audience`): the answer is only `{excluded: true|false}` or 503. 503 covers a malformed identity, a failed/timed-out/malformed lookup and a thrown error. The browser waits for the answer before sending anything or loading Clarity, and keeps Clarity off on 503.
 
@@ -49,7 +49,7 @@ Reports and ingestion use the same three links (account, browser `visitor_id`, s
 Remote migration versions are the time the change was applied (for example `20261028105309_create_geo_admin_units`), and several older local files carry different stamps for the same change, so local filenames are not a reliable pairing key. The local file is stamped with a current (not future) time, after every remote version. Sequence: (1) apply with the Supabase migration tool (it records its own version); (2) read the version it recorded (`list_migrations`); (3) rename the local file to that version and update the references (as was done for `geo_admin_units`); never edit remote history by hand.
 
 ### Safe production rollout order (none of it done yet)
-1. Apply the migration `20261028134500_exclude_admin_traffic_from_reports.sql` with the migration tool (additive: one new function, two replaced functions with unchanged signatures/grants; no table change). Read the version it records with `list_migrations` and rename the local file to match.
+1. Apply the migration `20261028141446_exclude_admin_traffic_from_reports.sql` with the migration tool (additive: one new function, two replaced functions with unchanged signatures/grants; no table change). Read the version it records with `list_migrations` and rename the local file to match.
 2. Deploy all seven Edge Functions: `track-analytics`, `heartbeat`, `track-ad-event`, `admin-analytics`, `admin-analytics-export`, `admin-live`, `admin-ads` (each imports `_shared/adminTraffic.ts`; deploy `_shared` with every one). `SUPABASE_SECRET_KEY` is already set in Vercel for the proxies and is what the audience route uses.
 3. Push the website (audience route, browser gating, Clarity, session semantics).
 4. Verify live: an administrator (including a deactivated one, if available) produces no event, presence row or Clarity request; a guest and a customer do; the dashboard figures exclude administrators; check function logs for `admin exclusion lookup failed`.

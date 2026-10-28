@@ -139,7 +139,7 @@ export default {
       const legacy = await loadRowsLegacy(ctx, from, toExclusive, returningIds)
       if (legacy.error) return response({ error: legacy.error }, 500)
       // The SQL functions above already leave administrator traffic out (migration
-      // 20261028134500). This fallback reads the raw tables, so it applies the same rule here:
+      // 20261028141446). This fallback reads the raw tables, so it applies the same rule here:
       // administrator accounts and the browsers they signed in from are not visitors.
       let traffic: Awaited<ReturnType<typeof loadAdminTraffic>>
       try {

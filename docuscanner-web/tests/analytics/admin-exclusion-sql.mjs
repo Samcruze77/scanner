@@ -1,4 +1,4 @@
-// Runs migration 20261028134500_exclude_admin_traffic_from_reports.sql in a real (in-process) Postgres and
+// Runs migration 20261028141446_exclude_admin_traffic_from_reports.sql in a real (in-process) Postgres and
 // checks that the dashboard's SQL aggregation leaves out administrator accounts and the browser/session an
 // administrator signed in from, keeps guests and customers, is idempotent, and changes no stored rows.
 // Needs @electric-sql/pglite, which is NOT a project dependency: install it somewhere (npm i @electric-sql/pglite)
@@ -37,7 +37,7 @@ insert into ad_events (event_type, user_id, session_id, created_at) values
  ('impression',null,'sg', now()),            -- guest
  ('impression','33333333-3333-4333-8333-333333333333','sc', now());
 `);
-const mig = readFileSync(root + "/supabase/migrations/20261028134500_exclude_admin_traffic_from_reports.sql", "utf8");
+const mig = readFileSync(root + "/supabase/migrations/20261028141446_exclude_admin_traffic_from_reports.sql", "utf8");
 await db.exec(mig);
 await db.exec(mig); // idempotent
 const q = async (s) => (await db.query(s)).rows;

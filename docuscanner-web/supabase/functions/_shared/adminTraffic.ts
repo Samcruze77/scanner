@@ -6,7 +6,7 @@
 // (which takes it from the verified session cookie), and reporting reads the table itself.
 //
 // Three ways traffic is attributed to an administrator (the SQL in migration
-// 20261028134500 applies exactly the same three rules):
+// 20261028141446 applies exactly the same three rules):
 //   - user_id: the event/session carries an administrator's account id.
 //   - visitor_id: the same browser (anonymous visitor_id) ALSO produced events while an
 //     administrator was signed in. Events from that browser before sign-in (the administrator's own
