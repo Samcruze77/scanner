@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:analytics:ua": "node --no-warnings --import ./tests/scanner/register.mjs tests/analytics/proxy-user-agent.mjs",
     "test:geo": "node tests/geo/ng-admin-units.mjs && node --no-warnings --import ./tests/scanner/register.mjs tests/geo/units-ui.mjs",
     "test:pdf2excel": "node tests/pdf2excel/geometry.mjs && node tests/pdf2excel/csv.mjs",
     "test:docx": "node tests/docx/compare.mjs",

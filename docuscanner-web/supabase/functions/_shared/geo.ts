@@ -93,8 +93,9 @@ export function browserFromUserAgent(ua: string): string {
 export function osFromUserAgent(ua: string): string {
   const value = ua.toLowerCase();
   if (value.includes("windows")) return "windows";
+  // iOS user agents say "like Mac OS X", so they must be matched before macOS.
+  if (value.includes("iphone") || value.includes("ipad") || value.includes("ipod")) return "ios";
   if (value.includes("mac os") || value.includes("macintosh")) return "macos";
-  if (value.includes("iphone") || value.includes("ipad")) return "ios";
   if (value.includes("android")) return "android";
   if (value.includes("linux")) return "linux";
   return "other";

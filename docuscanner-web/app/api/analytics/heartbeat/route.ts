@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import { resolveRequestGeo } from "@/utils/analytics/geo";
 import { enrichRequestGeo } from "@/utils/analytics/geoProviders";
-import { readJsonBody, rateLimited, resolveUserId, callEdgeFunction } from "@/utils/analytics/proxy.server";
+import { readJsonBody, rateLimited, resolveUserId, callEdgeFunction, visitorUserAgent } from "@/utils/analytics/proxy.server";
 
 export const runtime = "nodejs";
 
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
         postal_code: geo.postalCode,
         source: geo.source,
       },
-    });
+    }, visitorUserAgent(request));
 
     return NextResponse.json({ ok: result.ok }, { status: result.ok ? 202 : result.status });
   } catch {
