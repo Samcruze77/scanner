@@ -1,7 +1,7 @@
 // Reference administrative units (state / LGA / FCT Area Council) as the admin
 // Geography page browses them. Pure: no React, no I/O. The dataset itself lives in
 // data/geo/ng-admin-units.json (OCHA COD-AB, CC BY-IGO) and mirrors the
-// public.geo_admin_units table; see supabase/migrations/20261028120000_*.sql.
+// public.geo_admin_units table; see supabase/migrations/20261028105309_*.sql.
 // These are reference places, not visitor locations -- an IP lookup does not
 // resolve to an LGA.
 

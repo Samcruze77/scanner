@@ -2,6 +2,7 @@
 // Expected per-state LGA counts are the published constitutional figures (768 + 6 FCT
 // Area Councils = 774), typed here independently of the source workbook.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 const data = JSON.parse(readFileSync("data/geo/ng-admin-units.json", "utf8"));
@@ -76,6 +77,16 @@ check("seed SQL carries every unit once and is an idempotent upsert", () => {
   assert.match(seed, /on conflict \(country_code, code\) do update/);
   assert.ok(!/\bdelete\b|\btruncate\b/i.test(seed.replace(/--.*$/gm, "")));
   for (const u of [...data.states, ...data.lgas]) assert.ok(seed.includes(`'${u.code}', '${u.name.replace(/'/g, "''")}'`), u.code);
+});
+
+// MD5 of "code|name|type|parent" rows ordered by code, as computed inside the production
+// geo_admin_units table on 2026-10-28 (project zdegimgixjpirtivrrgc). If the JSON changes,
+// the table must be re-seeded and this value updated together.
+const PRODUCTION_CHECKSUM = "1ede397725446b59a0f8e9ea63f90898";
+check("bundled JSON is identical to what is loaded in production", () => {
+  const rows = [...data.states.map((s) => [s.code, s.name, s.type, ""]), ...data.lgas.map((l) => [l.code, l.name, l.type, l.stateCode])]
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  assert.equal(createHash("md5").update(rows.map((r) => r.join("|")).join("~")).digest("hex"), PRODUCTION_CHECKSUM);
 });
 
 process.exit(failed ? 1 : 0);

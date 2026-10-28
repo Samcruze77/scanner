@@ -422,11 +422,11 @@ export function GeographyClient({
             )}
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scrolls sideways on small screens" className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                <th className="px-4 py-2 font-medium">Country</th>
+                <th className="sticky left-0 bg-surface px-4 py-2 font-medium">Country</th>
                 <th onClick={() => toggleSort("users")} className={thClass}>Users{arrow("users")}</th>
                 <th onClick={() => toggleSort("sessions")} className={thClass}>Sessions{arrow("sessions")}</th>
                 {CHILD_LEVELS.map((l) => (
@@ -453,7 +453,7 @@ export function GeographyClient({
                     onClick={() => (row.key === "Unknown" ? undefined : select("country", selection.country === row.key ? null : row))}
                     className={`border-b border-zinc-100 last:border-0 dark:border-zinc-900 ${row.key === "Unknown" ? "" : "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950"} ${selection.country === row.key ? "bg-zinc-50 dark:bg-zinc-950" : ""}`}
                   >
-                    <td className="px-4 py-2 font-medium">{countryLabel(row.key)}</td>
+                    <td className="sticky left-0 bg-surface px-4 py-2 font-medium">{countryLabel(row.key)}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{fmt(row.users)}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{fmt(row.sessions)}</td>
                     {CHILD_LEVELS.map((l) => (
@@ -494,11 +494,11 @@ export function GeographyClient({
                 </p>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">{trail}</p>
               </div>
-              <div className="overflow-x-auto">
+              <div tabIndex={0} role="region" aria-label="Table, scrolls sideways on small screens" className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                      <th className="px-4 py-2 font-medium">{level.label}</th>
+                      <th className="sticky left-0 bg-surface px-4 py-2 font-medium">{level.label}</th>
                       <th className="px-4 py-2 text-right font-medium">Users</th>
                       <th className="px-4 py-2 text-right font-medium">Sessions</th>
                       {deeper.map((l) => (
@@ -523,7 +523,7 @@ export function GeographyClient({
                           onClick={() => select(level.field, isSelected(level.field, row) ? null : row)}
                           className={`cursor-pointer border-b border-zinc-100 last:border-0 hover:bg-zinc-50 dark:border-zinc-900 dark:hover:bg-zinc-950 ${isSelected(level.field, row) ? "bg-zinc-50 dark:bg-zinc-950" : ""}`}
                         >
-                          <td className="px-4 py-2 font-medium">{nodeLabel(level.field, row)}</td>
+                          <td className="sticky left-0 bg-surface px-4 py-2 font-medium">{nodeLabel(level.field, row)}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{fmt(row.users)}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{fmt(row.sessions)}</td>
                           {deeper.map((l) => (
@@ -553,7 +553,7 @@ export function GeographyClient({
             {data?.locations_truncated ? ` Showing the top ${data.locations?.length ?? 0} of ${fmt(data.locations_total_rows)} combinations for this range. Use Export for the complete dataset.` : ""}
           </p>
         </div>
-        <div className="max-h-[28rem] overflow-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scrolls sideways on small screens" className="max-h-[28rem] overflow-auto">
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 bg-surface">
               <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
@@ -622,7 +622,7 @@ export function GeographyClient({
         {topAdvertiserRows.length === 0 || topAdvertiserRows.every((c) => c.row.ad_impressions === 0) ? (
           <p className="p-4 text-sm text-zinc-400">No ad impressions recorded yet in this range.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Table, scrolls sideways on small screens" className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
