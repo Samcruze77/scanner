@@ -66,8 +66,12 @@ export function DashboardClient({
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {isPending && <p className="text-sm text-zinc-400">Loading…</p>}
+      {(error || (!data && !isPending)) && (
+        <p role="alert" className="rounded-lg border border-red-200 p-3 text-sm text-red-600 dark:border-red-900">
+          {error ?? "Couldn't load analytics. Reload the page or apply a date range to retry."}
+        </p>
+      )}
+      {isPending && <p role="status" className="text-sm text-zinc-400">Loading…</p>}
 
       <Link
         href="/admin/geography"
@@ -91,7 +95,7 @@ export function DashboardClient({
       )}
 
       {overview.length === 0 ? (
-        <p className="text-sm text-zinc-400">No data yet</p>
+        data && <p className="text-sm text-zinc-400">No data yet</p>
       ) : (
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {overview.map((entry) => (
@@ -100,6 +104,7 @@ export function DashboardClient({
         </section>
       )}
 
+      {data && (
       <section>
         {dailySeries ? (
           <MiniBarChart title="Daily" points={dailySeries} />
@@ -107,6 +112,7 @@ export function DashboardClient({
           <DailyTable daily={data?.daily} />
         )}
       </section>
+      )}
 
       {breakdownEntries.length > 0 && (
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

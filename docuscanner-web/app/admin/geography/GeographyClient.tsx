@@ -37,6 +37,8 @@ import type { AdminAnalyticsResponse, AdminGeoChildField, AdminGeoCoverage, Admi
 import { DateRangeControl } from "@/components/admin/DateRangeControl";
 import { MetricCard } from "@/components/admin/MetricCard";
 import { GeoSelectors, selectClass } from "@/components/admin/GeoSelectors";
+import { AdminUnitsBrowser } from "./AdminUnitsBrowser";
+import type { AdminUnitsDataset } from "@/utils/admin/adminUnits";
 
 const DEVICES = ["desktop", "mobile", "tablet"];
 
@@ -149,6 +151,7 @@ export function GeographyClient({
   initialSelection = EMPTY_SELECTION,
   initialDevice = "",
   initialVisitorType = "",
+  adminUnits = null,
 }: {
   initialRange: DateRange;
   initialData: AdminAnalyticsResponse | null;
@@ -156,6 +159,7 @@ export function GeographyClient({
   initialSelection?: Selection;
   initialDevice?: string;
   initialVisitorType?: string;
+  adminUnits?: AdminUnitsDataset | null;
 }) {
   const [range, setRange] = useState(initialRange);
   const [device, setDevice] = useState<string>(initialDevice);
@@ -346,8 +350,12 @@ export function GeographyClient({
         </Link>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {isPending && <p className="text-sm text-zinc-400">Loading…</p>}
+      {(error || (!data && !isPending)) && (
+        <p role="alert" className="rounded-lg border border-red-200 p-3 text-sm text-red-600 dark:border-red-900">
+          {error ?? "Couldn't load geographic analytics. The figures below are not real zeros; reload the page or apply a date range to retry."}
+        </p>
+      )}
+      {isPending && <p role="status" className="text-sm text-zinc-400">Loading…</p>}
 
       {!isPending && !error && data && allCountries.length === 0 && (
         <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
@@ -361,12 +369,12 @@ export function GeographyClient({
       <section>
         <p className="mb-2 text-sm font-medium">Location overview</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-          <MetricCard label="Countries" value={overviewValue("countries") ?? allCountries.filter((c) => c.key !== "Unknown").length} />
+          <MetricCard label="Countries" value={overviewValue("countries") ?? (data ? allCountries.filter((c) => c.key !== "Unknown").length : null)} />
           <MetricCard label="Users" value={overviewValue("unique_visitors")} />
           <MetricCard label="Sessions" value={overviewValue("sessions")} />
-          <MetricCard label="Cities / towns" value={overviewValue("cities") ?? levelNodes.city_town.length} />
-          <MetricCard label="Counties / districts" value={overviewValue("counties") ?? levelNodes.county_district_lga.length} />
-          <MetricCard label="Neighborhoods" value={overviewValue("neighborhoods") ?? levelNodes.neighborhood_suburb.length} />
+          <MetricCard label="Cities / towns" value={overviewValue("cities") ?? (data ? levelNodes.city_town.length : null)} />
+          <MetricCard label="Counties / districts" value={overviewValue("counties") ?? (data ? levelNodes.county_district_lga.length : null)} />
+          <MetricCard label="Neighborhoods" value={overviewValue("neighborhoods") ?? (data ? levelNodes.neighborhood_suburb.length : null)} />
           <MetricCard label="Ad impressions" value={overviewValue("ad_impressions")} />
         </div>
       </section>
@@ -588,6 +596,8 @@ export function GeographyClient({
           </table>
         </div>
       </section>
+
+      <AdminUnitsBrowser data={adminUnits} />
 
       {/* --- Advertiser Audience --- */}
       <section className="rounded-lg border border-zinc-200 bg-surface dark:border-zinc-800">

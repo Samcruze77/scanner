@@ -9,7 +9,7 @@
 import { LEVELS, nodeLabel, nodesUnder, selectNode, type LevelNodes, type Selection } from "@/utils/admin/geoLevels";
 
 export const selectClass =
-  "rounded-md border border-zinc-200 px-2 py-1.5 text-sm dark:border-zinc-800 dark:bg-black disabled:opacity-50 min-w-0 max-w-full";
+  "rounded-md border border-zinc-200 px-2 py-1.5 min-h-10 text-sm dark:border-zinc-800 dark:bg-black disabled:opacity-50 min-w-0 max-w-full";
 
 export function GeoSelectors({
   nodes,

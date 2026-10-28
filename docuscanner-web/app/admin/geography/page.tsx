@@ -1,7 +1,9 @@
 import { getAdminAnalytics } from "@/utils/admin/client.server";
 import { GeographyClient } from "./GeographyClient";
+import adminUnits from "../../../data/geo/ng-admin-units.json";
 import { rangeFromParams, selectionFromParams, toURLSearchParams, type SearchParams } from "@/utils/admin/urlSelection";
 import type { AdminAnalyticsResponse } from "@/utils/admin/types";
+import type { AdminUnitsDataset } from "@/utils/admin/adminUnits";
 
 export default async function AdminGeographyPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = toURLSearchParams(await searchParams);
@@ -22,6 +24,7 @@ export default async function AdminGeographyPage({ searchParams }: { searchParam
       initialSelection={selection}
       initialDevice={filters.device ?? ""}
       initialVisitorType={filters.visitor_type ?? ""}
+      adminUnits={adminUnits as AdminUnitsDataset}
     />
   );
 }

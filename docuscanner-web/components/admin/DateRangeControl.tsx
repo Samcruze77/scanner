@@ -16,7 +16,7 @@ const PRESETS: { label: string; range: () => DateRange }[] = [
   { label: "90 days", range: () => defaultDateRange(90) },
 ];
 
-const field = "w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-800";
+const field = "min-h-10 w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-800";
 
 export function DateRangeControl({
   value,
@@ -58,7 +58,7 @@ export function DateRangeControl({
               type="button"
               disabled={busy}
               onClick={() => onApply(p.range())}
-              className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+              className="min-h-10 rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
             >
               {p.label}
             </button>
