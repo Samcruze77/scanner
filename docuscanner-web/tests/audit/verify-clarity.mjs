@@ -160,6 +160,9 @@ async function finishAndExport(page, name) {
 }
 async function upload(page, route, file) {
   await visit(page, route);
+  // On a slow connection the page may not be interactive yet: a file chosen before that is ignored.
+  await page.waitForLoadState("networkidle", { timeout: 60000 }).catch(() => undefined);
+  await page.getByRole("button", { name: "Reject non-essential" }).click({ timeout: 3000 }).catch(() => undefined);
   await page.locator('input[aria-label^="Upload a document"]').setInputFiles(file);
   await page.waitForFunction(() => document.querySelectorAll('ul[aria-label="Pages"] li').length === 1, null, { timeout: 60000 });
   await page.waitForFunction(() => [...document.querySelectorAll("button")].some((b) => /Create PDF \(1 page/.test(b.innerText) && !b.disabled), null, { timeout: 60000 });
