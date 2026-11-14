@@ -25,8 +25,11 @@ export function exportRenderSide(longPt: number): number {
   return Math.min(MAX_RENDER_SIDE_PX, Math.ceil((longPt / 72) * EXPORT_DPI));
 }
 
-export async function sharpenFlattenedPage(page: ScannerPage, opened: Map<string, OpenedPdf>): Promise<ScannerPage> {
-  if (!page.source || !page.ptPerPx || canPreserveSource(page)) return page;
+// "unreadable": opened PDFs whose pages cannot be re-embedded in the export (see unreadableSources in
+// pdfExport.ts). Their pages become pictures even when nothing was edited, so they are drawn sharply as well.
+export async function sharpenFlattenedPage(page: ScannerPage, opened: Map<string, OpenedPdf>, unreadable?: ReadonlySet<string>): Promise<ScannerPage> {
+  if (!page.source || !page.ptPerPx) return page;
+  if (canPreserveSource(page) && !unreadable?.has(page.source.fileId)) return page;
   const bytes = getSourcePdf(page.source.fileId);
   if (!bytes) return page;
   const longPt = Math.max(page.originalWidth, page.originalHeight) * page.ptPerPx;
@@ -64,12 +67,12 @@ export async function sharpenFlattenedPage(page: ScannerPage, opened: Map<string
 }
 
 // Every page that needs new pixels, drawn sharply; all other pages are returned as they are.
-export async function sharpenFlattenedPages(pages: ScannerPage[]): Promise<ScannerPage[]> {
-  if (!pages.some((p) => p.source && !canPreserveSource(p))) return pages;
+export async function sharpenFlattenedPages(pages: ScannerPage[], unreadable?: ReadonlySet<string>): Promise<ScannerPage[]> {
+  if (!pages.some((p) => p.source && (!canPreserveSource(p) || unreadable?.has(p.source.fileId)))) return pages;
   const opened = new Map<string, OpenedPdf>();
   try {
     const out: ScannerPage[] = [];
-    for (const page of pages) out.push(await sharpenFlattenedPage(page, opened));
+    for (const page of pages) out.push(await sharpenFlattenedPage(page, opened, unreadable));
     return out;
   } finally {
     for (const doc of opened.values()) await doc.destroy().catch(() => undefined);

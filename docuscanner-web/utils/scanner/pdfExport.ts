@@ -20,11 +20,14 @@
 // pages are exported as a picture of the page, drawn again from the ORIGINAL PDF at about 300 dpi
 // (see sourceRender.ts), not enlarged from the on-screen picture. A rectangle crop hides the cropped-away
 // area but the PDF still contains it; "remove for good" is the option that does not.
-// Photographs and scans are not PDFs, so they are always pictures.
+// Photographs and scans are not PDFs, so they are always pictures. What the person adds to them is still
+// written as real PDF content on top of the UNTOUCHED page picture: painting it into the picture would encode
+// the whole page again (softer every time) and would lock the typed text and the signature to the picture's
+// own resolution, which is low for a photo received through a messaging app (about 120 dpi on A4).
 
-import { BlendMode, LineCapStyle, PDFDocument, StandardFonts, degrees, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
+import { BlendMode, LineCapStyle, PDFDocument, StandardFonts, degrees, popGraphicsState, pushGraphicsState, rgb, translate, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import type { Annotation, TextAnnotation } from "./annotations";
-import { buildPageLayers, ensureAnnotationImages, flattenPageToJpeg, layoutText, renderAnnotations } from "./annotationRender";
+import { ensureAnnotationImages, layoutText, renderAnnotations } from "./annotationRender";
 import { exportPageLayout } from "./pageLayout";
 import type { ScannerPage } from "./page";
 import { getSourcePdf } from "./sourcePdfs";
@@ -32,6 +35,36 @@ import { axisAlignedRect, cropToUserSpace, flattenReason } from "./cropMath";
 
 export function canPreserveSource(page: ScannerPage): boolean {
   return !!page.source && !!getSourcePdf(page.source.fileId) && flattenReason(page) === null;
+}
+
+// The opened PDFs parsed once per export. A PDF that pdf-lib cannot read (one carrying restrictions or
+// encryption, or a damaged one) gives null: its pages cannot be re-embedded and are exported as pictures.
+export interface SourceDocs {
+  load(fileId: string): Promise<PDFDocument | null>;
+}
+
+export function createSourceDocs(): SourceDocs {
+  const docs = new Map<string, Promise<PDFDocument | null>>();
+  return {
+    load(fileId) {
+      let doc = docs.get(fileId);
+      if (!doc) {
+        const bytes = getSourcePdf(fileId);
+        doc = bytes ? PDFDocument.load(bytes, { ignoreEncryption: false, updateMetadata: false }).catch(() => null) : Promise.resolve(null);
+        docs.set(fileId, doc);
+      }
+      return doc;
+    },
+  };
+}
+
+// The opened PDFs among these pages that cannot be re-embedded although nothing the person did prevents it.
+export async function unreadableSources(pages: ScannerPage[], docs: SourceDocs): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (const page of pages) {
+    if (page.source && canPreserveSource(page) && !(await docs.load(page.source.fileId))) out.add(page.source.fileId);
+  }
+  return out;
 }
 
 function dataUrlBytes(dataUrl: string): { bytes: Uint8Array; mime: string } {
@@ -127,12 +160,15 @@ async function drawAnnotations(out: PDFDocument, pdfPage: PDFPage, page: Scanner
   // Text the standard fonts cannot write (other alphabets, emoji) is drawn as a picture instead, so it
   // still appears; everything else above stays real PDF content.
   if (needsRaster.length > 0) {
+    // About 300 dpi for the sheet (at least twice the page picture), within what a canvas can hold.
+    const long = Math.max(pw, ph);
+    const scale = Math.max(1, Math.min(RASTER_TEXT_MAX_SIDE_PX / long, Math.max(2, ((Math.max(sheetW, sheetH) / 72) * 300) / long)));
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(pw * 2);
-    canvas.height = Math.round(ph * 2);
+    canvas.width = Math.round(pw * scale);
+    canvas.height = Math.round(ph * scale);
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      ctx.scale(2, 2);
+      ctx.scale(canvas.width / pw, canvas.height / ph);
       await ensureAnnotationImages(needsRaster);
       renderAnnotations(ctx, pw, ph, needsRaster);
       const image = await embedDataUrl(out, canvas.toDataURL("image/png"));
@@ -141,6 +177,8 @@ async function drawAnnotations(out: PDFDocument, pdfPage: PDFPage, page: Scanner
     canvas.width = canvas.height = 0;
   }
 }
+
+const RASTER_TEXT_MAX_SIDE_PX = 4096;
 
 // Returns false when the text cannot be encoded in a standard font (the caller then rasterizes it).
 async function drawText(pdfPage: PDFPage, a: TextAnnotation, pageWidthPx: number, ky: number, kx: number, sheetH: number, fonts: Fonts): Promise<boolean> {
@@ -163,24 +201,14 @@ async function drawText(pdfPage: PDFPage, a: TextAnnotation, pageWidthPx: number
   return true;
 }
 
-// Builds the exported PDF with pdf-lib. Returns null when no page can keep its source (the caller then
-// uses the picture-based writer, which is unchanged).
-export async function createPdfPreservingSource(pages: ScannerPage[]): Promise<Blob | null> {
-  if (!pages.some(canPreserveSource)) return null;
+// Builds the exported PDF with pdf-lib. Returns null when there is nothing for it to keep: no page comes from
+// a PDF and nobody added anything (the caller then uses the plain picture writer, which is unchanged).
+export async function createPdfPreservingSource(pages: ScannerPage[], docs: SourceDocs = createSourceDocs()): Promise<Blob | null> {
+  if (!pages.some((page) => canPreserveSource(page) || page.annotations.length > 0)) return null;
 
   const out = await PDFDocument.create();
   const fonts = fontsFor(out);
-  const sources = new Map<string, PDFDocument | null>();
-  const loadSource = async (fileId: string): Promise<PDFDocument | null> => {
-    if (!sources.has(fileId)) {
-      try {
-        sources.set(fileId, await PDFDocument.load(getSourcePdf(fileId) as Uint8Array, { ignoreEncryption: false, updateMetadata: false }));
-      } catch {
-        sources.set(fileId, null);
-      }
-    }
-    return sources.get(fileId) ?? null;
-  };
+  const loadSource = (fileId: string) => docs.load(fileId);
 
   for (const page of pages) {
     const src = canPreserveSource(page) && page.source ? await loadSource(page.source.fileId) : null;
@@ -213,21 +241,16 @@ export async function createPdfPreservingSource(pages: ScannerPage[]): Promise<B
     // A picture page: photographs, scans, and PDF pages that were cropped or enhanced.
     const layout = exportPageLayout(page.processedWidth, page.processedHeight, page.ptPerPx);
     const pdfPage = out.addPage([layout.sheetW, layout.sheetH]);
-    const layers = await buildPageLayers(page);
-    if (layers) {
-      for (const layer of layers) {
-        const image = await embedDataUrl(out, layer.dataUrl);
-        pdfPage.drawImage(image, {
-          x: layout.x + layer.x * layout.w,
-          y: layout.sheetH - (layout.y + (layer.y + layer.h) * layout.h),
-          width: layer.w * layout.w,
-          height: layer.h * layout.h,
-        });
-      }
-    } else {
-      const dataUrl = page.annotations.length > 0 ? await flattenPageToJpeg(page) : page.processedDataUrl;
-      const image = await embedDataUrl(out, dataUrl);
-      pdfPage.drawImage(image, { x: layout.x, y: layout.sheetH - layout.y - layout.h, width: layout.w, height: layout.h });
+    // The page picture exactly as it is (its bytes are embedded, not encoded again)...
+    const image = await embedDataUrl(out, page.processedDataUrl);
+    const left = layout.x;
+    const bottom = layout.sheetH - layout.y - layout.h;
+    pdfPage.drawImage(image, { x: left, y: bottom, width: layout.w, height: layout.h });
+    // ...and the additions on top of it as real PDF content, in the picture's own box on the sheet.
+    if (page.annotations.length > 0) {
+      pdfPage.pushOperators(pushGraphicsState(), translate(left, bottom));
+      await drawAnnotations(out, pdfPage, page, layout.w, layout.h, fonts);
+      pdfPage.pushOperators(popGraphicsState());
     }
   }
 

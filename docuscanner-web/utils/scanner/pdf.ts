@@ -2,7 +2,7 @@
 
 import { buildPageLayers, flattenPageToJpeg } from "./annotationRender";
 import { exportPageLayout } from "./pageLayout";
-import { createPdfPreservingSource } from "./pdfExport";
+import { createPdfPreservingSource, createSourceDocs, unreadableSources } from "./pdfExport";
 import { sharpenFlattenedPages } from "./sourceRender";
 import { dataUrlBytes, debugLog, isScannerDebug } from "./debugLog";
 import type { ScannerPage } from "./page";
@@ -12,20 +12,24 @@ import type { ScannerPage } from "./page";
 // -processed render (crop/rotation/enhancement already baked in by
 // pageProcessing.ts), so PDF creation itself does no image processing.
 //
-// Pages that have annotations (text, pen, highlights, stamps, signatures) are
-// flattened first: the annotations are drawn onto the processed image so the
-// PDF shows them. Pages without annotations use their image untouched, exactly
-// as before.
+// What the person added (text, pen, highlights, stamps, signatures, pictures) is written as real PDF
+// content over the untouched page (see pdfExport.ts), so it is sharp at any zoom and the page picture is not
+// encoded again. Only if that writer fails are the additions painted into the page picture (the jsPDF path
+// below), which is also what a document of plain, unedited pictures uses.
 export async function createPdfFromPages(inputPages: ScannerPage[]): Promise<Blob> {
   if (inputPages.length === 0) throw new Error("no_pages");
   // Pages of an imported PDF that were cropped skewed, enhanced or adjusted are drawn again from the original at
   // about 300 dpi (sourceRender.ts) so the picture that has to be used is sharp.
-  const pages = await sharpenFlattenedPages(inputPages);
+  // A PDF that cannot be re-embedded (it carries restrictions or encryption) would otherwise come out as its
+  // soft on-screen picture: those pages are drawn again at about 300 dpi too.
+  const docs = createSourceDocs();
+  const unreadable = await unreadableSources(inputPages, docs).catch(() => new Set<string>());
+  const pages = await sharpenFlattenedPages(inputPages, unreadable);
 
   // Pages that came from a PDF keep their original content (text, vectors, fonts); see pdfExport.ts.
   // If that path cannot be used for any reason the picture-based writer below produces the PDF.
   try {
-    const preserved = await createPdfPreservingSource(pages);
+    const preserved = await createPdfPreservingSource(pages, docs);
     if (preserved) return preserved;
   } catch (error) {
     console.warn("pdf-export: keeping the original pages failed, exporting page pictures instead", error instanceof Error ? error.name : "");

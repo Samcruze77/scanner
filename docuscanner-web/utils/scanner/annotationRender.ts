@@ -22,7 +22,12 @@ import {
 import type { ScannerPage } from "./page";
 
 const HIGHLIGHT_ALPHA = 0.7;
-const FLATTEN_JPEG_QUALITY = 0.92;
+const FLATTEN_JPEG_QUALITY = 0.95;
+// A low-resolution page picture is enlarged before the additions are painted into it, so typed text and a
+// signature are drawn at about print resolution instead of at the picture's own (a 1000 px photo is only
+// about 120 dpi on A4). Pictures already this large are painted at their own size.
+const FLATTEN_MIN_LONG_SIDE_PX = 2800;
+const FLATTEN_MAX_SCALE = 4;
 
 // ---- text layout ---------------------------------------------------------------
 
@@ -360,11 +365,15 @@ export async function flattenPageToJpeg(page: ScannerPage): Promise<string> {
   const width = base.naturalWidth || page.processedWidth;
   const height = base.naturalHeight || page.processedHeight;
 
+  const scale = Math.max(1, Math.min(FLATTEN_MAX_SCALE, FLATTEN_MIN_LONG_SIDE_PX / Math.max(width, height)));
   const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("canvas_unavailable");
+  // Everything below is drawn in the page picture's own pixel units.
+  ctx.scale(canvas.width / width, canvas.height / height);
+  ctx.imageSmoothingQuality = "high";
 
   // JPEG has no alpha; make sure any transparent base pixels aren't black.
   ctx.fillStyle = "#ffffff";
@@ -435,11 +444,15 @@ export async function buildPageLayers(page: ScannerPage): Promise<PageLayer[] | 
   const flushRun = async () => {
     if (run.length === 0) return;
     await ensureAnnotationImages(run);
+    // Drawn at about print resolution when the page picture is small (the layer is placed by fractions of
+    // the page, so its pixel size is free).
+    const scale = Math.max(1, Math.min(FLATTEN_MAX_SCALE, FLATTEN_MIN_LONG_SIDE_PX / Math.max(width, height)));
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("canvas_unavailable");
+    ctx.scale(canvas.width / width, canvas.height / height);
     renderAnnotations(ctx, width, height, run);
     layers.push({ kind: "overlay", dataUrl: canvas.toDataURL("image/png"), format: "PNG", x: 0, y: 0, w: 1, h: 1 });
     canvas.width = canvas.height = 0;
