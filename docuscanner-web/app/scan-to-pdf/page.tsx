@@ -14,7 +14,6 @@ const landing = getLanding("/scan-to-pdf")!;
 
 export const metadata: Metadata = pageMetadata({
   title: landing.title,
-  absoluteTitle: `${landing.h1} - FreePDFScanner`,
   description: landing.description,
   path: "/scan-to-pdf",
 });

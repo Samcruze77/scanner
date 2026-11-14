@@ -13,7 +13,6 @@ const landing = getLanding("/create-word-document")!;
 
 export const metadata: Metadata = pageMetadata({
   title: landing.title,
-  absoluteTitle: `${landing.h1} - FreePDFScanner`,
   description: landing.description,
   path: "/create-word-document",
 });

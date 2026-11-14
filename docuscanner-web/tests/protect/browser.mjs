@@ -168,7 +168,7 @@ await test("anonymous: Word page loads with no sign-in wall and says what it doe
   assert.match(await s.page.locator("h1").innerText(), /Word document/i);
   await s.page.getByText("No account needed").waitFor();
   assert.equal(await s.page.getByRole("dialog").count(), 0, "no login dialog");
-  assert.match(await s.page.title(), /Password protect a Word document/i);
+  assert.match(await s.page.title(), /Password Protect a DOCX/i);
   assert.ok((await s.page.locator('meta[name="description"]').getAttribute("content")).length > 50);
   assert.match(await s.page.locator('link[rel="canonical"]').getAttribute("href"), /\/tools\/protect-word$/);
   await s.context.close();
@@ -418,7 +418,7 @@ for (const [name, noun, ext, marker] of [["flat-word.xml", "Word document", "doc
 
 await test("Excel and PowerPoint pages: load anonymously with their own heading, title and canonical URL", async () => {
   const s = await session();
-  for (const [slug, h1, title] of [["protect-excel", /Excel workbook/i, /Password protect an Excel workbook/i], ["protect-powerpoint", /PowerPoint presentation/i, /Password protect a PowerPoint presentation/i]]) {
+  for (const [slug, h1, title] of [["protect-excel", /Excel workbook/i, /Password Protect an XLSX/i], ["protect-powerpoint", /PowerPoint presentation/i, /Password Protect a PPTX/i]]) {
     await open(s.page, slug);
     assert.match(await s.page.locator("h1").innerText(), h1);
     assert.match(await s.page.title(), title);

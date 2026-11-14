@@ -8,13 +8,23 @@ import { SITE_NAME } from "./site";
 // The branded 1200x630 share image (app/og/route.tsx).
 export const SHARE_IMAGE = { url: "/og", width: 1200, height: 630, alt: "FreePDFScanner: free online PDF scanner and document tools" };
 
+// Search results show about 60 characters of a title. The site name is added when it fits; a longer
+// title keeps its own words (they are what people search for) and goes without it.
+export const TITLE_LIMIT = 60;
+
+export function brandedTitle(title: string): string {
+  if (title.includes(SITE_NAME)) return title;
+  const withName = `${title} | ${SITE_NAME}`;
+  return withName.length <= TITLE_LIMIT ? withName : title;
+}
+
 interface PageMeta {
-  // The page's own title. The site name is added by the title template in app/layout.tsx.
+  // The page's own title, written for search results. The site name is added when it fits (brandedTitle).
   title: string;
   description: string;
   // Site path, e.g. "/tools/compress-pdf". Used for the canonical URL and og:url.
   path: string;
-  // Only for the home page, whose title carries the brand itself.
+  // A complete title used exactly as written (the home page, whose title starts with the brand).
   absoluteTitle?: string;
   // Keeps a page usable but out of search results.
   noindex?: boolean;
@@ -22,9 +32,9 @@ interface PageMeta {
 }
 
 export function pageMetadata({ title, description, path, absoluteTitle, noindex, type = "website" }: PageMeta): Metadata {
-  const fullTitle = absoluteTitle ?? `${title} | ${SITE_NAME}`;
+  const fullTitle = absoluteTitle ?? brandedTitle(title);
   return {
-    title: absoluteTitle ? { absolute: absoluteTitle } : title,
+    title: { absolute: fullTitle },
     description,
     alternates: { canonical: path },
     ...(noindex ? { robots: { index: false, follow: true } } : {}),

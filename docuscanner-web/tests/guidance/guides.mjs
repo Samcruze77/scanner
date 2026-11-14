@@ -102,7 +102,9 @@ test("it explains font size, margins, paragraph options, page breaks and writing
 });
 test("the guide is in the sitemap, the guides hub and the pages are built from the same list", () => {
   const sitemap = fs.readFileSync(path.join(root, "app/sitemap.ts"), "utf8");
-  assert.ok(/GUIDES/.test(sitemap) && /create-word-document/.test(sitemap), "sitemap lists the guides and the creator page");
+  // The keyword pages (the creator among them) reach the sitemap through KEYWORD_PATHS in utils/seo/landing.ts.
+  const keywordPaths = fs.readFileSync(path.join(root, "utils/seo/landing.ts"), "utf8").split("export const KEYWORD_PATHS")[1] ?? "";
+  assert.ok(/GUIDES/.test(sitemap) && /KEYWORD_PATHS/.test(sitemap) && /"\/create-word-document"/.test(keywordPaths.split("]")[0]), "sitemap lists the guides and the creator page");
   const hub = fs.readFileSync(path.join(root, "app/guides/page.tsx"), "utf8");
   assert.ok(/GUIDES/.test(hub));
 });

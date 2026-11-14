@@ -302,7 +302,7 @@ export const GUIDES: Guide[] = [
     slug: "how-to-create-a-word-document-from-scratch",
     title: "Create a Word Document from Scratch (Free, No Account)",
     description:
-      "Write a new Word document from a blank page in your browser, format it, add pictures and your signature, and download a real .docx. Includes saving, draft recovery and troubleshooting.",
+      "Write a new Word document from a blank page in your browser, format it, add pictures and your signature, and download a real .docx. Free, no account.",
     h1: "Create a Word document from scratch",
     intro:
       "You do not need Word installed, an account or an existing file to start a document. Create Word Document gives you a blank white page in your browser; you write, format and download it as a .docx you can keep editing in Microsoft Word.",
@@ -472,7 +472,7 @@ export const GUIDES: Guide[] = [
   },
   {
     slug: "how-to-compress-a-pdf-to-1mb-or-2mb",
-    title: "How to Compress a PDF to 1 MB or 2 MB (or Another Size Limit)",
+    title: "How to Compress a PDF to 1 MB, 2 MB or Any Size Limit",
     description:
       "Get a PDF under an upload limit such as 500 KB, 1 MB, 2 MB or 5 MB. Set a target size, see what is realistic for your file, and keep it readable.",
     h1: "How to compress a PDF to 1 MB or 2 MB",
@@ -590,7 +590,7 @@ export const GUIDES: Guide[] = [
   },
   {
     slug: "ilovepdf-alternatives-compared",
-    title: "iLovePDF Alternatives Compared: Free, In-Browser and Self-Hosted",
+    title: "Free iLovePDF Alternatives Compared (In-Browser, Private)",
     description:
       "An honest comparison of free iLovePDF alternatives: server-based sites, in-browser tools and self-hosted software, with trade-offs, including ours.",
     h1: "Free iLovePDF alternatives compared",

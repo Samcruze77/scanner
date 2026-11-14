@@ -4,20 +4,22 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
 import { Icon } from "@/components/ui/icons";
 import { ToolCard } from "@/components/tools/ToolCard";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { pageMetadata } from "@/utils/seo/metadata";
+import { breadcrumbSchema, graph, webPageSchema } from "@/utils/seo/schema";
 import { TOOL_GROUPS, toolsInGroup } from "@/utils/tools/registry";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Tools",
-  absoluteTitle: "Tools - FreePDFScanner",
-  description: "Edit, sign, compress and password-protect documents for free, right in your browser. Nothing is uploaded.",
+  title: "Free PDF Tools: Edit, Sign, Compress, OCR",
+  description: "Free PDF tools that run in your browser: edit, sign, merge, compress, password-protect and extract text with OCR. No account, and nothing is uploaded.",
   path: "/tools",
 });
 
 export default function ToolsHubPage() {
   return (
     <PageShell>
-      <PageHeader title="Tools">
+      <JsonLd data={graph(webPageSchema("/tools", "Free PDF and document tools", "Edit, sign, merge, compress, password-protect and extract text from documents, free, in your browser."), breadcrumbSchema("/tools", [{ name: "Tools", path: "/tools" }]))} />
+      <PageHeader title="Free PDF and document tools">
         Edit, sign, compress and password-protect your documents. Everything runs in your browser, so your files are never uploaded. To change a
         file&apos;s type, like Word to PDF, use{" "}
         <Link href="/convert" className="link-inline">

@@ -9,6 +9,7 @@ import type { MetadataRoute } from "next";
 import { CONVERT_TOOLS } from "@/components/convert/tools";
 import { TOOLS } from "@/utils/tools/registry";
 import { GUIDES } from "@/utils/seo/guides";
+import { KEYWORD_PATHS } from "@/utils/seo/landing";
 import { getSiteUrl } from "@/utils/seo/site";
 import { TOOL_CANONICAL_OVERRIDE } from "@/utils/seo/toolCanonicals";
 
@@ -27,9 +28,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // right; the 6 pure-alias routes (e.g. /pdf-to-word) are real 301s in
   // next.config.ts's redirects() and are deliberately not listed here, since
   // the target they redirect to is already in this sitemap.
-  for (const path of ["/create-word-document", "/jpg-to-pdf", "/png-to-pdf", "/scan-to-pdf", "/edit-pdf", "/pdf-converter", "/document-converter", "/pdf-to-text", "/pdf-to-csv"]) {
-    entries.push(url(path, 0.6));
-  }
+  for (const path of KEYWORD_PATHS) entries.push(url(path, 0.6));
   for (const tool of CONVERT_TOOLS) entries.push(url(tool.href, 0.7));
   for (const tool of TOOLS) {
     if (TOOL_CANONICAL_OVERRIDE[tool.slug]) continue;

@@ -26,6 +26,7 @@
     "test:quality-fixes": "node tests/audit/verify-fixes.mjs",
     "test:pdf-edit": "node tests/audit/verify-pdf-edit.mjs",
     "test:clarity": "node tests/audit/verify-clarity.mjs",
+    "test:seo": "node tests/seo/crawl-audit.mjs --strict",
     "test:print-quality": "node tests/audit/verify-print.mjs",
     "test:excel-pdf": "node tests/audit/verify-excel.mjs",
     "test:pdf-word": "node tests/audit/verify-pdf2word.mjs",

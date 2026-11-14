@@ -40,6 +40,8 @@ export interface LandingPage {
   h1: string;
   intro: string;
   crumbs: Crumb[];
+  // For a keyword page whose tool lives on another route: the button that opens it.
+  cta?: { href: string; label: string };
   // Structured data: what the app is called and what it can really do.
   appName: string;
   features: string[];
@@ -78,6 +80,12 @@ const LINKS = {
   tools: { href: "/tools", label: "All PDF tools", note: "Edit, sign, compress and extract text." },
   createWord: { href: "/create-word-document", label: "Create a Word document", note: "Write a new document from a blank page and download a .docx." },
   guideCreateWord: { href: "/guides/how-to-create-a-word-document-from-scratch", label: "How to create a Word document from scratch", note: "Step-by-step, including saving and downloading." },
+  mergePdf: { href: "/merge-pdf", label: "Merge PDF files", note: "Combine several PDFs into one." },
+  deletePages: { href: "/delete-pdf-pages", label: "Delete pages from a PDF", note: "Remove pages, or keep only the ones you need." },
+  rotatePdf: { href: "/rotate-pdf", label: "Rotate PDF pages", note: "Turn sideways pages the right way up." },
+  cropPdf: { href: "/crop-pdf", label: "Crop PDF pages", note: "Trim margins or keep one part of a page." },
+  fillSign: { href: "/fill-and-sign-pdf", label: "Fill in and sign a PDF form", note: "Type in the blanks, tick boxes and sign." },
+  imageToText: { href: "/image-to-text", label: "Convert an image to text", note: "Copy the words out of a photo or screenshot." },
   guideCompressTarget: { href: "/guides/how-to-compress-a-pdf-to-1mb-or-2mb", label: "How to compress a PDF to 1 MB or 2 MB", note: "Get under an upload limit." },
 } satisfies Record<string, RelatedLink>;
 
@@ -133,7 +141,7 @@ export const LANDING_PAGES: LandingPage[] = [
     path: "/tools/pdf-editor",
     title: "Free PDF Editor: Add Text, Sign & Reorder Pages",
     description:
-      "Open a PDF or photos, crop, rotate and reorder pages, add text, marks and your signature, then save one PDF. Free, in your browser. Existing text is not rewritten.",
+      "Open a PDF or photos, crop, rotate and reorder pages, add text, marks and your signature, then save one PDF. Free, in your browser, nothing uploaded.",
     h1: "Edit a PDF online",
     intro:
       "Crop, rotate and reorder pages, then add text, marks and your signature on top. Everything happens in your browser and needs no account.",
@@ -157,12 +165,12 @@ export const LANDING_PAGES: LandingPage[] = [
     formats: "PDF files (the first 50 pages) and images (JPG, PNG and more, up to 25 MB each). Word and Excel files are converted to PDF first.",
     limits: [
       "This is a page-level editor. It adds text and marks on top of pages; it does not rewrite the text that is already in a PDF.",
-      "Each page is re-drawn as an image when the PDF is created (about 170 DPI for an A4 page), so the text in the saved PDF is not selectable and the file can be larger. Use the compressor to shrink it.",
+      "Pages that come from a PDF keep their own text, sharpness and size in the saved file, and what you add is drawn on top as real PDF content. A page you enhance (Grayscale, Black & White, brightness, contrast) and any photo or scan is saved as a picture, so its text is not selectable.",
       "Password-protected PDFs cannot be opened. Remove the password first.",
     ],
     privacy: PRIVATE,
     faq: [
-      { q: "Can I change the existing text in a PDF?", a: "No. You can cover, mark up and add to a page, but the existing text is part of the page image and is not editable here." },
+      { q: "Can I change the existing text in a PDF?", a: "No. You can cover, mark up and add to a page, but this editor does not rewrite text that is already in the PDF." },
       { q: "Will my editing be saved in the same PDF?", a: "You save the result as a new PDF; your original file is never changed." },
       { q: "Do I need an account?", a: "No. Editing, signing and downloading work without one. An account is only for saving documents to your History." },
     ],
@@ -196,7 +204,7 @@ export const LANDING_PAGES: LandingPage[] = [
     formats: "PDF files and images for the document, and a picture of your signature if you upload one. A PNG with a transparent background looks best.",
     limits: [
       "This places an image of your signature on the page, like signing on paper. It is not a certificate-based digital signature, and whether a signature is accepted is up to the person or organisation asking for it.",
-      "The signed PDF is created from page images, so its text is not selectable.",
+      "Pages that come from a PDF keep their own text, sharpness and size in the saved file, and what you add is drawn on top as real PDF content. A page you enhance (Grayscale, Black & White, brightness, contrast) and any photo or scan is saved as a picture, so its text is not selectable.",
       "A signature can be remembered on this device if you tick the option; it is never uploaded.",
     ],
     privacy: `${PRIVATE} A saved signature stays in this browser only and you can remove it at any time.`,
@@ -237,7 +245,7 @@ export const LANDING_PAGES: LandingPage[] = [
     limits: [
       "Pictures are placed on top of the page. Existing text in the document is not rewritten.",
       "The result is a PDF. A Word or Excel file is converted to PDF first, so the picture is added to that PDF and your original .docx or .xlsx is not changed.",
-      "The saved PDF is created from page images, so its text is not selectable.",
+      "Pages that come from a PDF keep their own text, sharpness and size in the saved file, and what you add is drawn on top as real PDF content. A page you enhance (Grayscale, Black & White, brightness, contrast) and any photo or scan is saved as a picture, so its text is not selectable.",
       "Passport and ID photo sizes are different for every country and application. Check the size you need; the sizes offered are exact in the downloaded PDF printed at Actual size (100%) with Fit to page off. The Print button fits the page to the paper, so a photo comes out slightly smaller.",
       "HEIC, GIF, SVG and BMP pictures are not supported. Save them as JPG or PNG first.",
     ],
@@ -279,7 +287,7 @@ export const LANDING_PAGES: LandingPage[] = [
     formats: "PDF files (the first 50 pages) and images (up to 25 MB each).",
     limits: [
       "Marks are drawn on top of the page. The existing text in a PDF is not editable.",
-      "The saved PDF is created from page images, so its text is not selectable.",
+      "Pages that come from a PDF keep their own text, sharpness and size in the saved file, and what you add is drawn on top as real PDF content. A page you enhance (Grayscale, Black & White, brightness, contrast) and any photo or scan is saved as a picture, so its text is not selectable.",
     ],
     privacy: PRIVATE,
     faq: [
@@ -429,7 +437,7 @@ export const LANDING_PAGES: LandingPage[] = [
           noun: "Word document",
           title: "Protect Word Document: Password Protect a DOCX for Free",
           description:
-            "Encrypt a Word file with a password in your browser. Word asks for the password to open it. Free, no account, and your file and password never leave your device.",
+            "Encrypt a Word file with a password in your browser, so Word asks for it to open the file. Free, no account, and nothing leaves your device.",
           h1: "Password protect a Word document",
           formats: ".docx, .docm (macro-enabled), .dotx and .dotm",
           sample: "a contract, CV, report or letter",
@@ -447,7 +455,7 @@ export const LANDING_PAGES: LandingPage[] = [
           noun: "Excel workbook",
           title: "Protect Excel Workbook: Password Protect an XLSX for Free",
           description:
-            "Encrypt an Excel workbook with a password in your browser. Excel asks for the password to open it. Free, no account, and your file and password never leave your device.",
+            "Encrypt an Excel workbook with a password in your browser, so Excel asks for it to open the file. Free, no account, and nothing leaves your device.",
           h1: "Password protect an Excel workbook",
           formats: ".xlsx, .xlsm (macro-enabled), .xltx, .xltm and .xlsb",
           sample: "a budget, payroll sheet, invoice list or financial model",
@@ -465,7 +473,7 @@ export const LANDING_PAGES: LandingPage[] = [
           noun: "PowerPoint presentation",
           title: "Protect PowerPoint: Password Protect a PPTX for Free",
           description:
-            "Encrypt a PowerPoint presentation with a password in your browser. PowerPoint asks for the password to open it. Free, no account, and your file and password never leave your device.",
+            "Encrypt a PowerPoint file with a password in your browser, so PowerPoint asks for it to open the file. Free, no account, and nothing leaves your device.",
           h1: "Password protect a PowerPoint presentation",
           formats: ".pptx, .pptm (macro-enabled), .potx, .potm, .ppsx and .ppsm",
           sample: "a pitch deck, proposal or board presentation",
@@ -481,7 +489,7 @@ export const LANDING_PAGES: LandingPage[] = [
     path: "/tools/edit-image",
     title: "Edit Image Online: Crop, Rotate, Resize and Adjust Photos",
     description:
-      "Crop, rotate, flip, resize and adjust the brightness and contrast of a photo, then download it as JPEG, PNG or WebP. Free, in your browser. Your picture is never uploaded.",
+      "Crop, rotate, flip, resize and adjust a photo, then download it as JPEG, PNG or WebP. Free, in your browser. Your picture is never uploaded.",
     h1: "Edit images online",
     intro:
       "Open a photo or logo, crop it to a shape, turn or flip it, change its size in pixels and adjust brightness and contrast. Download the result as a picture file at the full size you started with, unless you choose to resize it.",
@@ -874,15 +882,15 @@ export const LANDING_PAGES: LandingPage[] = [
     formats: "PDF files (the first 50 pages) and images (JPG, PNG and more, up to 25 MB each).",
     limits: [
       "This is a page-level editor: it adds text and marks on top of pages, and does not rewrite text already in a PDF.",
-      "The saved PDF is created from page images, so its text is not selectable.",
+      "Pages that come from a PDF keep their own text, sharpness and size in the saved file, and what you add is drawn on top as real PDF content. A page you enhance (Grayscale, Black & White, brightness, contrast) and any photo or scan is saved as a picture, so its text is not selectable.",
       "Password-protected PDFs cannot be opened.",
     ],
     privacy: PRIVATE,
     faq: [
-      { q: "Can I edit the existing text in a PDF?", a: "No. You can cover, mark up and add to a page, but text already in the PDF is part of the page image and cannot be rewritten." },
+      { q: "Can I edit the existing text in a PDF?", a: "No. You can cover, mark up and add to a page, but this editor does not rewrite text that is already in the PDF." },
       { q: "Do I need an account to edit a PDF?", a: "No. Editing, signing and downloading all work as a guest." },
     ],
-    related: [LINKS.sign, LINKS.annotate, LINKS.compressPdf, LINKS.ocr],
+    related: [LINKS.mergePdf, LINKS.fillSign, LINKS.deletePages, LINKS.rotatePdf, LINKS.cropPdf, LINKS.sign, LINKS.compressPdf],
   },
   {
     path: "/pdf-converter",
@@ -917,7 +925,7 @@ export const LANDING_PAGES: LandingPage[] = [
     path: "/create-word-document",
     title: "Create a Word Document Online Free: Write and Download .docx",
     description:
-      "Write a new Word document from a blank page, format it, add pictures and links, and download a real .docx. Free, no account, and your text never leaves your browser.",
+      "Write a new Word document from a blank page, format it, add pictures and links, and download a real .docx. Free, no account, and nothing is uploaded.",
     h1: "Create a Word document online",
     intro:
       "Start with a blank A4 page, write and format your document, add pictures and links, then download it as a real Word (.docx) file you can keep editing in Word. Free, no account, and nothing is uploaded.",
@@ -985,7 +993,7 @@ export const LANDING_PAGES: LandingPage[] = [
     path: "/pdf-to-text",
     title: "PDF to Text: Extract TXT from a PDF or Scan Free",
     description:
-      "Turn a PDF or scanned document into a plain .txt file for free. Scanned pages are read with English text recognition. Runs in your browser -- nothing is uploaded.",
+      "Turn a PDF or scanned document into a plain .txt file for free. Scanned pages are read with English text recognition. Runs in your browser, no upload.",
     h1: "Convert PDF to text (.txt)",
     intro:
       "Get the words out of a PDF or a scanned document as a plain .txt file. Upload or scan the pages, and download the text -- free, in your browser, no account needed.",
@@ -1040,6 +1048,228 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Can I open the CSV in Excel or Google Sheets?", a: "Yes. It's a genuine, correctly-escaped CSV file that opens in any spreadsheet app." },
     ],
     related: [LINKS.pdfToExcel, LINKS.ocr, LINKS.scan, LINKS.compressPdf],
+  },
+  // ---- Page-level PDF tasks: each is something the PDF editor really does, explained for the
+  // person who searched for exactly that task. ----
+  {
+    path: "/merge-pdf",
+    title: "Merge PDF Files Online Free: Combine PDFs",
+    description:
+      "Merge PDF files into one for free. Add several PDFs or photos, put the pages in order and download one PDF. Text stays selectable. Nothing is uploaded.",
+    h1: "Merge PDF files into one",
+    intro:
+      "Combine several PDFs, or PDFs and photos together, into a single file. Put the pages in the order you want, remove the ones you do not need, and download one PDF. It is free and runs in your browser.",
+    crumbs: [{ name: "Merge PDF", path: "/merge-pdf" }],
+    cta: { href: "/tools/pdf-editor", label: "Merge PDFs in the editor" },
+    appName: "FreePDFScanner PDF editor",
+    features: ["Combine several PDFs into one file", "Mix PDFs, photos, Word and Excel files", "Reorder and remove pages before saving", "Original text and page sizes are kept"],
+    how: [
+      "Open the PDF editor and choose your first PDF. You can select several files at once.",
+      "To add another file later, use Upload document under Add more pages. Its pages are added after the ones already there.",
+      "Select a page and use Move page earlier or Move page later to put the pages in order. Remove any page you do not want.",
+      "Choose Create PDF, then download the merged file.",
+    ],
+    goodFor:
+      "Putting an application together from separate files: a form, an ID copy, certificates and receipts as one PDF. Also joining chapters, statements or scanned pages that arrived as separate files.",
+    formats: "PDF files (the first 50 pages of each, up to 25 MB each), photos (JPG, PNG and more), Word (.docx), Excel (.xlsx) and CSV. Word, Excel and CSV files are converted to PDF pages first.",
+    limits: [
+      "Only the first 50 pages of each PDF are added. Split a longer file into parts before merging.",
+      "Pages keep their own size and orientation, so a merged file can mix A4, Letter, portrait and landscape pages.",
+      "Bookmarks, links and fillable form fields from the original files are not carried into the merged PDF.",
+      "A PDF that needs a password to open cannot be added. A PDF that carries editing restrictions is added as page pictures, so its text is not selectable.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "How do I combine PDF files for free?", a: "Open the PDF editor, add each PDF, put the pages in order and choose Create PDF. It is free, needs no account and adds no watermark." },
+      { q: "Does merging lower the quality?", a: "No. Pages that come from a PDF are copied into the new file as they are, with their text, fonts and pictures. Nothing is re-compressed." },
+      { q: "Can I merge a PDF with photos or a Word file?", a: "Yes. Photos become pages of their own, and Word, Excel and CSV files are converted to PDF pages, so everything ends up in one file." },
+      { q: "Can I change the page order?", a: "Yes. Select a page and move it earlier or later until the order is right, then create the PDF." },
+      { q: "The merged file is too big to send. What can I do?", a: "Run it through the PDF compressor afterwards. It shrinks the pictures inside the file and keeps the text." },
+    ],
+    related: [LINKS.compressPdf, LINKS.deletePages, LINKS.rotatePdf, LINKS.sign, LINKS.protectPdf],
+  },
+  {
+    path: "/delete-pdf-pages",
+    title: "Delete Pages from a PDF Online Free",
+    description:
+      "Remove pages from a PDF for free, or keep only the pages you need. The remaining pages keep their text and quality. Runs in your browser, no upload.",
+    h1: "Delete pages from a PDF",
+    intro:
+      "Remove the pages you do not want from a PDF, or keep just a few pages and save them as a new file. The pages you keep are not re-compressed. Free, in your browser, with no account.",
+    crumbs: [{ name: "Delete PDF pages", path: "/delete-pdf-pages" }],
+    cta: { href: "/tools/pdf-editor", label: "Remove pages in the editor" },
+    appName: "FreePDFScanner PDF editor",
+    features: ["Remove any page from a PDF", "Keep only the pages you need (extract pages)", "Reorder the remaining pages", "Remaining pages keep their text and quality"],
+    how: [
+      "Open the PDF editor and choose your PDF. Each page appears as a thumbnail.",
+      "Select a page you do not want and choose Remove page. Repeat for every page to delete.",
+      "To extract a few pages instead, remove all the others so only the ones you want are left.",
+      "Choose Create PDF and download the new file. Your original PDF is not changed.",
+    ],
+    goodFor:
+      "Dropping a blank or duplicate page from a scan, removing a page with private details before sharing, or pulling one statement page or one certificate out of a longer PDF.",
+    formats: "PDF files (the first 50 pages, up to 25 MB).",
+    limits: [
+      "Pages are removed one at a time: there is no page-range box, so a very long file takes more taps.",
+      "Only the first 50 pages of a PDF are opened.",
+      "Bookmarks, links and fillable form fields are not carried into the new PDF.",
+      "Password-protected PDFs cannot be opened.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "How do I remove one page from a PDF?", a: "Open the PDF in the editor, select that page, choose Remove page, then create and download the PDF." },
+      { q: "Can I split a PDF or extract pages?", a: "You can extract pages by removing the ones you do not need and saving what is left. To make several parts, repeat that for each part. There is no one-step split into many files." },
+      { q: "Is the deleted page really gone from the new file?", a: "Yes. The new PDF is built only from the pages you kept, so a removed page is not inside it. Your original file stays as it was on your device." },
+      { q: "Will the remaining pages lose quality?", a: "No. They are copied into the new file as they are, with their text and pictures untouched." },
+    ],
+    related: [LINKS.mergePdf, LINKS.rotatePdf, LINKS.cropPdf, LINKS.compressPdf, LINKS.editor],
+  },
+  {
+    path: "/rotate-pdf",
+    title: "Rotate PDF Pages Online Free",
+    description:
+      "Rotate PDF pages left or right for free and save the result. Turn one page or several, and the text stays sharp and selectable. Nothing is uploaded.",
+    h1: "Rotate PDF pages",
+    intro:
+      "Turn sideways or upside-down pages the right way up and save the PDF so it stays that way. Rotate only the pages that need it. Free, in your browser, with no account.",
+    crumbs: [{ name: "Rotate PDF", path: "/rotate-pdf" }],
+    cta: { href: "/tools/pdf-editor", label: "Rotate pages in the editor" },
+    appName: "FreePDFScanner PDF editor",
+    features: ["Rotate a page left or right in quarter turns", "Rotate only the pages that need it", "The rotation is saved in the PDF", "Text stays selectable after rotating"],
+    how: [
+      "Open the PDF editor and choose your PDF.",
+      "Select a page that is the wrong way round and choose Edit page.",
+      "Choose Rotate left or Rotate right until it is upright, then Done editing. Repeat for other pages.",
+      "Choose Create PDF and download it. The pages open the right way up in any PDF reader.",
+    ],
+    goodFor:
+      "Scans that came out sideways, a landscape table in a portrait document, or phone photos saved the wrong way up. The fix is permanent, unlike turning the view in a PDF reader.",
+    formats: "PDF files (the first 50 pages, up to 25 MB) and photos (JPG, PNG and more, up to 25 MB each).",
+    limits: [
+      "Pages turn in quarter turns (90 degrees). To straighten a slightly crooked scan, use Adjust crop on that page instead.",
+      "Each page is rotated on its own. There is no rotate-all button.",
+      "Only the first 50 pages of a PDF are opened, and password-protected PDFs cannot be opened.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "How do I rotate a PDF and save it?", a: "Open it in the editor, rotate the pages that need it, then choose Create PDF. The downloaded file keeps the new orientation." },
+      { q: "Can I rotate just one page?", a: "Yes. Only the pages you turn are changed. Every other page stays exactly as it was." },
+      { q: "Does rotating reduce quality?", a: "No. A rotated PDF page keeps its text, fonts and pictures. It is turned, not re-drawn as a picture." },
+      { q: "Can I rotate a scanned page or a photo?", a: "Yes. Photos and scans rotate the same way and are saved in the PDF the right way up." },
+    ],
+    related: [LINKS.cropPdf, LINKS.deletePages, LINKS.mergePdf, LINKS.editor, LINKS.scan],
+  },
+  {
+    path: "/crop-pdf",
+    title: "Crop PDF Pages Online Free",
+    description:
+      "Crop a PDF page to remove margins or keep one part of it. Free, in your browser, and the page's text stays sharp. Your file is never uploaded.",
+    h1: "Crop PDF pages",
+    intro:
+      "Trim the margins off a PDF page, or keep only the part you need, by dragging a crop box. The text and drawings inside the crop stay as sharp as the original. Free, with no account.",
+    crumbs: [{ name: "Crop PDF", path: "/crop-pdf" }],
+    cta: { href: "/tools/pdf-editor", label: "Crop pages in the editor" },
+    appName: "FreePDFScanner PDF editor",
+    features: ["Drag a crop box on any page", "Text and vector drawing stay sharp inside the crop", "Option to remove the cut-away area for good", "Undo the crop at any time before saving"],
+    how: [
+      "Open the PDF editor and choose your PDF.",
+      "Select the page and choose Edit page, then Adjust crop.",
+      "Drag the corners or sides of the box to what you want to keep, and confirm.",
+      "Choose Create PDF and download it. The page in the new file is the size of your crop.",
+    ],
+    goodFor:
+      "Removing wide white margins so a page reads better on a phone, cutting a single chart, table or label out of a page, or trimming scanner edges and shadows off a scanned sheet.",
+    formats: "PDF files (the first 50 pages, up to 25 MB) and photos or scans (JPG, PNG and more, up to 25 MB each).",
+    limits: [
+      "A normal crop hides the area outside the box. That content is still stored inside the PDF. Tick Remove the cut-away area for good to delete it, which saves that page as a picture.",
+      "Each page is cropped on its own. The same crop is not applied to every page automatically.",
+      "On a page from a PDF the crop is a straight rectangle. A skewed crop that straightens perspective is for photos and scans.",
+      "Only the first 50 pages of a PDF are opened, and password-protected PDFs cannot be opened.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "How do I crop a PDF page for free?", a: "Open the PDF in the editor, choose Edit page and then Adjust crop, set the box, then create and download the PDF." },
+      { q: "Does cropping a PDF delete the hidden part?", a: "Not by default. The cropped-away area is hidden but still in the file. If it contains something private, tick Remove the cut-away area for good before saving." },
+      { q: "Does the text stay selectable after cropping?", a: "Yes, with a normal crop. If you choose to remove the cut-away area for good, that page becomes a picture drawn at about 300 dpi." },
+      { q: "Can I crop a scanned page or photo?", a: "Yes. For photos and scans you can also drag the four corners separately to straighten a page photographed at an angle." },
+    ],
+    related: [LINKS.rotatePdf, LINKS.deletePages, LINKS.editor, LINKS.compressPdf, LINKS.editImage],
+  },
+  {
+    path: "/fill-and-sign-pdf",
+    title: "Fill and Sign PDF Forms Online Free",
+    description:
+      "Fill in a PDF form online for free: type in the blanks, tick boxes, add the date and your signature, then download. No account, nothing is uploaded.",
+    h1: "Fill in and sign a PDF form",
+    intro:
+      "Complete a form without printing it. Type into the blanks, tick the boxes, add today's date and your signature, and download the finished PDF. It works on a phone or a computer and needs no account.",
+    crumbs: [{ name: "Fill and sign PDF", path: "/fill-and-sign-pdf" }],
+    cta: { href: "/tools/annotate", label: "Fill in a form now" },
+    appName: "FreePDFScanner PDF editor",
+    features: ["Type text anywhere on the page", "Check marks and X marks for tick boxes", "Add the date in one tap", "Draw, type or upload your signature", "Works on scanned and photographed forms too"],
+    how: [
+      "Open the tool and choose the form: a PDF, or a photo or scan of a paper form.",
+      "Choose Text, tap a blank and type. Drag the text to line it up and change its size if needed.",
+      "Use Check or X for tick boxes and Date for today's date. On a phone these are under More.",
+      "Choose Signature, then draw, type or upload your signature and place it on the line.",
+      "Choose Done editing, then Create PDF, and download the completed form.",
+    ],
+    goodFor:
+      "Application forms, bank and school forms, tenancy agreements, consent forms and job offers: anything you would otherwise print, fill in by hand, sign and scan back.",
+    formats: "PDF files (the first 50 pages, up to 25 MB), photos and scans (JPG, PNG and more), and Word (.docx) files, which are converted to PDF first.",
+    limits: [
+      "Text is typed on top of the page wherever you tap. Built-in fillable fields are not filled in as fields, so the tab key does not jump between boxes and automatic calculations do not run.",
+      "Fillable fields, links and bookmarks from the original are not kept in the saved PDF.",
+      "The signature is a picture of your signature placed on the page. It is not a certificate-based digital signature.",
+      "Typed text uses a standard typeface. Letters outside the Latin alphabet are added as a picture of the text.",
+    ],
+    privacy: `${PRIVATE} Your signature is only kept on your device, and only if you choose to save it there.`,
+    faq: [
+      { q: "How do I fill in a PDF form that is not fillable?", a: "Open it in the tool, choose Text and type directly over each blank. It works on any PDF, including a scan of a paper form." },
+      { q: "Can I sign the form as well?", a: "Yes. Choose Signature to draw it with your finger or mouse, type it, or upload a photo of it, then place it on the signature line." },
+      { q: "Is the typed text sharp when printed?", a: "Yes. Typed text, check marks and pen strokes are saved as real PDF text and drawing, so they stay crisp at any zoom and in print." },
+      { q: "Is it legally valid?", a: "A drawn or typed signature on a PDF is accepted for many everyday documents, but rules differ by country and by document. Check with whoever is asking for the form if you are unsure." },
+      { q: "Can I fill in a form on my phone?", a: "Yes. Open FreePDFScanner in your phone's browser. You can also photograph a paper form with the camera and fill that in." },
+    ],
+    related: [LINKS.sign, LINKS.annotate, LINKS.scan, LINKS.protectPdf, LINKS.mergePdf],
+  },
+  {
+    path: "/image-to-text",
+    title: "Image to Text Converter: Free Online OCR",
+    description:
+      "Turn a photo, screenshot or scanned page into text you can copy, free. English text recognition that runs in your browser. Your picture is not uploaded.",
+    h1: "Convert an image to text",
+    intro:
+      "Get the words out of a picture. Upload a photo, a screenshot or a scanned page and copy the recognised text, ready to paste into a message or a document. Free, with no account, and the picture stays on your device.",
+    crumbs: [{ name: "Image to text", path: "/image-to-text" }],
+    cta: { href: "/tools/ocr", label: "Extract text from an image" },
+    appName: "FreePDFScanner OCR",
+    features: ["Read text from JPG and PNG pictures and screenshots", "Works on photos of printed pages", "Correct the text before you copy it", "Runs in the browser, so the picture is not uploaded"],
+    how: [
+      "Open the text recognition tool and upload your picture, or take a photo with your camera.",
+      "If the page is crooked or has a busy background, crop it first so only the text is left.",
+      "Open More options and choose Extract text, then wait while the picture is read.",
+      "Check the result in the Extracted text panel, fix any mistakes, and choose Copy text.",
+    ],
+    goodFor:
+      "Copying text from a screenshot, a photographed notice, a page of a book, a receipt or a slide, instead of typing it out again.",
+    formats: "Photos and screenshots (JPG, PNG and other image types, up to 25 MB each) and scanned PDFs (the first 50 pages).",
+    limits: [
+      "English only for now.",
+      "Printed text reads well. Handwriting, decorative fonts and very small or blurred text read poorly.",
+      "Up to 30 pages are read in one run.",
+      "Columns and tables come out as lines of text. The layout of the picture is not rebuilt.",
+      "Always check numbers, names and codes: similar characters such as 0 and O can be confused.",
+    ],
+    privacy: `${PRIVATE} The text engine is served from FreePDFScanner itself, not a third-party service.`,
+    faq: [
+      { q: "How do I copy text from a picture?", a: "Upload the picture, choose Extract text, then Copy text. The words are on your clipboard, ready to paste." },
+      { q: "Can it read a screenshot?", a: "Yes. Screenshots usually read very accurately, because the text is sharp and straight." },
+      { q: "Can it read handwriting?", a: "Not reliably. It is made for printed text. Neat block capitals sometimes work, joined handwriting usually does not." },
+      { q: "Can I save the text as a file?", a: "Yes. In the scanner, the Export options include TXT and DOCX, which read the pages and download the text as a file." },
+      { q: "Is my picture uploaded to a server?", a: "No. The recognition runs in your browser, so the picture never leaves your device." },
+    ],
+    related: [LINKS.ocr, LINKS.pdfToWord, LINKS.scan, LINKS.imageToPdf, LINKS.createWord],
   },
 ];
 
@@ -1110,6 +1340,32 @@ export function getLanding(path: string): LandingPage | undefined {
 }
 
 export const LANDING_PATHS = LANDING_PAGES.map((p) => p.path);
+
+// The keyword pages: each explains one task and leads into the tool that does it. Listed in the sitemap
+// and linked from the footer of every page, so none of them depends on the sitemap alone to be found.
+export const KEYWORD_PATHS = [
+  "/merge-pdf",
+  "/edit-pdf",
+  "/fill-and-sign-pdf",
+  "/delete-pdf-pages",
+  "/rotate-pdf",
+  "/crop-pdf",
+  "/scan-to-pdf",
+  "/jpg-to-pdf",
+  "/png-to-pdf",
+  "/image-to-text",
+  "/pdf-to-text",
+  "/pdf-to-csv",
+  "/pdf-converter",
+  "/document-converter",
+  "/create-word-document",
+] as const;
+
+export const KEYWORD_LINKS = KEYWORD_PATHS.map((path) => {
+  const page = LANDING_PAGES.find((p) => p.path === path);
+  if (!page) throw new Error(`no landing page for ${path}`);
+  return { href: path, label: page.crumbs[page.crumbs.length - 1].name };
+});
 
 // Exposed so the footer and hub pages link to the same, correctly described places.
 export { LINKS as RELATED };

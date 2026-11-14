@@ -12,7 +12,7 @@ import { SITE_DESCRIPTION, SITE_NAME } from "@/utils/seo/site";
 
 export const metadata: Metadata = pageMetadata({
   title: SITE_NAME,
-  absoluteTitle: `${SITE_NAME} - Free document scanning`,
+  absoluteTitle: `${SITE_NAME}: Free Online PDF Scanner, Editor & Converter`,
   description: SITE_DESCRIPTION,
   path: "/",
 });
@@ -68,7 +68,7 @@ export default function Home() {
           Your files stay on your device
         </p>
         <h1 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight sm:text-5xl">
-          Turn any document into a clean PDF, in seconds
+          Free PDF scanner: turn any document into a clean PDF in seconds
         </h1>
         <p className="muted mx-auto mt-4 max-w-xl text-base sm:text-lg">
           Scan, edit, sign, convert and compress documents right in your browser. Free, on desktop or mobile, no download

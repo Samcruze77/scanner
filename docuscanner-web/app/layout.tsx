@@ -40,18 +40,18 @@ export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   // Lets iPhone/iPad open the Home Screen shortcut as a web app and name it correctly.
   appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "default" },
-  title: `${SITE_NAME} - Free document scanning`,
+  title: `${SITE_NAME}: Free Online PDF Scanner, Editor & Converter`,
   description: SITE_DESCRIPTION,
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
     locale: "en_US",
-    title: `${SITE_NAME} - Free document scanning`,
+    title: `${SITE_NAME}: Free Online PDF Scanner, Editor & Converter`,
     description: SITE_DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} - Free document scanning`,
+    title: `${SITE_NAME}: Free Online PDF Scanner, Editor & Converter`,
     description: SITE_DESCRIPTION,
   },
 };

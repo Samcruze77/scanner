@@ -7,6 +7,7 @@ import { TipsToggle } from "@/components/guidance/TipsToggle";
 import { Logo } from "@/components/layout/Logo";
 import { FEATURES } from "@/utils/features/plans";
 import { GUIDES } from "@/utils/seo/guides";
+import { KEYWORD_LINKS } from "@/utils/seo/landing";
 import { SITE_NAME } from "@/utils/seo/site";
 
 const TOOLS = [
@@ -14,6 +15,7 @@ const TOOLS = [
   { href: "/tools/pdf-editor", label: "Edit PDF" },
   { href: "/tools/sign-pdf", label: "Sign PDF" },
   { href: "/tools/annotate", label: "Annotate PDF" },
+  { href: "/tools/add-image", label: "Add image to PDF" },
   { href: "/tools/ocr", label: "OCR: extract text" },
   { href: "/tools/edit-image", label: "Edit image" },
   { href: "/tools/compress-pdf", label: "Compress PDF" },
@@ -59,8 +61,8 @@ export function Footer() {
   return (
     <footer className="mt-auto border-t border-line bg-chrome">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-4">
-          <div className="col-span-2 md:col-span-1">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-4 lg:grid-cols-5">
+          <div className="col-span-2 md:col-span-4 lg:col-span-1">
             <Logo variant="full" />
             <p className="muted mt-2 max-w-xs text-sm leading-6">
               Free online PDF scanner and document tools. Your files are processed in your browser and are not uploaded.
@@ -68,6 +70,7 @@ export function Footer() {
           </div>
           <Column title="Tools" links={TOOLS} />
           <Column title="Convert" links={CONVERT} />
+          <Column title="Popular tasks" links={KEYWORD_LINKS} />
           <Column
             title="Guides"
             links={[{ href: "/guides", label: "All guides" }, ...GUIDES.map((g) => ({ href: `/guides/${g.slug}`, label: g.h1.replace(/^How to /, "How to ") }))]}
