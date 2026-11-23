@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AdBottom, AdTop } from "@/components/ads/AdSlot";
 import { CONVERT_TOOLS } from "@/components/convert/tools";
 import { HomeAuthCta } from "@/components/home/HomeAuthCta";
+import { VisitCounter } from "@/components/home/VisitCounter";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Icon, type IconName } from "@/components/ui/icons";
 import { SUPPORTED_FORMATS } from "@/utils/scanner/documentTypes";
@@ -63,10 +64,13 @@ export default function Home() {
     <main id="main" className="flex-1">
       <JsonLd data={graph(organizationSchema(), websiteSchema())} />
       <section className="mx-auto w-full max-w-4xl px-4 pb-10 pt-12 text-center sm:px-6 sm:pt-20">
-        <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-surface px-3 py-1 text-xs font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-          <Icon name="shield" size={14} className="text-emerald-600 dark:text-emerald-400" />
-          Your files stay on your device
-        </p>
+        <div className="mb-5 flex flex-wrap items-center justify-center gap-2">
+          <p className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-surface px-3 py-1 text-xs font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+            <Icon name="shield" size={14} className="text-emerald-600 dark:text-emerald-400" />
+            Your files stay on your device
+          </p>
+          <VisitCounter />
+        </div>
         <h1 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight sm:text-5xl">
           Free PDF scanner: turn any document into a clean PDF in seconds
         </h1>
