@@ -62,6 +62,22 @@ export function currentTheme(): ThemeId {
   return isThemeId(value) ? value : (readStoredTheme() ?? systemTheme());
 }
 
+// React owns <html>. If it ever has to re-create the page in the browser (React 19 does
+// that after a hydration error anywhere on the page), it resets <html>'s attributes and the
+// theme put there by THEME_INIT_SCRIPT is lost: the page falls back to the Light palette
+// while the menu still shows the saved choice. Watch for that and put the intended theme
+// straight back. MutationObserver callbacks run before the next paint, so nothing flashes.
+export function keepThemeApplied(): () => void {
+  const root = document.documentElement;
+  const restore = () => {
+    if (!isThemeId(root.getAttribute("data-theme"))) root.setAttribute("data-theme", readStoredTheme() ?? systemTheme());
+  };
+  restore();
+  const observer = new MutationObserver(restore);
+  observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => observer.disconnect();
+}
+
 let switchTimer: number | undefined;
 
 // Puts a theme on screen immediately, with a very brief colour fade.

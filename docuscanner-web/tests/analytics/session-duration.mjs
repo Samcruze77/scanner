@@ -94,6 +94,50 @@ check("user activity keeps a session alive; after 30 idle minutes the next activ
   const b = peekSessionId();
   assert.ok(b && b !== a, "a visit after a long gap is a separate session");
 });
+// Visit counting (homepage counter + dashboard): one browser, several tabs, reloads.
+const { isNewSessionThisPageLoad } = identity;
+const openNewTab = () => { window.sessionStorage = fakeStorage(); }; // a new tab starts with empty sessionStorage
+check("a second tab opened while the session is live joins it (no extra visit, no extra app_open)", () => {
+  advance(SESSION_IDLE_MS + 60_000); // start from no live session
+  openNewTab();
+  assert.equal(isNewSessionThisPageLoad(), true, "first tab of a visit is an app open");
+  const a = getSessionId();
+  advance(5 * 60_000);
+  openNewTab();
+  assert.equal(isNewSessionThisPageLoad(), false, "second tab of the same visit is not a new app open");
+  assert.equal(getSessionId(), a, "second tab reuses the live session");
+  assert.equal(peekSessionId(), a);
+});
+check("a reload keeps the session; refreshing many times never creates new visits", () => {
+  const a = getSessionId();
+  for (let i = 0; i < 20; i++) { advance(10_000); assert.equal(isNewSessionThisPageLoad(), false); assert.equal(getSessionId(), a); }
+});
+check("a tab opened after 30 idle minutes starts a new session", () => {
+  const a = getSessionId();
+  advance(SESSION_IDLE_MS + 1);
+  openNewTab();
+  assert.equal(isNewSessionThisPageLoad(), true);
+  const b = getSessionId();
+  assert.ok(b && b !== a);
+});
+check("an idle tab rejoins the session another tab started after the idle gap (one visit, not two)", () => {
+  const tabA = window.sessionStorage;
+  getSessionId();
+  advance(SESSION_IDLE_MS + 1);
+  openNewTab(); // tab B becomes active first and starts the new session
+  const fresh = getSessionId();
+  window.sessionStorage = tabA; // back in tab A, which still holds the old id
+  advance(1000);
+  assert.equal(getSessionId(), fresh);
+});
+check("a session started before this change (id only in sessionStorage) carries on", () => {
+  window.localStorage.removeItem("ds_session_id");
+  window.sessionStorage.setItem("ds_session_id", "legacy-id");
+  window.localStorage.setItem("ds_session_last_seen", String(clock));
+  assert.equal(isNewSessionThisPageLoad(), false);
+  assert.equal(getSessionId(), "legacy-id");
+  assert.equal(window.localStorage.getItem("ds_session_id"), "legacy-id");
+});
 check("without analytics consent nothing is read or created", () => {
   window.localStorage.setItem(CONSENT_KEY, JSON.stringify({ version: CONSENT_VERSION, decided_at: "x", analytics: false, advertising: false, recordings: false }));
   assert.equal(peekSessionId(), null);

@@ -13,6 +13,7 @@
 //  - The temporary URL is revoked late. Revoking right after `click()` can
 //    cancel the download in Safari before it has started.
 
+import { fileBaseName } from "../files/filename";
 import { announceTaskComplete } from "../install/reminder";
 
 const REVOKE_DELAY_MS = 30_000;
@@ -35,12 +36,9 @@ export function downloadBlob(blob: Blob, filename: string): void {
   announceTaskComplete();
 }
 
-// "Q3 report.xlsx" -> "Q3 report.pdf". Strips characters that are awkward in
-// filenames, and falls back to a generic name so the download always has one.
+// "Q3 report.xlsx" -> "Q3 report.pdf". Keeps the person's own name (any language) and
+// replaces only characters file systems refuse; falls back to a generic name so the
+// download always has one (see utils/files/filename.ts).
 export function outputFilename(inputName: string, extension: string): string {
-  const base = inputName
-    .replace(/\.[^.]+$/, "")
-    .replace(/[^\w\- .()]+/g, "_")
-    .trim();
-  return `${base || "converted"}.${extension}`;
+  return `${fileBaseName(inputName, "converted")}.${extension}`;
 }

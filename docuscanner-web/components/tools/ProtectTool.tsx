@@ -28,6 +28,7 @@ import { downloadBlob } from "@/utils/convert/download";
 import { formatBytes } from "@/utils/compress/types";
 import { getUserPlan, isFeatureAvailable } from "@/utils/features/plans";
 import { OFFICE_APP_NOUN, OFFICE_EXTENSIONS, OFFICE_TYPES, officeAppOf, officeExtensionOf, type OfficeApp, type OfficeExtension } from "@/utils/protect/office";
+import { fileBaseName } from "@/utils/files/filename";
 import { protectErrorMessage } from "@/utils/protect/messages";
 import { DEFAULT_PROTECT_OPTIONS, MIN_PASSWORD_LENGTH, protectedFilename, validatePassword } from "@/utils/protect/protect";
 import { toProtectError, type ProtectPhase } from "@/utils/protect/operation";
@@ -60,10 +61,9 @@ const OFFICE_ACCEPT = [...OFFICE_EXTENSIONS.map((e) => `.${e}`), ...OFFICE_EXTEN
 
 function outputFilename(file: File, kind: Kind, extension: string): string {
   if (kind !== "office") return protectedFilename(file.name);
-  const base = file.name.replace(/\.[^.]+$/, "").replace(/[^\w\- .()]+/g, "_").trim();
   // The protected copy keeps the file's own type (.docx, .xlsx, .pptx, .docm, ...); an XML Document
   // becomes the Office file it describes.
-  return `${base || "document"}-protected.${extension}`;
+  return `${fileBaseName(file.name, "document")}-protected.${extension}`;
 }
 
 export function ProtectTool({ focus = "pdf" }: { focus?: Focus }) {

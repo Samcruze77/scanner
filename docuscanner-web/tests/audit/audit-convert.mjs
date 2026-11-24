@@ -168,7 +168,7 @@ await safe("Protect PDF", "text.pdf + vector.pdf", async () => {
     const p1 = await doc.getPage(1);
     const text = (await p1.getTextContent()).items.map((i) => i.str).join(" ");
     record({ status: opened.startsWith("needs") && text.length > 50 ? "ok" : "FINDING", feature: "Protect PDF", input: fixture, output: `PDF ${kb(fs.statSync(dl.file).size)} (source ${kb(fs.statSync(C(fixture)).size)})`, summary: `${opened}; with password: ${doc.numPages} pages, page 1 text ${text.length} chars (source keeps its text layer: ${text.length > 0})` });
-    await doc.destroy();
+    await task.destroy(); // pdf.js 6: the loading task owns the document
     await context.close();
   }
 });

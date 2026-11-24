@@ -14,6 +14,7 @@ import { Header } from "@/components/layout/Header";
 import { AudienceProvider } from "@/components/analytics/AudienceProvider";
 import { MobileActionBar } from "@/components/layout/MobileActionBar";
 import { THEME_INIT_SCRIPT } from "@/components/theme/theme";
+import { ThemeKeeper } from "@/components/theme/ThemeKeeper";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/utils/seo/site";
 import "./globals.css";
 
@@ -79,6 +80,7 @@ export default function RootLayout({
         >
           Skip to content
         </a>
+        <ThemeKeeper />
         <AnalyticsListener />
         <MicrosoftClarity />
         <PresenceHeartbeat />

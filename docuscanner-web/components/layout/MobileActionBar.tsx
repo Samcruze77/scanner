@@ -6,14 +6,15 @@
 // header on every screen size, so it isn't repeated here.
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { NAV_ITEMS, isNavActive } from "@/components/layout/nav";
+import { usePagePathname } from "@/components/layout/usePagePathname";
 import { Icon } from "@/components/ui/icons";
 
 const ITEMS = [{ href: "/", label: "Home", icon: "home" as const }, ...NAV_ITEMS];
 
 export function MobileActionBar() {
-  const pathname = usePathname();
+  // Normalised: a regenerated homepage reports "/index" on the server (see usePagePathname).
+  const pathname = usePagePathname();
 
   return (
     <nav

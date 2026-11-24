@@ -6,8 +6,9 @@
 //
 // visitor_id: stable per-browser, persisted in localStorage.
 // session_id: rotates after SESSION_IDLE_MS of inactivity, persisted in
-// sessionStorage plus a "last seen" timestamp in localStorage so a new tab
-// still counts as the same session within the idle window.
+// localStorage (with a per-tab copy in sessionStorage) plus a "last seen"
+// timestamp, so a new tab or a reload counts as the same session within the
+// idle window.
 
 import { hasConsent } from "@/utils/consent/consent";
 
@@ -54,19 +55,24 @@ export function getVisitorId(): string | null {
   return id;
 }
 
+// The session that is live in this browser right now (any tab), or null when there is none
+// or it has been idle longer than SESSION_IDLE_MS. The id is kept in localStorage so a tab
+// opened while the session is live joins it instead of starting a new session; each new tab
+// used to count as an extra visit on the homepage counter and in the dashboard. The
+// per-tab sessionStorage copy is still read, so sessions started before this change carry on.
+function liveSessionId(now: number): string | null {
+  const lastSeen = Number(safeGet(window.localStorage, SESSION_LAST_SEEN_KEY) ?? 0);
+  if (!lastSeen || now - lastSeen > SESSION_IDLE_MS) return null;
+  return safeGet(window.localStorage, SESSION_ID_KEY) ?? safeGet(window.sessionStorage, SESSION_ID_KEY);
+}
+
 export function getSessionId(): string | null {
   if (typeof window === "undefined" || !hasConsent("analytics")) return null;
 
   const now = Date.now();
-  const lastSeen = Number(safeGet(window.localStorage, SESSION_LAST_SEEN_KEY) ?? 0);
-  let id = safeGet(window.sessionStorage, SESSION_ID_KEY);
-
-  const expired = !lastSeen || now - lastSeen > SESSION_IDLE_MS;
-  if (!id || expired) {
-    id = newId();
-    safeSet(window.sessionStorage, SESSION_ID_KEY, id);
-  }
-
+  const id = liveSessionId(now) ?? newId();
+  safeSet(window.localStorage, SESSION_ID_KEY, id);
+  safeSet(window.sessionStorage, SESSION_ID_KEY, id);
   safeSet(window.localStorage, SESSION_LAST_SEEN_KEY, String(now));
   return id;
 }
@@ -78,10 +84,7 @@ export function getSessionId(): string | null {
 // stay a single session indefinitely).
 export function peekSessionId(now = Date.now()): string | null {
   if (typeof window === "undefined" || !hasConsent("analytics")) return null;
-  const lastSeen = Number(safeGet(window.localStorage, SESSION_LAST_SEEN_KEY) ?? 0);
-  const id = safeGet(window.sessionStorage, SESSION_ID_KEY);
-  if (!id || !lastSeen || now - lastSeen > SESSION_IDLE_MS) return null;
-  return id;
+  return liveSessionId(now);
 }
 
 const ACTIVITY_THROTTLE_MS = 5_000;
@@ -102,7 +105,8 @@ export function resetActivityThrottleForTests(): void {
 
 export function isNewSessionThisPageLoad(): boolean {
   if (typeof window === "undefined" || !hasConsent("analytics")) return false;
-  // sessionStorage is per-tab and empty on first load of a tab/session, so
-  // absence here (before getSessionId() creates one) means app_open.
-  return !safeGet(window.sessionStorage, SESSION_ID_KEY);
+  // app_open marks the start of a session: true when no session is live in this browser
+  // (first visit, or more than SESSION_IDLE_MS idle), i.e. getSessionId() will start one.
+  // Another tab of a live session, or a reload, is not a new app open.
+  return liveSessionId(Date.now()) === null;
 }

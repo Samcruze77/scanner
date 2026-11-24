@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { Logo } from "@/components/layout/Logo";
 import { NAV_ITEMS, isNavActive } from "@/components/layout/nav";
+import { usePagePathname } from "@/components/layout/usePagePathname";
 import { ThemeMenu } from "@/components/theme/ThemeMenu";
 
 // Top bar: logo, the four places the product is organised around (see nav.ts), and
@@ -13,7 +13,7 @@ import { ThemeMenu } from "@/components/theme/ThemeMenu";
 // (MobileActionBar) so the header never wraps.
 export function Header() {
   const { user, loading, openAuthModal } = useAuth();
-  const pathname = usePathname();
+  const pathname = usePagePathname();
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200 bg-chrome/90 backdrop-blur dark:border-zinc-800">

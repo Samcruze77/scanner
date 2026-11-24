@@ -8,6 +8,7 @@
 // ./browser.ts), so the same code runs in Node for the tests.
 
 import { PDFDocument } from "pdf-lib";
+import { fileBaseName } from "../files/filename.ts";
 
 export type ProtectErrorCode =
   | "protect_unsupported_type"
@@ -222,9 +223,5 @@ export async function protectPdf(input: Uint8Array, options: ProtectOptions, cre
 
 // "Q3 report.pdf" -> "Q3 report-protected.pdf".
 export function protectedFilename(inputName: string): string {
-  const base = inputName
-    .replace(/\.[^.]+$/, "")
-    .replace(/[^\w\- .()]+/g, "_")
-    .trim();
-  return `${base || "document"}-protected.pdf`;
+  return `${fileBaseName(inputName, "document")}-protected.pdf`;
 }

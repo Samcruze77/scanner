@@ -238,6 +238,38 @@ await test("it carries across pages of the app", async () => {
     assert.equal(await theme(), "beige", route);
   }
 });
+// Regression (2026-11-24): on the live site Warm Beige turned back into Light on the homepage.
+// The regenerated (ISR) homepage was rendered with the pathname "/index", so the phone bottom
+// bar's Home tab didn't match in the browser; React's hydration error #418 re-created the page
+// and reset <html>, wiping data-theme. See components/layout/usePagePathname.ts.
+await test("the homepage hydrates without React errors and keeps Warm Beige (incl. the theme attribute)", async () => {
+  exceptions.length = 0;
+  await open("/");
+  await sleep(800);
+  assert.deepEqual(exceptions.filter((e) => /418|423|425|hydrat/i.test(e)), [], "no hydration errors");
+  assert.equal(await theme(), "beige");
+  assert.equal(await bodyBg(), PAGE.beige);
+});
+await test("the server HTML marks Home as the current page on the homepage (so it matches the browser)", async () => {
+  const html = await (await fetch(BASE + "/")).text();
+  assert.match(html, /aria-current="page"[^>]*data-assistant-id="nav-home"/);
+  for (const f of ["components/layout/MobileActionBar.tsx", "components/layout/Header.tsx"]) {
+    assert.ok(fs.readFileSync(f, "utf8").includes("usePagePathname()"), `${f} uses the normalised pathname`);
+  }
+  const hook = fs.readFileSync("components/layout/usePagePathname.ts", "utf8");
+  assert.ok(hook.includes('pathname === "/index"'), "/index is mapped to /");
+});
+await test("if React resets <html> (any hydration fallback), the chosen theme is put straight back", async () => {
+  await open("/tools");
+  const result = await evaluate(`new Promise((resolve) => {
+    const root = document.documentElement;
+    for (const a of [...root.attributes]) if (a.name !== 'class' && a.name !== 'lang') root.removeAttribute(a.name);
+    requestAnimationFrame(() => resolve({ attr: root.getAttribute('data-theme'), bg: getComputedStyle(document.body).backgroundColor }));
+  })`);
+  assert.equal(result.attr, "beige", "restored before the next frame");
+  assert.equal(result.bg, PAGE.beige);
+  assert.equal(await stored(), "beige");
+});
 await test("Warm Beige survives closing and reopening the browser", async () => {
   await closeBrowserGracefully();
   await launch();

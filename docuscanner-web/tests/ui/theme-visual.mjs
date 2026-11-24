@@ -298,15 +298,15 @@ for (const theme of ["light", "beige", "dark"]) {
     await shot(`home-1280-${theme}`);
     // Log in dialog and its inputs
     await evaluate(`[...document.querySelectorAll('header button')].find(b => b.innerText.trim() === 'Log in').click()`);
-    await waitFor(`document.querySelector('[role=dialog]')`, "log in dialog");
+    await waitFor(`document.querySelector('[role=dialog][aria-labelledby=auth-modal-title]')`, "log in dialog");
     await sleep(250);
-    const dialog = await evaluate(`(() => { const d = document.querySelector('[role=dialog] > div') || document.querySelector('[role=dialog]'); const kid = [...document.querySelectorAll('[role=dialog] div')].find(e => getComputedStyle(e).boxShadow !== 'none' && e.getBoundingClientRect().width > 200); const bg = getComputedStyle(kid).backgroundColor; const i = document.querySelector('[role=dialog] input'); const c = document.createElement('canvas'); c.width = c.height = 1; const g = c.getContext('2d'); const px = (v) => { g.clearRect(0,0,1,1); g.fillStyle = v; g.fillRect(0,0,1,1); return [...g.getImageData(0,0,1,1).data].slice(0,3); }; return { dialog: px(bg), input: px(getComputedStyle(i).backgroundColor), inputBorder: px(getComputedStyle(i).borderTopColor) }; })()`);
+    const dialog = await evaluate(`(() => { const d = document.querySelector('[role=dialog][aria-labelledby=auth-modal-title] > div') || document.querySelector('[role=dialog][aria-labelledby=auth-modal-title]'); const kid = [...document.querySelectorAll('[role=dialog][aria-labelledby=auth-modal-title] div')].find(e => getComputedStyle(e).boxShadow !== 'none' && e.getBoundingClientRect().width > 200); const bg = getComputedStyle(kid).backgroundColor; const i = document.querySelector('[role=dialog][aria-labelledby=auth-modal-title] input'); const c = document.createElement('canvas'); c.width = c.height = 1; const g = c.getContext('2d'); const px = (v) => { g.clearRect(0,0,1,1); g.fillStyle = v; g.fillRect(0,0,1,1); return [...g.getImageData(0,0,1,1).data].slice(0,3); }; return { dialog: px(bg), input: px(getComputedStyle(i).backgroundColor), inputBorder: px(getComputedStyle(i).borderTopColor) }; })()`);
     near(dialog.dialog, SPEC[theme].dialog, "dialog surface");
     near(dialog.input, SPEC[theme].field, "input inside the dialog");
     near(dialog.inputBorder, SPEC[theme].fieldBorder, "input border inside the dialog");
     await shot(`login-1280-${theme}`);
-    await evaluate(`document.querySelector('[role=dialog] button[aria-label="Close"]').click()`);
-    await waitFor(`!document.querySelector('[role=dialog]')`, "dialog closed");
+    await evaluate(`document.querySelector('[role=dialog][aria-labelledby=auth-modal-title] button[aria-label="Close"]').click()`);
+    await waitFor(`!document.querySelector('[role=dialog][aria-labelledby=auth-modal-title]')`, "dialog closed");
     // Scanned page stays paper-white while the app around it changes
     await open("/scan");
     const { result } = await send("Runtime.evaluate", { expression: `document.querySelector('input[type=file]')` });
@@ -324,8 +324,8 @@ for (const theme of ["light", "beige", "dark"]) {
     const editor = await evaluate(`(() => { const c = document.createElement('canvas'); c.width = c.height = 1; const g = c.getContext('2d'); const el = document.querySelector('[role=dialog][aria-label="Edit page 1"] > div'); g.fillStyle = getComputedStyle(el).backgroundColor; g.fillRect(0,0,1,1); return [...g.getImageData(0,0,1,1).data].slice(0,3); })()`);
     near(editor, SPEC[theme].dialog, "page editor surface");
     await shot(`editor-1280-${theme}`);
-    await evaluate(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.innerText.trim() === 'Done').click()`);
-    await waitFor(`!document.querySelector('[role=dialog]')`, "editor closed");
+    await evaluate(`[...document.querySelectorAll('[role=dialog][aria-label="Edit page 1"] button')].find(b => /^Done( editing)?$/.test(b.innerText.trim())).click()`);
+    await waitFor(`!document.querySelector('[role=dialog][aria-label^="Edit page"]')`, "editor closed");
   });
 }
 console.log("\nAccessibility per theme (contrast of text, links, notices, placeholder, focus; disabled and selected states)");
