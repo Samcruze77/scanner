@@ -90,7 +90,7 @@ Re-run with `npm run license:inventory`; `npm run license:check` fails if a prod
 
 | Package @ version | Purpose | Licence | Status |
 |---|---|---|---|
-| `next` 16.3.8, `react`/`react-dom` 19.2.4 | framework | MIT | Verified compatible |
+| `next` 16.4.6, `react`/`react-dom` 19.2.4 | framework | MIT | Verified compatible |
 | `@tiptap/*` 3.32.0 (core, react, starter-kit, pm and 5 extensions) | Create Word Document editor (ProseMirror) | MIT | Verified compatible |
 | `docx` 9.7.1 | writes the .docx files | MIT | Verified compatible |
 | `jszip` 3.10.2 | reads and writes zip packages (docx/xlsx, protected Office files) | MIT OR GPL-3.0-or-later; **use MIT** (`LICENSE.markdown` read) | Verified compatible |
@@ -101,7 +101,7 @@ Re-run with `npm run license:inventory`; `npm run license:check` fails if a prod
 | `tesseract.js` 7.0.0 | OCR | Apache-2.0 | Verified compatible |
 | `@neslinesli93/qpdf-wasm` 0.3.0 | Protect PDF (QPDF in WebAssembly) | wrapper ISC; contents Apache-2.0 + libjpeg-turbo + zlib | Compatible with obligations (met by the new `/qpdf/NOTICE.txt`) |
 | `@supabase/supabase-js` 2.108.1, `@supabase/ssr` 0.12.0, `@supabase/server` 1.3.0 | accounts, history, edge-function calls | MIT | Verified compatible (service terms: section 4) |
-| `@vercel/functions` 3.9.9 | request geolocation helpers | Apache-2.0 | Verified compatible (hosting terms: section 4) |
+| `@vercel/functions` 3.11.3 | request geolocation helpers | Apache-2.0 | Verified compatible (hosting terms: section 4) |
 | `iso-3166-2` 1.0.0 | country and region names for analytics | MIT (data: ISO 3166-2 codes) | Needs review: the data's own provenance is not stated in the package |
 
 Development-only direct dependencies (not shipped to visitors): TypeScript (Apache-2.0), ESLint and `eslint-config-next`, Tailwind CSS 4 and its PostCSS plugin (MIT),
@@ -113,7 +113,7 @@ therefore do ship: see section 3**) and `@tesseract.js-data/eng` (MIT wrapper, i
 
 | Package | Reached through | Finding | Status |
 |---|---|---|---|
-| `sharp` 0.35.4 and `@img/sharp-libvips-*` (LGPL-3.0-or-later) | `next` (optional) | libvips is LGPL. Used server-side by Next.js image optimisation (the logo uses `next/image`). We do not redistribute the binary: on Vercel the platform runs it. Re-review if the site is ever self-hosted or shipped in a container image. | Compatible with obligations |
+| `sharp` 0.35.5 and `@img/sharp-libvips-*` (LGPL-3.0-or-later) | `next` (optional) | libvips is LGPL. Used server-side by Next.js image optimisation (the logo uses `next/image`). We do not redistribute the binary: on Vercel the platform runs it. Re-review if the site is ever self-hosted or shipped in a container image. | Compatible with obligations |
 | `buffers` 0.1.1 | `exceljs > unzipper > binary` | No `license` field and no licence file in the package. Debian's copyright record for the upstream project says Expat (= MIT) from its package.json, but notes there is no explicit copyright statement; another source lists it as unknown. The repository page could not be fetched. | Unverified |
 | `chainsaw`, `traverse` | same chain | declare "MIT/X11", which is the MIT (Expat) licence | Verified compatible |
 | `dompurify` 3.4.16 | `jspdf` | (MPL-2.0 OR Apache-2.0): Apache-2.0 chosen | Verified compatible |

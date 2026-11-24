@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-26",
+ "generated": "2026-11-24",
  "tool": "scripts/license-inventory.mjs",
  "lockfileVersion": 3,
  "packages": [
@@ -794,7 +794,7 @@
   },
   {
    "name": "@img/sharp-darwin-arm64",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-darwin-arm64",
    "direct": null,
    "dev": false,
@@ -809,7 +809,7 @@
   },
   {
    "name": "@img/sharp-darwin-x64",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-darwin-x64",
    "direct": null,
    "dev": false,
@@ -824,7 +824,7 @@
   },
   {
    "name": "@img/sharp-freebsd-wasm32",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-freebsd-wasm32",
    "direct": null,
    "dev": false,
@@ -839,7 +839,7 @@
   },
   {
    "name": "@img/sharp-libvips-darwin-arm64",
-   "version": "1.3.3",
+   "version": "1.3.4",
    "path": "node_modules/@img/sharp-libvips-darwin-arm64",
    "direct": null,
    "dev": false,
@@ -854,7 +854,7 @@
   },
   {
    "name": "@img/sharp-libvips-darwin-x64",
-   "version": "1.3.3",
+   "version": "1.3.4",
    "path": "node_modules/@img/sharp-libvips-darwin-x64",
    "direct": null,
    "dev": false,
@@ -869,7 +869,7 @@
   },
   {
    "name": "@img/sharp-libvips-linux-arm",
-   "version": "1.3.3",
+   "version": "1.3.4",
    "path": "node_modules/@img/sharp-libvips-linux-arm",
    "direct": null,
    "dev": false,
@@ -884,7 +884,7 @@
   },
   {
    "name": "@img/sharp-libvips-linux-arm64",
-   "version": "1.3.3",
+   "version": "1.3.4",
    "path": "node_modules/@img/sharp-libvips-linux-arm64",
    "direct": null,
    "dev": false,
@@ -899,7 +899,7 @@
   },
   {
    "name": "@img/sharp-libvips-linux-ppc64",
-   "version": "1.3.3",
+   "version": "1.3.4",
    "path": "node_modules/@img/sharp-libvips-linux-ppc64",
    "direct": null,
    "dev": false,
@@ -914,7 +914,7 @@
   },
   {
    "name": "@img/sharp-libvips-linux-riscv64",
-   "version": "1.3.3",
+   "version": "1.3.4",
    "path": "node_modules/@img/sharp-libvips-linux-riscv64",
    "direct": null,
    "dev": false,
@@ -929,7 +929,7 @@
   },
   {
    "name": "@img/sharp-libvips-linux-s390x",
-   "version": "1.3.3",
+   "version": "1.3.4",
    "path": "node_modules/@img/sharp-libvips-linux-s390x",
    "direct": null,
    "dev": false,
@@ -944,7 +944,7 @@
   },
   {
    "name": "@img/sharp-libvips-linux-x64",
-   "version": "1.3.3",
+   "version": "1.3.4",
    "path": "node_modules/@img/sharp-libvips-linux-x64",
    "direct": null,
    "dev": false,
@@ -959,7 +959,7 @@
   },
   {
    "name": "@img/sharp-libvips-linuxmusl-arm64",
-   "version": "1.3.3",
+   "version": "1.3.4",
    "path": "node_modules/@img/sharp-libvips-linuxmusl-arm64",
    "direct": null,
    "dev": false,
@@ -974,7 +974,7 @@
   },
   {
    "name": "@img/sharp-libvips-linuxmusl-x64",
-   "version": "1.3.3",
+   "version": "1.3.4",
    "path": "node_modules/@img/sharp-libvips-linuxmusl-x64",
    "direct": null,
    "dev": false,
@@ -989,7 +989,7 @@
   },
   {
    "name": "@img/sharp-linux-arm",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-linux-arm",
    "direct": null,
    "dev": false,
@@ -1004,7 +1004,7 @@
   },
   {
    "name": "@img/sharp-linux-arm64",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-linux-arm64",
    "direct": null,
    "dev": false,
@@ -1019,7 +1019,7 @@
   },
   {
    "name": "@img/sharp-linux-ppc64",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-linux-ppc64",
    "direct": null,
    "dev": false,
@@ -1034,7 +1034,7 @@
   },
   {
    "name": "@img/sharp-linux-riscv64",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-linux-riscv64",
    "direct": null,
    "dev": false,
@@ -1049,7 +1049,7 @@
   },
   {
    "name": "@img/sharp-linux-s390x",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-linux-s390x",
    "direct": null,
    "dev": false,
@@ -1064,7 +1064,7 @@
   },
   {
    "name": "@img/sharp-linux-x64",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-linux-x64",
    "direct": null,
    "dev": false,
@@ -1079,7 +1079,7 @@
   },
   {
    "name": "@img/sharp-linuxmusl-arm64",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-linuxmusl-arm64",
    "direct": null,
    "dev": false,
@@ -1094,7 +1094,7 @@
   },
   {
    "name": "@img/sharp-linuxmusl-x64",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-linuxmusl-x64",
    "direct": null,
    "dev": false,
@@ -1109,7 +1109,7 @@
   },
   {
    "name": "@img/sharp-wasm32",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-wasm32",
    "direct": null,
    "dev": false,
@@ -1124,7 +1124,7 @@
   },
   {
    "name": "@img/sharp-webcontainers-wasm32",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-webcontainers-wasm32",
    "direct": null,
    "dev": false,
@@ -1139,7 +1139,7 @@
   },
   {
    "name": "@img/sharp-win32-arm64",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-win32-arm64",
    "direct": null,
    "dev": false,
@@ -1154,7 +1154,7 @@
   },
   {
    "name": "@img/sharp-win32-ia32",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-win32-ia32",
    "direct": null,
    "dev": false,
@@ -1169,7 +1169,7 @@
   },
   {
    "name": "@img/sharp-win32-x64",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/@img/sharp-win32-x64",
    "direct": null,
    "dev": false,
@@ -1483,7 +1483,7 @@
   },
   {
    "name": "@next/env",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/@next/env",
    "direct": null,
    "dev": false,
@@ -1498,7 +1498,7 @@
   },
   {
    "name": "@next/eslint-plugin-next",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/@next/eslint-plugin-next",
    "direct": null,
    "dev": true,
@@ -1513,7 +1513,7 @@
   },
   {
    "name": "@next/swc-darwin-arm64",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/@next/swc-darwin-arm64",
    "direct": null,
    "dev": false,
@@ -1528,7 +1528,7 @@
   },
   {
    "name": "@next/swc-darwin-x64",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/@next/swc-darwin-x64",
    "direct": null,
    "dev": false,
@@ -1543,7 +1543,7 @@
   },
   {
    "name": "@next/swc-linux-arm64-gnu",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/@next/swc-linux-arm64-gnu",
    "direct": null,
    "dev": false,
@@ -1558,7 +1558,7 @@
   },
   {
    "name": "@next/swc-linux-arm64-musl",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/@next/swc-linux-arm64-musl",
    "direct": null,
    "dev": false,
@@ -1573,7 +1573,7 @@
   },
   {
    "name": "@next/swc-linux-x64-gnu",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/@next/swc-linux-x64-gnu",
    "direct": null,
    "dev": false,
@@ -1588,7 +1588,7 @@
   },
   {
    "name": "@next/swc-linux-x64-musl",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/@next/swc-linux-x64-musl",
    "direct": null,
    "dev": false,
@@ -1603,7 +1603,7 @@
   },
   {
    "name": "@next/swc-win32-arm64-msvc",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/@next/swc-win32-arm64-msvc",
    "direct": null,
    "dev": false,
@@ -1618,7 +1618,7 @@
   },
   {
    "name": "@next/swc-win32-x64-msvc",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/@next/swc-win32-x64-msvc",
    "direct": null,
    "dev": false,
@@ -3514,7 +3514,7 @@
   },
   {
    "name": "@vercel/cli-config",
-   "version": "0.3.0",
+   "version": "0.4.0",
    "path": "node_modules/@vercel/cli-config",
    "direct": null,
    "dev": false,
@@ -3548,7 +3548,7 @@
   },
   {
    "name": "@vercel/functions",
-   "version": "3.9.9",
+   "version": "3.11.3",
    "path": "node_modules/@vercel/functions",
    "direct": "dependencies",
    "dev": false,
@@ -3565,7 +3565,7 @@
   },
   {
    "name": "@vercel/oidc",
-   "version": "3.8.9",
+   "version": "4.0.9",
    "path": "node_modules/@vercel/oidc",
    "direct": null,
    "dev": false,
@@ -4971,7 +4971,7 @@
   },
   {
    "name": "dompurify",
-   "version": "3.4.16",
+   "version": "3.5.0",
    "path": "node_modules/dompurify",
    "direct": null,
    "dev": false,
@@ -5278,7 +5278,7 @@
   },
   {
    "name": "eslint-config-next",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/eslint-config-next",
    "direct": "devDependencies",
    "dev": true,
@@ -8409,7 +8409,7 @@
   },
   {
    "name": "next",
-   "version": "16.3.8",
+   "version": "16.4.6",
    "path": "node_modules/next",
    "direct": "dependencies",
    "dev": false,
@@ -10109,7 +10109,7 @@
   },
   {
    "name": "semver",
-   "version": "7.8.5",
+   "version": "7.8.6",
    "path": "node_modules/sharp/node_modules/semver",
    "direct": null,
    "dev": false,
@@ -10194,7 +10194,7 @@
   },
   {
    "name": "sharp",
-   "version": "0.35.4",
+   "version": "0.35.5",
    "path": "node_modules/sharp",
    "direct": null,
    "dev": false,
@@ -10330,7 +10330,7 @@
   },
   {
    "name": "source-map-js",
-   "version": "1.2.1",
+   "version": "1.2.4",
    "path": "node_modules/source-map-js",
    "direct": null,
    "dev": false,
@@ -11463,7 +11463,7 @@
   },
   {
    "name": "xdg-app-paths",
-   "version": "5.5.1",
+   "version": "5.1.0",
    "path": "node_modules/xdg-app-paths",
    "direct": null,
    "dev": false,
@@ -11471,7 +11471,7 @@
    "license": "MIT",
    "category": "permissive",
    "licenseFiles": [
-    "LICENSE"
+    "license"
    ],
    "noticeFiles": [],
    "repository": "rivy/js.xdg-app-paths",
@@ -11616,27 +11616,10 @@
   },
   {
    "name": "zod",
-   "version": "4.1.11",
-   "path": "node_modules/@vercel/cli-config/node_modules/zod",
-   "direct": null,
-   "dev": false,
-   "optional": false,
-   "license": "MIT",
-   "category": "permissive",
-   "licenseFiles": [
-    "LICENSE"
-   ],
-   "noticeFiles": [],
-   "repository": "git+https://github.com/colinhacks/zod.git",
-   "homepage": "https://zod.dev",
-   "installed": true
-  },
-  {
-   "name": "zod",
-   "version": "4.4.3",
+   "version": "4.6.7",
    "path": "node_modules/zod",
    "direct": null,
-   "dev": true,
+   "dev": false,
    "optional": false,
    "license": "MIT",
    "category": "permissive",
