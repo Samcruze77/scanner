@@ -3,10 +3,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageShell } from "@/components/layout/PageShell";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { InlineText } from "@/components/seo/InlineText";
 import { RelatedTools } from "@/components/seo/SeoContent";
 import { GUIDES, getGuide } from "@/utils/seo/guides";
 import { pageMetadata } from "@/utils/seo/metadata";
 import { articleSchema, breadcrumbSchema, graph, webPageSchema } from "@/utils/seo/schema";
+
+// "2026-11-24" -> "24 November 2026", fixed to UTC so the server and every reader agree.
+function formatDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
 
 export function generateStaticParams() {
   return GUIDES.map((guide) => ({ slug: guide.slug }));
@@ -48,7 +54,14 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
       </nav>
 
       <h1 className="page-title">{guide.h1}</h1>
-      <p className="muted mt-2 text-base leading-7">{guide.intro}</p>
+      {/* The visible date matches the Article structured data (Google compares the two). */}
+      <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+        {guide.updated !== guide.published ? "Updated " : "Published "}
+        <time dateTime={guide.updated}>{formatDate(guide.updated)}</time>
+      </p>
+      <p className="muted mt-2 text-base leading-7">
+        <InlineText text={guide.intro} />
+      </p>
 
       <div className="mt-8 space-y-8">
         {guide.sections.map((section) => (
@@ -56,14 +69,14 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
             <h2 className="section-title">{section.h2}</h2>
             {section.paragraphs?.map((p) => (
               <p key={p} className="muted mt-3 text-sm leading-6">
-                {p}
+                <InlineText text={p} />
               </p>
             ))}
             {section.steps && (
               <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6">
                 {section.steps.map((step) => (
                   <li key={step} className="pl-1">
-                    {step}
+                    <InlineText text={step} />
                   </li>
                 ))}
               </ol>
@@ -72,7 +85,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
               <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6">
                 {section.bullets.map((b) => (
                   <li key={b} className="pl-1">
-                    {b}
+                    <InlineText text={b} />
                   </li>
                 ))}
               </ul>

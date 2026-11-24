@@ -6,9 +6,10 @@
 
 import { useSyncExternalStore } from "react";
 import { Icon } from "@/components/ui/icons";
+import { HINT_KEY_PREFIX } from "./hintStorage";
 
 const CHANGE_EVENT = "docuscanner:hint-change";
-const key = (id: string) => `docuscanner.hint.${id}`;
+const key = (id: string) => `${HINT_KEY_PREFIX}${id}`;
 
 function isDismissed(id: string): boolean {
   try {
@@ -29,18 +30,20 @@ function subscribe(callback: () => void): () => void {
 }
 
 export function Hint({ id, children, className }: { id: string; children: React.ReactNode; className?: string }) {
-  // The server renders nothing; the browser shows the tip after hydration when
-  // it hasn't been dismissed, so there's no flash of a tip that's already gone.
+  // The server renders the tip, so it takes its space from the first paint and nothing
+  // below it moves. A tip this browser has dismissed is hidden before the first paint by
+  // HINT_INIT_SCRIPT (./hintStorage.ts) and removed after hydration.
   const dismissed = useSyncExternalStore(
     subscribe,
     () => isDismissed(id),
-    () => true,
+    () => false,
   );
   if (dismissed) return null;
 
   return (
     <div
       role="note"
+      data-hint-id={id}
       className={`notice notice-info ${className ?? ""}`}
     >
       <Icon name="info" size={18} className="mt-0.5" />

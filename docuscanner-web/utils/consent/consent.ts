@@ -87,6 +87,13 @@ export function readConsent(storage: StorageLike | null = browserStorage()): Con
   }
 }
 
+// Runs in <head> before the first paint (app/layout.tsx). The banner is part of the server
+// HTML so a first-time visitor sees it with the rest of the page instead of seconds later
+// (a late, large banner became the page's Largest Contentful Paint). A visitor who has
+// already decided gets `data-consent-decided` on <html>, and app/globals.css hides the
+// banner before it can flash. Mirrors readConsent(): any unreadable value means "ask".
+export const CONSENT_INIT_SCRIPT = `(function(){try{var r=localStorage.getItem(${JSON.stringify(CONSENT_KEY)});if(r&&JSON.parse(r).version===${CONSENT_VERSION})document.documentElement.setAttribute("data-consent-decided","")}catch(e){}})()`;
+
 // Consent is opt-in: with no stored decision every category is off.
 export function hasConsent(category: ConsentCategory, storage: StorageLike | null = browserStorage()): boolean {
   return readConsent(storage)?.[category] === true;

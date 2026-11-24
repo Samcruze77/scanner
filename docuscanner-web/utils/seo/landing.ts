@@ -87,6 +87,11 @@ const LINKS = {
   fillSign: { href: "/fill-and-sign-pdf", label: "Fill in and sign a PDF form", note: "Type in the blanks, tick boxes and sign." },
   imageToText: { href: "/image-to-text", label: "Convert an image to text", note: "Copy the words out of a photo or screenshot." },
   guideCompressTarget: { href: "/guides/how-to-compress-a-pdf-to-1mb-or-2mb", label: "How to compress a PDF to 1 MB or 2 MB", note: "Get under an upload limit." },
+  guideReduceSize: { href: "/guides/how-to-reduce-pdf-file-size", label: "How to make a scanned PDF smaller", note: "Why scans are big, and what shrinks them." },
+  guideScan: { href: "/guides/how-to-scan-a-document-to-pdf", label: "How to scan a document to PDF", note: "Phone, computer or flatbed scanner, with tips for a clearer scan." },
+  guidePdfToWord: { href: "/guides/how-to-convert-pdf-to-word", label: "How to convert PDF to Word", note: "What converts well, what needs tidying, and scanned PDFs." },
+  guideProtectPdf: { href: "/guides/how-to-password-protect-a-pdf", label: "How to password protect a PDF", note: "How strong it is, and how to share the password safely." },
+  guideExcelToPdf: { href: "/guides/how-to-convert-excel-to-pdf", label: "How to convert Excel to PDF", note: "Keep wide sheets readable and know what carries over." },
 } satisfies Record<string, RelatedLink>;
 
 export const HOME_CRUMB: Crumb = { name: "Home", path: "/" };
@@ -96,9 +101,10 @@ const CONVERT_CRUMB: Crumb = { name: "Convert", path: "/convert" };
 export const LANDING_PAGES: LandingPage[] = [
   {
     path: "/scan",
-    title: "Scan to PDF Online: Free Document Scanner",
+    // Bing's top queries for this page (2026-11): "pdf scanner", "scan to pdf", "free pdf scanner".
+    title: "Scan to PDF Online: Free PDF Scanner",
     description:
-      "Scan documents to PDF with your camera or upload photos, crop and enhance each page, add a signature, then download one PDF. Free, private, in your browser.",
+      "Scan documents to PDF with your phone camera or upload photos. Edges are straightened for you; crop, enhance and sign, then download one PDF. Free, no sign-up.",
     h1: "Scan documents to PDF online",
     intro:
       "Use your camera or upload a file, tidy up the pages, and export one clean PDF. It is free, needs no account, and your pages stay in your browser.",
@@ -135,7 +141,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Does it add a watermark?", a: "No. The PDF you download has no FreePDFScanner watermark." },
       { q: "Can I put several pages into one PDF?", a: "Yes. Add more pages, reorder them, then create a single PDF from all of them." },
     ],
-    related: [LINKS.ocr, LINKS.compressPdf, LINKS.sign, LINKS.editor, LINKS.imageToPdf],
+    related: [LINKS.ocr, LINKS.compressPdf, LINKS.sign, LINKS.editor, LINKS.imageToPdf, LINKS.guideScan],
   },
   {
     path: "/tools/pdf-editor",
@@ -376,7 +382,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Can I compress a PDF to a specific size?", a: "Yes. Under More options, enter a target size and FreePDFScanner picks the lightest level that fits. If it cannot fit without wrecking quality, it tells you." },
       { q: "Is there a file size limit?", a: "PDFs up to 100 MB. There is no daily limit and no account is needed." },
     ],
-    related: [LINKS.guideCompressTarget, LINKS.compressImage, LINKS.scan, LINKS.editor, LINKS.imageToPdf],
+    related: [LINKS.guideCompressTarget, LINKS.guideReduceSize, LINKS.compressImage, LINKS.scan, LINKS.editor, LINKS.imageToPdf],
   },
   {
     path: "/tools/protect-pdf",
@@ -425,7 +431,7 @@ export const LANDING_PAGES: LandingPage[] = [
       },
       { q: "Can I recover a forgotten password?", a: "No. Nobody, including FreePDFScanner, can open the file without it." },
     ],
-    related: [LINKS.compressPdf, LINKS.sign, LINKS.editor, LINKS.wordToPdf],
+    related: [LINKS.guideProtectPdf, LINKS.compressPdf, LINKS.sign, LINKS.editor, LINKS.wordToPdf],
   },
   ...(WORD_PROTECTION
     ? [
@@ -702,7 +708,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Does it work on scanned PDFs?", a: "Yes, using English text recognition. Sharp, straight scans read best." },
       { q: "Will the formatting be perfect?", a: "Simple documents convert well. Complicated layouts usually need some tidying in Word." },
     ],
-    related: [LINKS.createWord, LINKS.ocr, LINKS.wordToPdf, LINKS.pdfToExcel, LINKS.editor],
+    related: [LINKS.guidePdfToWord, LINKS.createWord, LINKS.ocr, LINKS.wordToPdf, LINKS.pdfToExcel, LINKS.editor],
   },
   {
     path: "/convert/excel-to-pdf",
@@ -732,7 +738,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Do I need Excel installed?", a: "No. The conversion happens in your browser." },
       { q: "Does it keep my formatting?", a: "Values (with their Excel number and date formats), column widths, fonts, colours, fills, borders and merged cells are kept. Charts, images, shapes and conditional formatting are not." },
     ],
-    related: [LINKS.pdfToExcel, LINKS.compressExcel, LINKS.wordToPdf, LINKS.compressPdf],
+    related: [LINKS.guideExcelToPdf, LINKS.pdfToExcel, LINKS.compressExcel, LINKS.wordToPdf, LINKS.compressPdf],
   },
   {
     path: "/convert/pdf-to-excel",

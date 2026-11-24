@@ -17,7 +17,9 @@ export default function robots(): MetadataRoute.Robots {
     return { rules: { userAgent: "*", disallow: "/" } };
   }
   return {
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/admin", "/admin/"] }],
+    // /api/ holds only JSON endpoints (analytics, presence, the assistant): nothing to index, and
+    // no page needs them to render its content, so crawling them only spends crawl budget.
+    rules: [{ userAgent: "*", allow: "/", disallow: ["/admin", "/admin/", "/api/"] }],
     sitemap: `${getSiteUrl()}/sitemap.xml`,
   };
 }

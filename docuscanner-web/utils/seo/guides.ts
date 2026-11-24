@@ -5,7 +5,11 @@
 //
 // Product facts (limits, options) match the tools themselves; see utils/seo/landing.ts.
 
+import { FEATURES } from "../features/plans";
 import type { RelatedLink } from "./landing";
+
+// The Word, Excel and PowerPoint protect pages exist only while that option is on.
+const OFFICE_PROTECTION = FEATURES["protect.docx"].implemented;
 
 export interface GuideSection {
   h2: string;
@@ -31,25 +35,28 @@ export interface Guide {
 export const GUIDES: Guide[] = [
   {
     slug: "how-to-scan-a-document-to-pdf",
-    title: "How to Scan a Document to PDF (Phone or Computer)",
+    // Search Console (2026-11): the site's most-shown page on Google, for "how to scan a document
+    // as pdf", "how can i scan to pdf", "how to scan to pdf" and similar. Those searchers often have
+    // an iPhone, Android phone, Windows PC or Mac in hand, so every method is covered honestly.
+    title: "How to Scan a Document to PDF on a Phone or Computer",
     description:
-      "Scan a paper document to a clean PDF with your phone camera or by uploading photos. Step-by-step instructions plus lighting, framing and cleanup tips.",
+      "Scan paper to PDF with a phone camera, an iPhone or Android's built-in scanner, or a flatbed scanner on Windows or Mac. Steps, tips and fixes, all free.",
     h1: "How to scan a document to PDF",
     intro:
-      "You do not need a flatbed scanner or an app to turn paper into a PDF. A phone camera and a browser are enough, and a few small habits make the result look like it came from a real scanner.",
+      "You do not need a flatbed scanner or an app to turn paper into a PDF. A phone camera and a browser are enough, and a few small habits make the result look like it came from a real scanner. Below: the browser method step by step, the scanners already built into iPhone, Android, Windows and Mac, and how to fix the usual problems.",
     published: "2026-09-21",
-    updated: "2026-09-21",
+    updated: "2026-11-24",
     sections: [
       {
         h2: "What you need",
         paragraphs: [
-          "A phone or computer with a camera (or photos you have already taken), a flat surface, and decent light. That is all. FreePDFScanner runs in your browser, so there is nothing to install.",
+          "A phone or computer with a camera (or photos you have already taken), a flat surface, and decent light. That is all. The [FreePDFScanner document scanner](/scan) runs in your browser, so there is nothing to install, and it works the same on iPhone, Android, Windows and Mac.",
         ],
       },
       {
         h2: "Scan a document to PDF, step by step",
         steps: [
-          "Open the FreePDFScanner scanner in your browser and choose Use camera. Allow camera access when your browser asks. If you already have photos, choose Upload document instead.",
+          "Open the [online PDF scanner](/scan) in your browser and choose Use camera. Allow camera access when your browser asks. If you already have photos, choose Upload document instead.",
           "Photograph the first page, then the next. Each photo becomes one page. FreePDFScanner finds the edges of the paper and straightens it for you.",
           "Check each page. If an edge is wrong, open the page and use Adjust crop to drag the corners. Rotate the page if it is sideways.",
           "Pick a look for text pages: Auto for most documents, Black & White for high-contrast text, Grayscale to keep some tone. Adjust brightness and contrast if the page looks dull.",
@@ -73,9 +80,21 @@ export const GUIDES: Guide[] = [
         ],
       },
       {
+        h2: "Other ways to scan to PDF",
+        paragraphs: [
+          "Your phone or computer may already have a scanner built in. These are good options too; use whichever is to hand.",
+        ],
+        bullets: [
+          "iPhone or iPad: in the Files app, tap the More button (three dots) and choose Scan Documents. The pages are saved as one PDF in the folder you are viewing. The Notes app has the same Scan Documents option in a note.",
+          "Android: in the Google Drive app, tap New (the + button) and choose Scan. Drive saves the pages as a PDF in your Drive. Some phones also have a document mode in the camera app.",
+          "Windows with a flatbed scanner: open the Windows Scan app, choose your scanner, and pick PDF as the file type if it is listed. If your scanner software can only save JPG or PNG images, [combine the images into one PDF](/convert/image-to-pdf) afterwards.",
+          "Mac with a flatbed scanner: open Image Capture (or Preview, then File > Import from Scanner), choose PDF as the format and tick Combine into single document for several pages.",
+        ],
+      },
+      {
         h2: "Make the PDF easier to use",
         paragraphs: [
-          "A PDF made from photos is a set of page images, so the words are not selectable and the file can be large. Two follow-ups help. If you need to copy the words, run text recognition (OCR) on the pages. If the file is too big to email, use the PDF compressor and check the size estimate before you commit.",
+          "A PDF made from photos is a set of page images, so the words are not selectable and the file can be large. Two follow-ups help. If you need to copy the words, [extract the text with OCR](/tools/ocr). If the file is too big to email, [compress the PDF](/tools/compress-pdf) and check the size estimate before you commit; [this guide explains why scans are big](/guides/how-to-reduce-pdf-file-size). To sign a scanned form, [add your signature to the PDF](/tools/sign-pdf).",
         ],
       },
       {
@@ -101,14 +120,16 @@ export const GUIDES: Guide[] = [
   },
   {
     slug: "how-to-reduce-pdf-file-size",
-    title: "How to Reduce PDF File Size Without Ruining Quality",
+    // Search Console (2026-11): shown for "how to make a scanned pdf smaller", "how to make scanned
+    // documents smaller file size" and "how to reduce scanned pdf file size", so scans get their own section.
+    title: "How to Reduce PDF File Size, Including Scanned PDFs",
     description:
-      "Why PDFs get big, what actually makes them smaller, and how to compress a PDF for email or upload while keeping it readable.",
+      "Why PDFs and scanned documents get so big, what really makes them smaller, and how to compress a PDF for email or upload while keeping it readable.",
     h1: "How to reduce a PDF's file size",
     intro:
-      "A PDF that is too big to email is almost always full of pictures. Shrinking those pictures is what makes the file smaller, and doing it carefully keeps the document readable.",
+      "A PDF that is too big to email is almost always full of pictures, and a scanned PDF is nothing but pictures. Shrinking those pictures is what makes the file smaller, and doing it carefully keeps the document readable.",
     published: "2026-09-21",
-    updated: "2026-09-21",
+    updated: "2026-11-24",
     sections: [
       {
         h2: "Why some PDFs are so large",
@@ -118,9 +139,22 @@ export const GUIDES: Guide[] = [
         ],
       },
       {
+        h2: "How to make a scanned PDF smaller",
+        paragraphs: [
+          "Every page of a scanned PDF is a photo of the paper, usually in full colour and often at a higher resolution than anyone needs to read it. That is why scans are the PDFs that shrink the most.",
+        ],
+        bullets: [
+          "[Compress it](/tools/compress-pdf) with the strongest level you are happy with. If that is not enough, choose Try stronger compression after compressing: it redraws each page as a smaller picture. For a scan that costs you nothing, because its text was never selectable, unless the scan has been through text recognition (OCR).",
+          "If you can scan again, choose Black & White or Grayscale for text pages in the [document scanner](/scan). A high-contrast page is far smaller than a colour photo of the same page.",
+          "On a flatbed scanner, 150 to 300 dpi is plenty for documents. A 600 dpi colour scan can be several times larger with no visible benefit on screen.",
+          "Crop away the table, background and empty margins around each page before you make the PDF.",
+          "If a portal has a hard limit, [set a target size such as 1 MB or 2 MB](/guides/how-to-compress-a-pdf-to-1mb-or-2mb) and let the compressor pick the level.",
+        ],
+      },
+      {
         h2: "Compress a PDF step by step",
         steps: [
-          "Open the PDF compressor and choose your file (up to 100 MB).",
+          "Open the [PDF compressor](/tools/compress-pdf) and choose your file (up to 100 MB).",
           "Move the slider between higher quality and a smaller file. The estimated size updates as you move it, so you can see the trade-off before you compress.",
           "Choose Compress PDF, then compare the result. Download it if the pages still look good.",
           "If it is not small enough, go back and pick a stronger level. Your original file is never changed.",
@@ -648,6 +682,204 @@ export const GUIDES: Guide[] = [
       { href: "/guides/how-to-check-a-pdf-site-does-not-upload-your-file", label: "How to check if a PDF site uploads your file", note: "A one-minute browser test." },
       { href: "/scan", label: "Scan a document to PDF", note: "Use your camera." },
       { href: "/tools/ocr", label: "Extract text with OCR", note: "English text from scans." },
+    ],
+  },
+  {
+    // Added 2026-11-24. Intent: "how to convert pdf to word", "pdf to word keep formatting",
+    // "convert scanned pdf to word". Leads to /convert/pdf-to-word (the tool page targets the
+    // transactional "pdf to word converter" query; this answers the how and the why).
+    slug: "how-to-convert-pdf-to-word",
+    title: "How to Convert PDF to Word (and Keep It Editable)",
+    description:
+      "Turn a PDF into an editable Word document: what converts cleanly, what needs tidying, how scanned PDFs work, and what to do when the result looks wrong.",
+    h1: "How to convert PDF to Word",
+    intro:
+      "Converting a PDF to Word gives you a document you can edit again. How good the result is depends on the PDF: a file exported from Word or another program converts well, while a scan has to be read with text recognition first. Here is how to do it, and how to judge and fix the result.",
+    published: "2026-11-24",
+    updated: "2026-11-24",
+    sections: [
+      {
+        h2: "First, check what kind of PDF you have",
+        paragraphs: [
+          "Open the PDF and try to select a sentence. If the words highlight, it is a digital PDF with real text, and the conversion can rebuild headings, paragraphs, lists and tables from it. If nothing highlights, or the whole page selects like a photo, it is a scan: the words are only pixels, and they must be recognised (OCR) before they can become editable text.",
+        ],
+      },
+      {
+        h2: "Convert a PDF to Word, step by step",
+        steps: [
+          "Open the [PDF to Word converter](/convert/pdf-to-word) and choose your PDF (up to 100 pages). There is nothing to install and no account to create.",
+          "Choose Convert to Word. Digital pages convert in seconds; scanned pages are read one at a time, so a long scan takes longer. You can cancel at any point.",
+          "Read the summary: it lists how many headings, paragraphs, lists and tables were found, and which pages were read with text recognition.",
+          "Choose Download Word file and open the .docx in Microsoft Word, LibreOffice, Google Docs or another word processor.",
+        ],
+      },
+      {
+        h2: "What converts well, and what needs tidying",
+        bullets: [
+          "Converts well: single-column documents such as letters, reports, CVs and forms with plain text, headings, bullet lists and simple tables.",
+          "Usually needs tidying: multi-column layouts, text wrapped around pictures, and exact spacing. A PDF stores where each line sits on the page, not the paragraphs and columns Word works with, so these are rebuilt as well as possible.",
+          "Not copied: pictures inside the PDF. Insert them again in Word if you need them.",
+          "Not supported: password-protected PDFs. Open the file with its password and save an unprotected copy first, if you are allowed to.",
+        ],
+      },
+      {
+        h2: "Converting a scanned PDF to Word",
+        paragraphs: [
+          "Scanned pages are read with English text recognition and added to the Word file as plain paragraphs. Recognition is good on sharp, straight, well-lit pages and worse on photos taken at an angle, small print or handwriting, so read the result before you rely on it. If you only need the words rather than a Word file, [extracting the text with OCR](/tools/ocr) lets you check and copy it page by page. [How to extract text from a scanned PDF](/guides/how-to-extract-text-from-a-scanned-pdf) explains what affects accuracy.",
+        ],
+      },
+      {
+        h2: "When the result looks wrong",
+        bullets: [
+          "Text in the wrong order: the PDF probably has columns. Copy the paragraphs into place in Word, or convert just the pages you need.",
+          "Odd line breaks inside paragraphs: use Word's Find and Replace to remove manual line breaks, or reflow the paragraph by hand.",
+          "Garbled words on a scan: rescan the page flat and in good light, then convert again. The [document scanner](/scan) straightens and cleans up pages before you make the PDF.",
+          "You only need to change a few words: it can be quicker to [edit the PDF directly](/tools/pdf-editor) by typing over it, or to [fill in and sign the form](/fill-and-sign-pdf), than to convert.",
+        ],
+      },
+      {
+        h2: "Going the other way",
+        paragraphs: [
+          "When you have finished editing, [convert the Word document back to PDF](/convert/word-to-pdf) to send it. If you are writing something new rather than fixing an old file, [create a Word document](/create-word-document) from a blank page instead.",
+        ],
+      },
+    ],
+    tool: {
+      href: "/convert/pdf-to-word",
+      label: "Convert a PDF to Word now",
+      blurb: "Free, no account, and your PDF is converted in your browser, not uploaded.",
+    },
+    related: [
+      { href: "/convert/word-to-pdf", label: "Convert Word to PDF", note: "Turn your edited .docx back into a PDF." },
+      { href: "/tools/ocr", label: "Extract text with OCR", note: "Copy the words from a scanned page." },
+      { href: "/convert/pdf-to-excel", label: "Convert PDF to Excel", note: "For tables you want to calculate with." },
+    ],
+  },
+  {
+    // Added 2026-11-24. Intent: "how to password protect a pdf", "how to lock a pdf",
+    // "how to encrypt a pdf for email". Leads to /tools/protect-pdf.
+    slug: "how-to-password-protect-a-pdf",
+    title: "How to Password Protect a PDF (Free, Without Uploading)",
+    description:
+      "Lock a PDF with a password before you email it: step by step, how strong the protection is, what print and copy limits really do, and how to share the password.",
+    h1: "How to password protect a PDF",
+    intro:
+      "A password-protected PDF asks for the password before it opens, so a file sent to the wrong address or left in a shared folder cannot be read. You can add one for free in your browser, without uploading the file anywhere.",
+    published: "2026-11-24",
+    updated: "2026-11-24",
+    sections: [
+      {
+        h2: "Protect a PDF, step by step",
+        steps: [
+          "Open [Protect PDF](/tools/protect-pdf) and choose your PDF (up to 100 MB). A JPG, PNG or WebP picture also works: it is turned into a one-page PDF first.",
+          "Type a password and type it again to confirm it.",
+          "Choose what people who open it may do: print the document, copy text and images, or edit it. Untick anything you do not want to allow.",
+          "Choose Protect PDF, then download the protected PDF. Your original file is not changed.",
+          "Open the downloaded copy once to check that it asks for the password, before you send it.",
+        ],
+      },
+      {
+        h2: "How strong is the protection?",
+        paragraphs: [
+          "The PDF is encrypted with AES-256, the strongest standard encryption in the PDF format, and it opens in normal PDF readers such as Adobe Acrobat Reader, browser PDF viewers and the preview apps on phones and computers. In practice its strength depends on your password: a long password that is not a word, name or date is far harder to guess than a short one.",
+        ],
+      },
+      {
+        h2: "What print, copy and edit limits really do",
+        paragraphs: [
+          "The open password is the real lock: without it the file cannot be read. The print, copy and edit settings are different. They are instructions that PDF apps are expected to honour once the file is open, and most do, but they are not encryption and some apps ignore them. Treat them as a polite request, and rely on the password to keep the file private.",
+        ],
+      },
+      {
+        h2: "Sharing the password safely",
+        bullets: [
+          "Send the password by a different route from the file: the PDF by email, the password by text message or phone call.",
+          "Avoid putting the password in the email subject, the file name or the same message as the attachment.",
+          "Keep a note of it. If the password is forgotten, the file cannot be opened, and FreePDFScanner never sees it, so it cannot be recovered.",
+          "Plain letters and numbers work in every PDF app; some apps handle other characters differently.",
+        ],
+      },
+      {
+        h2: "Before you protect it",
+        paragraphs: [
+          `Finish your changes first: once it is protected, the PDF must be opened with its password before it can be edited. If you still need to [sign the PDF](/tools/sign-pdf) or [make it smaller](/tools/compress-pdf), do that, then protect the final copy. A PDF that already has a password or restrictions is not changed; remove those first.${
+            OFFICE_PROTECTION
+              ? " Word, Excel and PowerPoint files have their own protect tools that keep them in their original format: see [all PDF tools](/tools)."
+              : " A Word or Excel file can be [converted to PDF](/convert/word-to-pdf) and then protected."
+          }`,
+        ],
+      },
+    ],
+    tool: {
+      href: "/tools/protect-pdf",
+      label: "Password protect a PDF now",
+      blurb: "Free, no account, and the file and password never leave your device.",
+    },
+    related: [
+      { href: "/tools/compress-pdf", label: "Compress a PDF", note: "Make it small enough to email first." },
+      { href: "/tools/sign-pdf", label: "Sign a PDF online", note: "Sign before you lock it." },
+      { href: "/guides/how-to-check-a-pdf-site-does-not-upload-your-file", label: "How to check if a PDF site uploads your file", note: "See for yourself that the file stays on your device." },
+    ],
+  },
+  {
+    // Added 2026-11-24. Intent: "how to convert excel to pdf", "excel to pdf fit to one page",
+    // "excel to pdf columns cut off". Leads to /convert/excel-to-pdf.
+    slug: "how-to-convert-excel-to-pdf",
+    title: "How to Convert Excel to PDF Without Cutting Off Columns",
+    description:
+      "Turn a spreadsheet into a tidy PDF: pick sheets and orientation, keep wide tables readable, and know what carries over (formatting) and what does not (charts).",
+    h1: "How to convert Excel to PDF",
+    intro:
+      "A PDF of a spreadsheet looks the same for everyone and cannot be changed by accident, which is why invoices, price lists and reports are sent that way. The hard part is width: a sheet that is wider than a page gets shrunk or split. Here is how to convert it and keep it readable.",
+    published: "2026-11-24",
+    updated: "2026-11-24",
+    sections: [
+      {
+        h2: "Convert Excel to PDF, step by step",
+        steps: [
+          "Open the [Excel to PDF converter](/convert/excel-to-pdf) and choose an .xlsx workbook or a CSV file (up to 15 MB and 20,000 rows). You do not need Excel installed.",
+          "Under Sheets to include, tick the sheets you want in the PDF.",
+          "Choose Portrait or Landscape, and whether to show gridlines.",
+          "Choose Convert to PDF. You see the page count and any warnings, such as content that could not be carried over. Download or print the PDF, and open it once to check it before you send it.",
+        ],
+      },
+      {
+        h2: "Keep wide sheets readable",
+        paragraphs: [
+          "A sheet that is a little too wide is scaled down to fit the page. When fitting it would make the text too small to read, the columns are split across pages instead, so nothing is cut off but a row may continue on the next page. To keep a table on one page width:",
+        ],
+        bullets: [
+          "Choose Landscape: on the A4 pages it uses, that is about 40% more width than Portrait.",
+          "Hide the columns you do not need to share in Excel first. Hidden columns, rows and sheets are left out of the PDF, as they are in Excel's own export.",
+          "Narrow very wide columns and turn on text wrapping for long text, so a single cell does not set the width of the whole page.",
+          "Split one very wide sheet into two sheets that each fit, and include both.",
+        ],
+      },
+      {
+        h2: "What carries over, and what does not",
+        bullets: [
+          "Kept: values with their Excel number and date formats, column widths, fonts, colours, fills, borders and merged cells.",
+          "Not kept: charts, images, shapes and conditional formatting. If you need a chart in the PDF, export that sheet from Excel itself.",
+          "Text outside the Latin alphabet is not carried over, and the older .xls format is not supported: save it as .xlsx in Excel first.",
+          "Formulas appear as their last saved results, which is what you want in a document to share. Open and save the file in Excel first if the results may be out of date.",
+        ],
+      },
+      {
+        h2: "After converting",
+        paragraphs: [
+          "Need the numbers back out of a PDF later? [Convert the PDF to Excel](/convert/pdf-to-excel). To send several documents as one file, [merge the PDFs](/merge-pdf). If the workbook itself is too big to email because of pictures, [compress the Excel file](/tools/compress-excel) instead of converting it.",
+        ],
+      },
+    ],
+    tool: {
+      href: "/convert/excel-to-pdf",
+      label: "Convert Excel to PDF now",
+      blurb: "Free, no account, and your spreadsheet is converted in your browser.",
+    },
+    related: [
+      { href: "/convert/pdf-to-excel", label: "Convert PDF to Excel", note: "Pull tables out of a PDF into a spreadsheet." },
+      { href: "/convert/word-to-pdf", label: "Convert Word to PDF", note: "For documents rather than spreadsheets." },
+      { href: "/tools/compress-pdf", label: "Compress a PDF", note: "Make the finished PDF smaller." },
     ],
   },
 ];

@@ -41,12 +41,13 @@ const OPTIONS: { key: ConsentCategory; title: string; body: string }[] = [
 
 export function ConsentBanner() {
   // "Has the visitor decided?" read from storage. The server snapshot says
-  // "yes" so the banner is never part of the server-rendered HTML; the real
-  // answer is applied on the client right after hydration.
+  // "no", so the banner is in the server-rendered HTML and paints with the page
+  // (see CONSENT_INIT_SCRIPT: for a visitor who has decided, CSS hides it before
+  // the first paint); the real answer is applied right after hydration.
   const decided = useSyncExternalStore(
     (onChange) => subscribeConsent(onChange),
     () => readConsent() !== null,
-    () => true,
+    () => false,
   );
   const [reopened, setReopened] = useState(false);
   const [detail, setDetail] = useState(false);
@@ -56,6 +57,8 @@ export function ConsentBanner() {
 
   useEffect(() => {
     const reopen = () => {
+      // The pre-paint hint no longer applies: the banner is being shown on purpose.
+      document.documentElement.removeAttribute("data-consent-decided");
       const current = readConsent();
       setChoice(current ? { analytics: current.analytics, advertising: current.advertising, recordings: current.recordings } : REJECT_ALL);
       setDetail(true);
@@ -64,6 +67,12 @@ export function ConsentBanner() {
     window.addEventListener(OPEN_CONSENT_EVENT, reopen);
     return () => window.removeEventListener(OPEN_CONSENT_EVENT, reopen);
   }, []);
+
+  // If the stored decision disappears while the page is open (cleared in another tab),
+  // the banner must be able to show again.
+  useEffect(() => {
+    if (!decided && readConsent() === null) document.documentElement.removeAttribute("data-consent-decided");
+  }, [decided]);
 
   function save(next: ConsentChoice) {
     writeConsent(next);
@@ -79,6 +88,7 @@ export function ConsentBanner() {
       role="dialog"
       aria-modal="false"
       aria-labelledby={titleId}
+      data-consent-banner=""
       className="fixed inset-x-0 bottom-16 z-[60] px-3 pb-3 sm:bottom-0 sm:px-4 sm:pb-4"
     >
       <div className="mx-auto max-h-[80vh] max-w-3xl overflow-y-auto rounded-2xl border border-zinc-200 bg-elevated p-4 shadow-2xl dark:border-zinc-700 sm:p-5">

@@ -14,24 +14,34 @@ import { trackToolOpened } from "@/utils/analytics/events";
 import { useAuth } from "@/components/auth/AuthProvider";
 import type { ToolDef } from "@/utils/tools/registry";
 
+// While a tool's code loads, its place is held at about the height of the tool's empty
+// state (measured at phone and desktop widths), so the explanation under it doesn't jump
+// down when the tool appears. A one-line placeholder caused a layout shift (CLS 0.14-0.34)
+// on every tool page.
+const Loading = ({ className }: { className: string }) => (
+  <p role="status" className={`text-sm text-zinc-500 dark:text-zinc-400 ${className}`}>
+    Loading…
+  </p>
+);
+
 const ScannerWorkspace = dynamic(() => import("@/components/scanner/ScannerWorkspace").then((m) => m.ScannerWorkspace), {
   ssr: false,
-  loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
+  loading: () => <Loading className="min-h-[482px] sm:min-h-[422px]" />,
 });
 
 const CompressTool = dynamic(() => import("@/components/tools/CompressTool").then((m) => m.CompressTool), {
   ssr: false,
-  loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
+  loading: () => <Loading className="min-h-[224px] sm:min-h-[204px]" />,
 });
 
 const ImageEditTool = dynamic(() => import("@/components/tools/ImageEditTool").then((m) => m.ImageEditTool), {
   ssr: false,
-  loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
+  loading: () => <Loading className="min-h-[264px] sm:min-h-[204px]" />,
 });
 
 const ProtectTool = dynamic(() => import("@/components/tools/ProtectTool").then((m) => m.ProtectTool), {
   ssr: false,
-  loading: () => <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>,
+  loading: () => <Loading className="min-h-[290px] sm:min-h-[250px]" />,
 });
 
 // `heading` lets the page override the H1 with the fuller, search-intent-matching
@@ -74,7 +84,10 @@ export function ToolWorkspace({ tool, heading }: { tool: ToolDef; heading?: stri
           ) : tool.kind === "protect" ? (
             <ProtectTool focus={tool.focus} />
           ) : (
-            <CompressTool kind={tool.compress} />
+            // Compress PDF's empty state is a line taller than the other compressors'.
+            <div className={tool.compress === "pdf" ? "min-h-[264px] sm:min-h-[224px]" : undefined}>
+              <CompressTool kind={tool.compress} />
+            </div>
           )}
         </ToolGate>
       )}

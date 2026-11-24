@@ -152,7 +152,7 @@ console.log("7. Every browser storage key is classified (new storage must be rev
   // ds_audience:<user id> (sessionStorage, signed-in users only) caches the server's yes/no answer to "is this an
   // administrator?" for a few minutes. It records nothing about behaviour and exists to keep administrators OUT of
   // tracking, so it is strictly necessary for that purpose, like ds_password_recovery.
-  const ESSENTIAL = ["ds_audience:", "pdfscanner.theme", "docuscanner.signature.v1", "ds_consent", "ds_password_recovery", "ds_install_reminder", "docuscanner.guidance.v1", "docuscanner.assist.ignored"];
+  const ESSENTIAL = ["ds_audience:", "pdfscanner.theme", "docuscanner.signature.v1", "ds_consent", "ds_password_recovery", "ds_install_reminder", "docuscanner.guidance.v1", "docuscanner.assist.ignored", "docuscanner.hint."];
   const ANALYTICS = ["ds_visitor_id", "ds_session_id", "ds_session_last_seen"];
   const ADVERTISING = ["ds_ad_seen_", "ds_ad_"];
   // Not browser storage (font-name marker in the DOCX converter).
@@ -175,7 +175,11 @@ console.log("8. Banner behaviour");
   const banner = read("components/consent/ConsentBanner.tsx");
   check("Reject is offered next to Accept, same button size", /Accept all[\s\S]*Reject non-essential/.test(banner) && (banner.match(/className="btn btn-(primary|secondary)"/g) ?? []).length >= 2);
   check("nothing pre-ticked: choices start from reject-all", /useState<ConsentChoice>\(REJECT_ALL\)/.test(banner));
-  check("banner is never server-rendered (assumes 'decided' on the server)", /\(\) => true,\s*\)/.test(banner));
+  // The banner is in the server HTML (so it paints with the page instead of becoming a late Largest
+  // Contentful Paint); a visitor who already chose has it hidden before the first paint by a head script
+  // that mirrors readConsent(), and removed after hydration. It never decides anything itself.
+  check("banner is server-rendered as 'not decided yet'", /\(\) => false,\s*\)/.test(banner) && /data-consent-banner/.test(banner));
+  check("a decided visitor's banner is hidden before the first paint", /CONSENT_INIT_SCRIPT/.test(read("app/layout.tsx")) && /html\[data-consent-decided\] \[data-consent-banner\]\s*\{\s*display: none;/.test(read("app/globals.css")) && /version===\$\{CONSENT_VERSION\}/.test(read("utils/consent/consent.ts")));
   check("each optional category is separately switchable", ["analytics", "advertising", "recordings"].every((k) => new RegExp(`key: "${k}"`).test(banner)));
   check("footer offers Cookie settings and the Privacy Policy", /CookieSettingsButton/.test(read("components/layout/Footer.tsx")) && /href="\/privacy"/.test(read("components/layout/Footer.tsx")));
   check("banner links to the cookies section of the policy", /\/privacy#section-6/.test(banner) && /id=\{`section-\$\{parseInt\(section\.title, 10\)\}`\}/.test(read("app/privacy/page.tsx")));

@@ -9,14 +9,14 @@ import { breadcrumbSchema, graph, webPageSchema } from "@/utils/seo/schema";
 
 export const metadata: Metadata = pageMetadata({
   title: "PDF Guides: Scan, Compress, Sign & Convert",
-  description: "Short, practical guides to scanning, compressing, converting and signing documents, each one leading straight to the FreePDFScanner tool that does it.",
+  description: "Practical guides to scanning, compressing, converting, signing and password-protecting PDFs, each leading straight to the free FreePDFScanner tool that does it.",
   path: "/guides",
 });
 
 export default function GuidesIndexPage() {
   return (
     <PageShell>
-      <JsonLd data={graph(webPageSchema("/guides", "PDF and document guides", "Short, practical guides to scanning, compressing, converting and signing documents."), breadcrumbSchema("/guides", [{ name: "Guides", path: "/guides" }]))} />
+      <JsonLd data={graph(webPageSchema("/guides", "PDF and document guides", "Practical guides to scanning, compressing, converting, signing and password-protecting documents."), breadcrumbSchema("/guides", [{ name: "Guides", path: "/guides" }]))} />
       <PageHeader title="PDF and document guides">Short, practical answers to real document questions, each one leading to the tool that does it.</PageHeader>
       <ul className="card divide-y divide-zinc-200 overflow-hidden dark:divide-zinc-800">
         {GUIDES.map((guide) => (

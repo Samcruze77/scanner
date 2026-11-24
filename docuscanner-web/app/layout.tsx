@@ -15,6 +15,8 @@ import { AudienceProvider } from "@/components/analytics/AudienceProvider";
 import { MobileActionBar } from "@/components/layout/MobileActionBar";
 import { THEME_INIT_SCRIPT } from "@/components/theme/theme";
 import { ThemeKeeper } from "@/components/theme/ThemeKeeper";
+import { HINT_INIT_SCRIPT } from "@/components/guidance/hintStorage";
+import { CONSENT_INIT_SCRIPT } from "@/utils/consent/consent";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/utils/seo/site";
 import "./globals.css";
 
@@ -70,8 +72,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        {/* Puts the saved (or system) theme on screen before the first paint. */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Before the first paint: the saved (or system) theme, and hiding the consent banner and
+            first-use tips this browser has already answered (both are in the server HTML so they
+            don't arrive late and move the page or become its largest paint). */}
+        <script dangerouslySetInnerHTML={{ __html: `${THEME_INIT_SCRIPT};${CONSENT_INIT_SCRIPT};${HINT_INIT_SCRIPT}` }} />
       </head>
       <body className="flex min-h-full flex-col overflow-x-hidden pb-16 sm:pb-0">
         <a
