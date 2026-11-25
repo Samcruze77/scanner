@@ -84,6 +84,13 @@ async function openTool(route = "/convert/pdf-to-jpg", viewport) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await visit(page, route);
+  // Choose files only once React has attached its handlers: on a deployed site hydration takes
+  // longer than locally, and a file set before then is ignored (a person can't do this: the
+  // button that opens the file picker needs the same JavaScript).
+  await page.waitForFunction(() => {
+    const zone = document.querySelector("[data-assistant-id=file-dropzone]");
+    return !!zone && Object.keys(zone).some((k) => k.startsWith("__reactProps"));
+  }, null, { timeout: 30000 });
   return { context, page, errors };
 }
 async function choose(page, file) {
