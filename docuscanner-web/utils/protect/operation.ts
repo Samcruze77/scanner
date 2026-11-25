@@ -11,11 +11,13 @@
 // Framework-free and browser-free (the QPDF engine is injected) so the tests run this exact code.
 
 import { protectPdf, ProtectError, validatePassword, MAX_PROTECT_BYTES, type ProtectOptions, type QpdfFactory } from "./protect.ts";
+import { toProtectError, type ProtectPhase } from "./rules.ts";
+// Defined in rules.ts so the page can use them without loading the engines; re-exported for existing callers.
+export { toProtectError, type ProtectPhase };
 import { encryptDocx, verifyEncryptedDocx } from "./ooxml.ts";
 import { OFFICE_TYPES, validateOfficePackage, type OfficeExtension } from "./office.ts";
 
 export type ProtectKind = "pdf" | "office";
-export type ProtectPhase = "validating" | "encrypting" | "verifying" | "completed";
 
 export interface ProtectRequest {
   kind: ProtectKind;
@@ -53,14 +55,6 @@ export const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 
 // Anything that is not already a ProtectError becomes a generic one; out-of-memory
 // failures get their own message. Raw messages never reach the user.
-export function toProtectError(error: unknown): ProtectError {
-  if (error instanceof ProtectError) return error;
-  const name = (error as { name?: string } | null)?.name;
-  const message = String((error as { message?: string } | null)?.message ?? "");
-  if (error instanceof RangeError || name === "QuotaExceededError" || /out of memory|allocation|Array buffer allocation/i.test(message)) return new ProtectError("protect_memory");
-  return new ProtectError("protect_failed");
-}
-
 export async function runProtection(request: ProtectRequest, engines: ProtectEngines, hooks: ProtectHooks = {}): Promise<ProtectedOutput> {
   const controller = new AbortController();
   const outer = hooks.signal;

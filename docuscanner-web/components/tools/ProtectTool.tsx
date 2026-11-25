@@ -30,8 +30,8 @@ import { getUserPlan, isFeatureAvailable } from "@/utils/features/plans";
 import { OFFICE_APP_NOUN, OFFICE_EXTENSIONS, OFFICE_TYPES, officeAppOf, officeExtensionOf, type OfficeApp, type OfficeExtension } from "@/utils/protect/office";
 import { fileBaseName } from "@/utils/files/filename";
 import { protectErrorMessage } from "@/utils/protect/messages";
-import { DEFAULT_PROTECT_OPTIONS, MIN_PASSWORD_LENGTH, protectedFilename, validatePassword } from "@/utils/protect/protect";
-import { toProtectError, type ProtectPhase } from "@/utils/protect/operation";
+// Only the pdf-lib-free rules: the engines (utils/protect/browser.ts) load when protection starts.
+import { DEFAULT_PROTECT_OPTIONS, MIN_PASSWORD_LENGTH, protectedFilename, toProtectError, validatePassword, type ProtectPhase } from "@/utils/protect/rules";
 
 type Kind = "pdf" | "office" | "image";
 type Focus = "pdf" | OfficeApp;

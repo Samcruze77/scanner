@@ -15,7 +15,7 @@
 // DOCTYPE or entities are refused outright, so entity-expansion tricks are impossible.
 
 import { detectOfficeExtension, type OfficeExtension } from "./office.ts";
-import { ProtectError } from "./protect.ts";
+import { ProtectError } from "./rules.ts";
 
 export const MAX_XML_BYTES = 25 * 1024 * 1024;
 

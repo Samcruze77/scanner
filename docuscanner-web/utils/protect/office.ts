@@ -14,7 +14,7 @@
 // .ppt) and files that are already encrypted are refused.
 
 import { CFB_MAGIC } from "./ooxml.ts";
-import { ProtectError } from "./protect.ts";
+import { ProtectError } from "./rules.ts";
 
 export const MAX_OFFICE_BYTES = 50 * 1024 * 1024;
 

@@ -24,7 +24,7 @@
 
 import { allocateCfb, type CfbNode } from "./cfbWriter.ts";
 import { readCfb } from "./cfbReader.ts";
-import { ProtectError } from "./protect.ts";
+import { ProtectError } from "./rules.ts";
 
 const SEGMENT = 4096;
 const SPIN_COUNT = 100_000;

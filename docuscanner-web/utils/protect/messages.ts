@@ -2,7 +2,7 @@
 // also what reach analytics, so nothing here may contain filenames, contents or
 // passwords.
 
-import { MIN_PASSWORD_LENGTH } from "./protect.ts";
+import { MIN_PASSWORD_LENGTH } from "./rules.ts";
 
 const MESSAGES: Record<string, string> = {
   protect_unsupported_type: "That file type isn't supported. Choose a PDF, a Word, Excel or PowerPoint file (.docx, .xlsx, .pptx and the macro-enabled and template versions), an Office XML Document (.xml), or a JPG, PNG or WebP picture.",

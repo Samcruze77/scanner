@@ -8,76 +8,12 @@
 // ./browser.ts), so the same code runs in Node for the tests.
 
 import { PDFDocument } from "pdf-lib";
-import { fileBaseName } from "../files/filename.ts";
 
-export type ProtectErrorCode =
-  | "protect_unsupported_type"
-  | "protect_too_large"
-  | "protect_invalid"
-  | "protect_already_protected"
-  | "protect_password_missing"
-  | "protect_password_short"
-  | "protect_password_long"
-  | "protect_password_mismatch"
-  | "protect_type_mismatch"
-  | "protect_legacy_doc"
-  | "protect_xml_unsupported"
-  | "protect_cancelled"
-  | "protect_timeout"
-  | "protect_memory"
-  | "protect_unverified"
-  | "protect_unsupported_browser"
-  | "protect_failed";
-
-export class ProtectError extends Error {
-  readonly code: ProtectErrorCode;
-  constructor(code: ProtectErrorCode) {
-    super(code);
-    this.name = "ProtectError";
-    this.code = code;
-  }
-}
-
-export const MAX_PROTECT_BYTES = 100 * 1024 * 1024;
-export const MIN_PASSWORD_LENGTH = 6;
-// The PDF standard allows at most 127 bytes (UTF-8) for an AES-256 password.
-export const MAX_PASSWORD_BYTES = 127;
-
-export interface ProtectOptions {
-  // Needed to open the PDF.
-  password: string;
-  // What people who open it may do. These are requests that PDF readers honour;
-  // they do not stop someone who has the password from reading the file.
-  allowPrint: boolean;
-  allowCopy: boolean;
-  allowEdit: boolean;
-}
-
-export const DEFAULT_PROTECT_OPTIONS: Omit<ProtectOptions, "password"> = {
-  allowPrint: true,
-  allowCopy: true,
-  allowEdit: false,
-};
-
-// The slice of the QPDF WebAssembly module that is used.
-export interface QpdfInstance {
-  callMain: (args: string[]) => number;
-  FS: {
-    writeFile: (path: string, data: Uint8Array) => void;
-    readFile: (path: string) => Uint8Array;
-    unlink: (path: string) => void;
-  };
-}
-export type QpdfFactory = () => Promise<QpdfInstance>;
-
-// "" when fine, otherwise the error code. Used by the form and re-checked by protectPdf.
-export function validatePassword(password: string, confirm?: string): ProtectErrorCode | "" {
-  if (password.length === 0) return "protect_password_missing";
-  if (Array.from(password).length < MIN_PASSWORD_LENGTH) return "protect_password_short";
-  if (new TextEncoder().encode(password).length > MAX_PASSWORD_BYTES) return "protect_password_long";
-  if (confirm !== undefined && confirm !== password) return "protect_password_mismatch";
-  return "";
-}
+// The error type, limits, password rules and options live in rules.ts (no pdf-lib), so the page can
+// use them without loading the engine; re-exported here for existing callers and tests.
+import { MAX_PROTECT_BYTES, ProtectError, validatePassword, type ProtectOptions, type QpdfFactory, type QpdfInstance } from "./rules.ts";
+export { DEFAULT_PROTECT_OPTIONS, MAX_PASSWORD_BYTES, MAX_PROTECT_BYTES, MIN_PASSWORD_LENGTH, protectedFilename, ProtectError, validatePassword } from "./rules.ts";
+export type { ProtectErrorCode, ProtectOptions, QpdfFactory, QpdfInstance } from "./rules.ts";
 
 // A random password nobody sees. QPDF gives whoever opens the file with the
 // owner password full rights, so when it equals the open password the permission
@@ -219,9 +155,4 @@ export async function protectPdf(input: Uint8Array, options: ProtectOptions, cre
   } finally {
     cleanup(qpdf, files);
   }
-}
-
-// "Q3 report.pdf" -> "Q3 report-protected.pdf".
-export function protectedFilename(inputName: string): string {
-  return `${fileBaseName(inputName, "document")}-protected.pdf`;
 }
