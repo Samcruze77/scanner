@@ -39,4 +39,14 @@ export const CONVERT_TOOLS: ToolLink[] = [
     title: "PDF to Excel",
     body: "Pull tables out of a PDF into a real spreadsheet, with numbers you can add up. Scanned pages are read with text recognition.",
   },
+  {
+    href: "/convert/pdf-to-jpg",
+    title: "PDF to JPG",
+    body: "Turn PDF pages into JPG images at 72, 150 or 300 DPI. Pick the pages, then download one image or a ZIP.",
+  },
+  {
+    href: "/convert/pdf-to-png",
+    title: "PDF to PNG",
+    body: "Turn PDF pages into lossless PNG images with crisp text and lines, for printing, slides or further editing.",
+  },
 ];

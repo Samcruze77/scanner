@@ -16,6 +16,7 @@ export type FeatureId =
   | "convert.pdf_to_excel"
   | "convert.word_to_pdf"
   | "convert.pdf_to_word"
+  | "convert.pdf_to_image"
   | "edit.annotate"
   | "edit.sign"
   | "edit.image"
@@ -52,6 +53,8 @@ export const FEATURES: Record<FeatureId, FeatureDefinition> = {
   // Word conversions also run entirely in the browser and stay free.
   "convert.word_to_pdf": { minPlan: "free", implemented: true },
   "convert.pdf_to_word": { minPlan: "free", implemented: true },
+  // PDF pages to JPG / PNG images: rendered in the browser with PDF.js, free.
+  "convert.pdf_to_image": { minPlan: "free", implemented: true },
   // Editing, signing and compression tools run in the browser and are free.
   // Signing (draw, type, upload) and the basic annotations are deliberately NOT
   // premium features. Login, where a tool asks for it, is separate from plans:

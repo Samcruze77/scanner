@@ -15,6 +15,8 @@ export const TARGETABLE_PATHS: { path: string; label: string }[] = [
   { path: "/convert/pdf-to-excel", label: "PDF to Excel" },
   { path: "/convert/excel-to-pdf", label: "Excel to PDF" },
   { path: "/convert/image-to-pdf", label: "Image to PDF" },
+  { path: "/convert/pdf-to-jpg", label: "PDF to JPG" },
+  { path: "/convert/pdf-to-png", label: "PDF to PNG" },
   { path: "/tools/pdf-editor", label: "PDF Editor" },
   { path: "/tools/annotate", label: "Annotate" },
   { path: "/tools/draw", label: "Draw" },

@@ -36,6 +36,8 @@ const CONVERT = [
   { href: "/convert/pdf-to-word", label: "PDF to Word" },
   { href: "/convert/excel-to-pdf", label: "Excel to PDF" },
   { href: "/convert/pdf-to-excel", label: "PDF to Excel" },
+  { href: "/convert/pdf-to-jpg", label: "PDF to JPG" },
+  { href: "/convert/pdf-to-png", label: "PDF to PNG" },
 ];
 
 const linkClass = "inline-flex min-h-11 items-center text-sm hover:underline";

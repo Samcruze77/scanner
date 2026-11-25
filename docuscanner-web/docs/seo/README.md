@@ -23,8 +23,7 @@ with the data behind these rules, is in [2026-11-24-seo-report.md](2026-11-24-se
 
 1. **One intent, one URL.** Check the keyword map below. If an existing page already targets the
    query, improve that page instead of adding a new one. Never create a page for a tool or format
-   the product does not have (there is no PDF to JPG, PDF to PNG, PDF to PowerPoint or PowerPoint
-   to PDF tool today).
+   the product does not have (there is no PDF to PowerPoint or PowerPoint to PDF tool today).
 2. **Metadata through `pageMetadata()`**: a unique title of at most 60 characters with the main
    query first (the site name is appended only when it fits), a unique, specific description of
    120-160 characters that says what the page does and why it is worth the click, and `path` set
@@ -90,4 +89,6 @@ do not quote volumes.
 | edit / crop / resize image online | Transactional | `/tools/edit-image` | |
 | compress image, reduce jpg size | Transactional | `/tools/compress-image` | |
 | ilovepdf alternative (GSC) | Commercial investigation | `/guides/ilovepdf-alternatives-compared` | |
-| pdf to jpg, pdf to png, pdf to powerpoint, powerpoint to pdf | (no tool) | **do not target** until the tool exists | |
+| pdf to jpg, pdf to jpeg, pdf to image, save pdf page as jpg | Transactional | `/convert/pdf-to-jpg` (`/pdf-to-jpg`, `/pdf-to-image` redirect) | `/convert/pdf-to-png` |
+| pdf to png, pdf to png high resolution | Transactional | `/convert/pdf-to-png` (`/pdf-to-png` redirects) | `/convert/pdf-to-jpg` |
+| pdf to powerpoint, powerpoint to pdf | (no tool) | **do not target** until the tool exists | |

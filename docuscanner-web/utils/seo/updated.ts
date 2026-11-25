@@ -11,13 +11,17 @@
 export const CONTENT_BASELINE = "2026-11-14";
 
 const PAGE_UPDATED: Record<string, string> = {
-  "/": "2026-11-24",
+  "/": "2026-11-25",
   "/scan": "2026-11-24",
   "/guides": "2026-11-24",
   "/tools/protect-pdf": "2026-11-24",
   "/convert/pdf-to-word": "2026-11-24",
   "/convert/excel-to-pdf": "2026-11-24",
   "/tools/compress-pdf": "2026-11-24",
+  "/convert/pdf-to-jpg": "2026-11-25",
+  "/convert/pdf-to-png": "2026-11-25",
+  "/convert": "2026-11-25",
+  "/pdf-converter": "2026-11-25",
   "/privacy": "2026-10-26",
 };
 

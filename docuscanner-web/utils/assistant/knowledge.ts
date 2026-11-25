@@ -138,6 +138,37 @@ const ENTRIES: HelpEntry[] = [
     related: ["create-word-document"],
   },
   {
+    id: "convert-pdf-to-image",
+    kind: "howto",
+    title: "Convert PDF pages to JPG or PNG images",
+    keywords: ["pdf to jpg", "pdf to jpeg", "pdf to png", "pdf to image", "pdf to picture", "save pdf page as image", "pdf page as jpg", "convert pdf to photo"],
+    summary: "Turn each page of a PDF, or only the pages you pick, into a JPG or PNG image at 72, 150 or 300 DPI.",
+    route: "/convert/pdf-to-jpg",
+    routeLabel: "Open PDF to JPG",
+    steps: [
+      { text: "Open the PDF to JPG (or PDF to PNG) converter.", target: "nav-convert" },
+      { text: "Choose your PDF, or drop it on the box.", target: "file-dropzone" },
+      { text: "Pick JPG or PNG, a resolution, and all pages or only some (for example 1-3, 5)." },
+      { text: "Choose Convert, then download one image, or all pages as a ZIP.", target: "convert-download" },
+    ],
+    variants: [
+      {
+        pages: ["/convert/pdf-to-jpg", "/convert/pdf-to-png"],
+        steps: [
+          { text: "Choose your PDF, or drop it on the box.", target: "file-dropzone" },
+          { text: "Pick JPG or PNG, a resolution, and all pages or only some (for example 1-3, 5)." },
+          { text: "Choose Convert, then download one image, or all pages as a ZIP.", target: "convert-download" },
+        ],
+      },
+    ],
+    notes: [
+      "JPG makes smaller files; PNG keeps text and lines perfectly sharp but the files are bigger. Pick 300 DPI to print.",
+      "The images are pictures of the pages, so their text can't be selected. To get the words, use OCR or PDF to text.",
+      "PDFs up to 25 MB and 100 pages. Password-protected PDFs are not supported.",
+    ],
+    related: ["convert-pdf-to-word", "ocr"],
+  },
+  {
     id: "convert-excel-to-pdf",
     kind: "howto",
     title: "Convert an Excel spreadsheet to PDF",

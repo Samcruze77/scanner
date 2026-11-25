@@ -11,7 +11,7 @@ import { breadcrumbSchema, graph, webPageSchema } from "@/utils/seo/schema";
 
 export const metadata: Metadata = pageMetadata({
   title: "Free File Converter: PDF, Word, Excel, JPG",
-  description: "Convert Word, Excel and images to PDF, and PDF to Word or Excel, for free. Everything is converted in your browser, so your files are never uploaded.",
+  description: "Convert Word, Excel and images to PDF, and PDF to Word, Excel, JPG or PNG, for free. Everything is converted in your browser, so nothing is uploaded.",
   path: "/convert",
 });
 
@@ -22,6 +22,8 @@ const ICONS: Record<string, IconName> = {
   "/convert/pdf-to-word": "document",
   "/convert/excel-to-pdf": "documents",
   "/convert/pdf-to-excel": "documents",
+  "/convert/pdf-to-jpg": "image",
+  "/convert/pdf-to-png": "image",
 };
 
 // More specific conversions, each with its own page explaining the steps and limits.

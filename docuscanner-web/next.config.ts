@@ -33,6 +33,9 @@ const nextConfig: NextConfig = {
       // avoids duplicate-content pages for the exact same functionality.
       { source: "/pdf-to-word", destination: "/convert/pdf-to-word", permanent: true },
       { source: "/pdf-to-excel", destination: "/convert/pdf-to-excel", permanent: true },
+      { source: "/pdf-to-jpg", destination: "/convert/pdf-to-jpg", permanent: true },
+      { source: "/pdf-to-png", destination: "/convert/pdf-to-png", permanent: true },
+      { source: "/pdf-to-image", destination: "/convert/pdf-to-jpg", permanent: true },
       { source: "/word-to-pdf", destination: "/convert/word-to-pdf", permanent: true },
       { source: "/image-to-pdf", destination: "/convert/image-to-pdf", permanent: true },
       { source: "/compress-pdf", destination: "/tools/compress-pdf", permanent: true },

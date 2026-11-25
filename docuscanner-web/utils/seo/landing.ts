@@ -76,6 +76,8 @@ const LINKS = {
   pdfToWord: { href: "/convert/pdf-to-word", label: "Convert PDF to Word", note: "Get an editable .docx from a PDF." },
   excelToPdf: { href: "/convert/excel-to-pdf", label: "Convert Excel to PDF", note: "Turn a spreadsheet into a tidy PDF." },
   pdfToExcel: { href: "/convert/pdf-to-excel", label: "Convert PDF to Excel", note: "Pull tables out of a PDF." },
+  pdfToJpg: { href: "/convert/pdf-to-jpg", label: "Convert PDF to JPG", note: "Turn each PDF page into a JPG image." },
+  pdfToPng: { href: "/convert/pdf-to-png", label: "Convert PDF to PNG", note: "Turn each PDF page into a lossless PNG image." },
   convert: { href: "/convert", label: "All file converters", note: "Word, Excel, CSV, images and PDF." },
   tools: { href: "/tools", label: "All PDF tools", note: "Edit, sign, compress and extract text." },
   createWord: { href: "/create-word-document", label: "Create a Word document", note: "Write a new document from a blank page and download a .docx." },
@@ -646,7 +648,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Will it change my image quality?", a: "Pages are kept at about 170 DPI for A4. Use the compressor afterwards if you need the file smaller." },
       { q: "Does it work for PNG?", a: "Yes. JPG, PNG and other common image types are accepted." },
     ],
-    related: [LINKS.scan, LINKS.compressPdf, LINKS.ocr, LINKS.editor],
+    related: [LINKS.scan, LINKS.compressPdf, LINKS.ocr, LINKS.editor, LINKS.pdfToJpg],
   },
   {
     path: "/convert/word-to-pdf",
@@ -709,6 +711,77 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Will the formatting be perfect?", a: "Simple documents convert well. Complicated layouts usually need some tidying in Word." },
     ],
     related: [LINKS.guidePdfToWord, LINKS.createWord, LINKS.ocr, LINKS.wordToPdf, LINKS.pdfToExcel, LINKS.editor],
+  },
+  {
+    path: "/convert/pdf-to-jpg",
+    title: "PDF to JPG: Convert PDF Pages to JPG Images",
+    description:
+      "Convert PDF pages to JPG images for free in your browser. Choose the pages and a resolution up to 300 DPI, then download one JPG or a ZIP. Nothing is uploaded.",
+    h1: "Convert PDF to JPG",
+    intro:
+      "Turn every page of a PDF, or just the pages you pick, into a JPG image you can post, email or drop into a slide. Free, no watermark, and it runs in your browser.",
+    crumbs: [CONVERT_CRUMB, { name: "PDF to JPG", path: "/convert/pdf-to-jpg" }],
+    appName: "FreePDFScanner PDF to JPG converter",
+    features: ["Convert PDF pages to JPG images", "72, 150 or 300 DPI", "Choose which pages to convert", "Download one image or a ZIP of all pages", "Runs in the browser"],
+    how: [
+      "Choose a PDF (up to 25 MB and 100 pages).",
+      "Keep JPG selected, pick a resolution, and choose all pages or type the ones you want, such as 1-3, 5.",
+      "Choose Convert to JPG. Each page is drawn as a picture at the size you picked.",
+      "Download a single page, or all of them together in a ZIP file.",
+    ],
+    goodFor:
+      "Sharing a page where a PDF won't open or isn't allowed: a social post, a chat message, a website form that only takes pictures, or a slide in a presentation.",
+    formats: "PDF files up to 25 MB and 100 pages. Output: JPG images at 72, 150 or 300 DPI.",
+    limits: [
+      "Each page becomes a picture, so its text can no longer be selected or searched. To get the words, use PDF to text or OCR instead.",
+      "Pages are given a white background, like paper. JPG has no transparency.",
+      "Very large pages, such as posters or drawings, are made at a lower resolution so a browser can draw them; the resolution is written into each file.",
+      "All images are made in your browser's memory, so one run can produce about 400 million pixels: for example all 100 pages of an A4 PDF at 150 DPI, or about 45 pages at 300 DPI.",
+      "Password-protected PDFs are not supported.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "Should I choose JPG or PNG?", a: "For pages with photos or scans, JPG files are usually two to three times smaller, which suits sharing and email. For pages of plain text the two are close in size, and PNG keeps every letter and thin line perfectly crisp. You can switch between them on this page." },
+      { q: "Which resolution should I pick?", a: "Standard (150 DPI) is sharp on any screen and fine for most uses. Pick High (300 DPI) to print the image or to zoom into small text, and Small (72 DPI) for quick previews and the smallest files." },
+      { q: "Can I convert only one page of a PDF to JPG?", a: "Yes. Choose Only these pages and type the page number, or a list such as 2, 4-6. A single page downloads as one JPG; several pages download as a ZIP." },
+      { q: "Is there a watermark or a page limit per day?", a: "No watermark and no daily limit. The only limits are the PDF's size (25 MB) and length (100 pages)." },
+    ],
+    related: [LINKS.pdfToPng, LINKS.imageToPdf, LINKS.compressImage, LINKS.editImage, LINKS.pdfToWord, LINKS.ocr],
+  },
+  {
+    path: "/convert/pdf-to-png",
+    title: "PDF to PNG: Convert PDF Pages to PNG Images",
+    description:
+      "Turn PDF pages into lossless PNG images with crisp text, free in your browser. Pick the pages and a resolution up to 300 DPI, then download one PNG or a ZIP.",
+    h1: "Convert PDF to PNG",
+    intro:
+      "Save PDF pages as lossless PNG images, with text and fine lines kept perfectly sharp. Convert every page or only the ones you choose. Free, and it runs in your browser.",
+    crumbs: [CONVERT_CRUMB, { name: "PDF to PNG", path: "/convert/pdf-to-png" }],
+    appName: "FreePDFScanner PDF to PNG converter",
+    features: ["Convert PDF pages to lossless PNG images", "72, 150 or 300 DPI", "Choose which pages to convert", "Download one image or a ZIP of all pages", "Runs in the browser"],
+    how: [
+      "Choose a PDF (up to 25 MB and 100 pages).",
+      "Keep PNG selected and pick a resolution: High (300 DPI) for printing or detailed drawings.",
+      "Convert all pages, or type the ones you want, such as 1-3, 5, then choose Convert to PNG.",
+      "Download a single image, or every page together in a ZIP file.",
+    ],
+    goodFor:
+      "Screenshots of documents for a report, a website or a presentation where text must stay sharp, diagrams and charts with thin lines, and pages you want to edit further in an image editor without losing quality.",
+    formats: "PDF files up to 25 MB and 100 pages. Output: PNG images at 72, 150 or 300 DPI.",
+    limits: [
+      "Each page becomes a picture, so its text can no longer be selected or searched. To get the words, use PDF to text or OCR instead.",
+      "For pages with photos or scans, PNG files are usually two to three times larger than JPG. In our tests an A4 page at 300 DPI came out between about 0.2 and 2.2 MB as PNG.",
+      "Pages are given a white background, like paper; transparent areas are not kept.",
+      "One run can produce about 400 million pixels, for example all 100 pages of an A4 PDF at 150 DPI, or about 45 pages at 300 DPI. Very large pages are made at a lower resolution so a browser can draw them.",
+      "Password-protected PDFs are not supported.",
+    ],
+    privacy: PRIVATE,
+    faq: [
+      { q: "Are PNG files bigger than JPG?", a: "Often, yes. PNG keeps every pixel exactly, so nothing is blurred or blocky, while JPG saves space by smoothing away fine detail. For pages of plain text the two are close in size; for pages with photos or scans, PNG is usually two to three times larger." },
+      { q: "Will the image print at the right size?", a: "Yes. The resolution you choose is written into each PNG, so a page made at 300 DPI prints at its real paper size in Word, image viewers and print dialogs instead of coming out too big." },
+      { q: "Can I get a transparent background?", a: "No. PDF pages are given a white background, the way they look on paper and in a PDF reader." },
+    ],
+    related: [LINKS.pdfToJpg, LINKS.imageToPdf, LINKS.editImage, LINKS.compressImage, LINKS.pdfToWord, LINKS.ocr],
   },
   {
     path: "/convert/excel-to-pdf",
@@ -797,7 +870,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Can I combine several JPGs into one PDF?", a: "Yes. Add them all, arrange the order, and export one PDF." },
       { q: "Will converting reduce my photo quality?", a: "Pages are kept at about 170 DPI for A4. Compress the PDF afterwards if you need it smaller." },
     ],
-    related: [LINKS.imageToPdf, LINKS.scan, LINKS.compressPdf, LINKS.ocr],
+    related: [LINKS.imageToPdf, LINKS.scan, LINKS.compressPdf, LINKS.ocr, { ...LINKS.pdfToJpg, note: "The other way round: turn PDF pages back into JPG images." }],
   },
   {
     path: "/png-to-pdf",
@@ -826,7 +899,7 @@ export const LANDING_PAGES: LandingPage[] = [
       { q: "Can I combine several PNGs into one PDF?", a: "Yes. Add them all, arrange the order, and export one PDF." },
       { q: "What happens to transparent areas?", a: "A PDF page has no transparency, so transparent areas in a PNG are filled white." },
     ],
-    related: [LINKS.imageToPdf, LINKS.scan, LINKS.compressPdf, LINKS.ocr],
+    related: [LINKS.imageToPdf, LINKS.scan, LINKS.compressPdf, LINKS.ocr, { ...LINKS.pdfToPng, note: "The other way round: turn PDF pages back into PNG images." }],
   },
   {
     path: "/scan-to-pdf",
@@ -902,15 +975,15 @@ export const LANDING_PAGES: LandingPage[] = [
     path: "/pdf-converter",
     title: "Free PDF Converter: Word, Excel, Images & More",
     description:
-      "Convert PDF to Word or Excel, and Word, Excel or images to PDF -- all free, in your browser. Pick a format below; nothing is uploaded to a server.",
+      "Convert PDF to Word, Excel, JPG or PNG, and Word, Excel or images to PDF, all free in your browser. Pick a format below; nothing is uploaded to a server.",
     h1: "Free online PDF converter",
     intro:
-      "One place for every PDF conversion FreePDFScanner offers: turn a PDF into Word or Excel, or turn Word, Excel and images into a PDF. Pick the conversion you need below.",
+      "One place for every PDF conversion FreePDFScanner offers: turn a PDF into Word, Excel or images, or turn Word, Excel and images into a PDF. Pick the conversion you need below.",
     crumbs: [{ name: "PDF converter", path: "/pdf-converter" }],
     appName: "FreePDFScanner PDF converter",
-    features: ["Convert PDF to Word (.docx)", "Convert PDF to Excel (.xlsx)", "Convert Word, Excel, CSV and images to PDF", "Everything runs in your browser"],
+    features: ["Convert PDF to Word (.docx)", "Convert PDF to Excel (.xlsx)", "Convert PDF pages to JPG or PNG images", "Convert Word, Excel, CSV and images to PDF", "Everything runs in your browser"],
     how: [
-      "Choose the conversion you need: PDF to Word, PDF to Excel, Word to PDF, Excel to PDF, or images to PDF.",
+      "Choose the conversion you need: PDF to Word, PDF to Excel, PDF to JPG or PNG, Word to PDF, Excel to PDF, or images to PDF.",
       "Upload your file. Scanned PDFs are read with text recognition automatically.",
       "Download the converted file.",
     ],
@@ -922,10 +995,10 @@ export const LANDING_PAGES: LandingPage[] = [
     ],
     privacy: PRIVATE,
     faq: [
-      { q: "Which PDF conversions are available?", a: "PDF to Word, PDF to Excel, Word to PDF, Excel to PDF, and images to PDF -- each is its own free tool." },
+      { q: "Which PDF conversions are available?", a: "PDF to Word, PDF to Excel, PDF to JPG, PDF to PNG, Word to PDF, Excel to PDF, and images to PDF -- each is its own free tool." },
       { q: "Do scanned PDFs work?", a: "Yes. Scanned pages are read with English text recognition where a conversion needs their text." },
     ],
-    related: [LINKS.createWord, LINKS.pdfToWord, LINKS.pdfToExcel, LINKS.wordToPdf, LINKS.excelToPdf, LINKS.imageToPdf],
+    related: [LINKS.createWord, LINKS.pdfToWord, LINKS.pdfToExcel, LINKS.pdfToJpg, LINKS.wordToPdf, LINKS.excelToPdf, LINKS.imageToPdf],
   },
   {
     path: "/create-word-document",

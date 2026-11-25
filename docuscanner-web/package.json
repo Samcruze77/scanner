@@ -31,6 +31,8 @@
     "test:print-quality": "node tests/audit/verify-print.mjs",
     "test:excel-pdf": "node tests/audit/verify-excel.mjs",
     "test:pdf-word": "node tests/audit/verify-pdf2word.mjs",
+    "test:pdf-to-image": "node --no-warnings --import ./tests/scanner/register.mjs tests/convert/pdf-to-image-core.mjs",
+    "test:pdf-to-image:browser": "node --no-warnings tests/convert/pdf-to-image-browser.mjs",
     "test:ocr": "node --no-warnings tests/ocr/identifiers.mjs",
     "test:ocr:ui": "node tests/audit/verify-ocr-ui.mjs",
     "test:docx:tables": "node --no-warnings tests/docx/table-widths.mjs",
