@@ -11,7 +11,7 @@
 //
 //   node --no-warnings --import ./tests/scanner/register.mjs tests/guidance/tips-pages.mjs [baseUrl]
 
-import { addText, assert, BASE, LAYOUTS, launch, makePdf, openAnnotator, openWorkspace, rejectCookies, session } from "../editor/lib.mjs";
+import { addText, assert, BASE, LAYOUTS, launch, makePdf, openAnnotator, ready, rejectCookies, session } from "../editor/lib.mjs";
 
 const GUIDANCE_KEY = "docuscanner.guidance.v1";
 const pdf = await makePdf("tips.pdf", 2);
@@ -39,6 +39,19 @@ async function newPage(layout, storage) {
   await s.page.route("**/api/assistant", (r) => r.fulfill({ json: { ai: false } }));
   return s;
 }
+// Like the shared openWorkspace, but it chooses the file only once React has attached the upload
+// control's handlers: on a deployed site that takes longer than locally, and a file chosen earlier
+// is silently ignored (a person can't do this: the upload button needs the same JavaScript).
+async function openWs(page, route, pages = 2) {
+  await page.goto(BASE + route, { waitUntil: "domcontentloaded" });
+  await rejectCookies(page);
+  await page.waitForFunction(() => {
+    const input = document.querySelector('input[aria-label^="Upload a document"]');
+    return !!input && Object.keys(input).some((k) => k.startsWith("__reactProps"));
+  }, null, { timeout: 60000 });
+  await page.locator('input[aria-label^="Upload a document"]').setInputFiles(pdf);
+  await ready(page, pages);
+}
 async function switchTo(page, want) {
   await sw(page).waitFor();
   await page.waitForFunction(() => document.querySelector('header [data-assistant-id="tips-toggle"]')?.hasAttribute("aria-pressed"));
@@ -56,7 +69,7 @@ for (const route of ["/scan", "/convert/image-to-pdf", "/tools/pdf-editor", "/to
     await page.goto(BASE + route, { waitUntil: "domcontentloaded" });
     await rejectCookies(page);
     await switchTo(page, "ON");
-    await openWorkspace(page, pdf, 2, route);
+    await openWs(page, route);
     await tip(page, "workflow-edit").waitFor({ timeout: 15000 });
     assert.match(await tip(page, "workflow-edit").innerText(), /Edit your document/);
     // Switch OFF while the tip is on screen: it goes away without a reload.
@@ -72,7 +85,7 @@ for (const route of ["/scan", "/convert/image-to-pdf", "/tools/pdf-editor", "/to
     // OFF, reload, add pages again: no tips.
     await switchTo(page, "OFF");
     await page.reload({ waitUntil: "domcontentloaded" });
-    await openWorkspace(page, pdf, 2, route);
+    await openWs(page, route);
     await page.waitForTimeout(800);
     assert.equal(await page.locator("[data-tip]").count(), 0, "no tips while OFF, after a reload");
     assert.equal(await badge(page), "OFF");
@@ -84,7 +97,7 @@ await test("/tools/pdf-editor page editor: the next-step tip shows after an edit
   const results = {};
   for (const want of ["ON", "OFF"]) {
     const { context, page } = await newPage(desktop, state(want === "ON" ? "on" : "off"));
-    await openWorkspace(page, pdf, 2, "/tools/pdf-editor");
+    await openWs(page, "/tools/pdf-editor");
     await switchTo(page, want);
     await openAnnotator(page, 1);
     await addText(page, 0.3, 0.3, "Hello");
@@ -102,7 +115,7 @@ await test("phone: the page editor's how-to-move tip follows the switch (ON show
   const counts = {};
   for (const want of ["ON", "OFF"]) {
     const { context, page } = await newPage(phone, state(want === "ON" ? "on" : "off"));
-    await openWorkspace(page, pdf, 2, "/tools/pdf-editor");
+    await openWs(page, "/tools/pdf-editor");
     await switchTo(page, want);
     await openAnnotator(page, 1);
     await page.waitForTimeout(800);
@@ -115,7 +128,7 @@ await test("phone: the page editor's how-to-move tip follows the switch (ON show
 
 await test("a tip that was closed comes back when tips are switched OFF and ON again", async () => {
   const { context, page } = await newPage(desktop, state("on"));
-  await openWorkspace(page, pdf, 2, "/scan");
+  await openWs(page, "/scan");
   await tip(page, "workflow-edit").waitFor({ timeout: 15000 });
   await tip(page, "workflow-edit").getByRole("button", { name: "Dismiss this tip" }).click();
   await tip(page, "workflow-edit").waitFor({ state: "detached" });
@@ -127,7 +140,7 @@ await test("a tip that was closed comes back when tips are switched OFF and ON a
 
 await test("first-time visitor (question not answered yet): the badge matches whether tips are really shown", async () => {
   const { context, page } = await newPage(desktop, { [GUIDANCE_KEY]: JSON.stringify({ tips: "unset", dismissed: [], asked: 1 }) });
-  await openWorkspace(page, pdf, 2, "/scan");
+  await openWs(page, "/scan");
   await page.waitForTimeout(1500);
   const shown = await tip(page, "workflow-edit").count();
   const shownBadge = await badge(page);
