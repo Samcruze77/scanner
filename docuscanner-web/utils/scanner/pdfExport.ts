@@ -31,11 +31,12 @@ import { ensureAnnotationImages, layoutText, renderAnnotations } from "./annotat
 import { exportPageLayout } from "./pageLayout";
 import type { ScannerPage } from "./page";
 import { getSourcePdf } from "./sourcePdfs";
-import { axisAlignedRect, cropToUserSpace, flattenReason } from "./cropMath";
+import { axisAlignedRect, cropToUserSpace } from "./cropMath";
+import { canPreserveSource } from "./canPreserveSource";
 
-export function canPreserveSource(page: ScannerPage): boolean {
-  return !!page.source && !!getSourcePdf(page.source.fileId) && flattenReason(page) === null;
-}
+// Lives in its own pdf-lib-free module so pages can use it without loading pdf-lib; re-exported
+// here for existing callers.
+export { canPreserveSource };
 
 // The opened PDFs parsed once per export. A PDF that pdf-lib cannot read (one carrying restrictions or
 // encryption, or a damaged one) gives null: its pages cannot be re-embedded and are exported as pictures.

@@ -6,7 +6,7 @@
 // picture is a single page. Nothing here leaves the device.
 
 import { buildPageLayers, flattenPageToJpeg } from "@/utils/scanner/annotationRender";
-import { canPreserveSource } from "@/utils/scanner/pdfExport";
+import { canPreserveSource } from "@/utils/scanner/canPreserveSource";
 import { getSourcePdf } from "@/utils/scanner/sourcePdfs";
 import { sharpenFlattenedPage } from "@/utils/scanner/sourceRender";
 import type { ScannerPage } from "@/utils/scanner/page";

@@ -12,7 +12,7 @@
 
 import { openPdfData, type OpenedPdf } from "@/utils/pdf/pdfjs";
 import { renderPdfPage } from "@/utils/pdf/render";
-import { canPreserveSource } from "./pdfExport";
+import { canPreserveSource } from "./canPreserveSource";
 import type { ScannerPage } from "./page";
 import { getSourcePdf } from "./sourcePdfs";
 

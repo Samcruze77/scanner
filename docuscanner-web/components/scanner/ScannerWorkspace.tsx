@@ -10,7 +10,6 @@ import { fileToCapturedImage, type CapturedImage } from "@/utils/scanner/image";
 import type { Quad } from "@/utils/scanner/geometry";
 import { createInitialPage, type PageRotation, type ScannerPage } from "@/utils/scanner/page";
 import { detectPageQuad, renderPage } from "@/utils/scanner/pageProcessing";
-import { createPdfFromPages } from "@/utils/scanner/pdf";
 import { downloadBlob, outputFilename } from "@/utils/convert/download";
 import { buildDocxFromOcrPages } from "@/utils/convert/ocrToDocx";
 import { buildXlsxFromOcrPages } from "@/utils/convert/ocrToXlsx";
@@ -598,6 +597,8 @@ export function ScannerWorkspace({ initialMode, intent }: { initialMode?: "camer
     setError(null);
     setCreatingPdf(true);
     try {
+      // The PDF writer (pdf-lib and its fonts, ~230 KB compressed) loads only when a PDF is made.
+      const { createPdfFromPages } = await import("@/utils/scanner/pdf");
       const blob = await createPdfFromPages(pages);
       setPdfBlob(blob);
       setDownloadStarted(false);

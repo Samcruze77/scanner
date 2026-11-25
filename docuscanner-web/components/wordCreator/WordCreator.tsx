@@ -24,7 +24,11 @@ import { useMediaQuery } from "./useMediaQuery";
 import { SignatureDialog } from "@/components/scanner/SignatureDialog";
 import type { SignatureImage } from "@/utils/scanner/signature";
 import { trackFeatureUsed, trackToolOpened } from "@/utils/analytics/events";
-import { exportDocx, ExportError } from "@/utils/wordCreator/docxExport";
+// The .docx writer (the docx library and JSZip, ~110 KB compressed) is loaded only when a document
+// is downloaded, so it is not part of opening the editor. Hovering, touching or focusing the
+// download button starts fetching it, so the download itself does not wait for the network.
+const loadDocxExport = () => import("@/utils/wordCreator/docxExport");
+const prefetchDocxExport = () => void loadDocxExport().catch(() => {});
 import {
   DraftCorruptError,
   newDraftId,
@@ -574,9 +578,12 @@ function Editing({
   const download = async () => {
     if (!editor || downloading) return;
     setDownloading(true);
+    let ExportErrorClass: (new (...args: never[]) => Error) | null = null;
     try {
       const title = getTitle();
-      const bytes = await exportDocx(editor.getJSON() as DocNode, { title, margins });
+      const docx = await loadDocxExport();
+      ExportErrorClass = docx.ExportError;
+      const bytes = await docx.exportDocx(editor.getJSON() as DocNode, { title, margins });
       const mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
       const blob = new Blob([bytes as BlobPart], { type: mime });
       const name = sanitizeFileName(title);
@@ -599,7 +606,7 @@ function Editing({
       setNotice({ kind: "info", text: phone ? `Downloaded ${name}. If you cannot find it, open your browser's Downloads.` : `Downloaded ${name}.` });
     } catch (e) {
       if ((e as { name?: string })?.name === "AbortError") return; // the share sheet was closed
-      setNotice({ kind: "error", text: e instanceof ExportError ? e.message : "The Word file could not be created. Your text is still here; try again." });
+      setNotice({ kind: "error", text: ExportErrorClass && e instanceof ExportErrorClass ? e.message : "The Word file could not be created. Your text is still here; try again." });
     } finally {
       setDownloading(false);
     }
@@ -665,7 +672,7 @@ function Editing({
           </button>
         )}
         {!phone && (
-          <button type="button" data-assistant-id="wc-download" className="btn btn-primary ml-auto" onClick={() => void download()} disabled={!editor || downloading}>
+          <button type="button" data-assistant-id="wc-download" className="btn btn-primary ml-auto" onClick={() => void download()} onPointerEnter={prefetchDocxExport} onPointerDown={prefetchDocxExport} onFocus={prefetchDocxExport} disabled={!editor || downloading}>
             {downloading ? "Preparing…" : "Download Word (.docx)"}
           </button>
         )}
@@ -702,7 +709,7 @@ function Editing({
                   </svg>
                   <span>{saveLabel}</span>
                 </button>
-                <button type="button" data-assistant-id="wc-download" className="wc-tbtn wc-primary" aria-label="Download Word (.docx)" onClick={() => void download()} disabled={!editor || downloading}>
+                <button type="button" data-assistant-id="wc-download" className="wc-tbtn wc-primary" aria-label="Download Word (.docx)" onClick={() => void download()} onPointerEnter={prefetchDocxExport} onPointerDown={prefetchDocxExport} onFocus={prefetchDocxExport} disabled={!editor || downloading}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />
                   </svg>

@@ -316,8 +316,12 @@ deployment (nothing was deployed).
   converter's font matching is a genuine differentiator); how to merge PDFs on a phone; how to fill in
   and sign a PDF form; how to compress a PDF to 100 KB/200 KB (check what the 20 KB minimum target
   achieves first); JPG vs PNG vs WebP; how to delete or rotate pages permanently.
-- Performance: the Word creator's Total Blocking Time (~1.3-1.5 s lab), and `/scan`'s 495 KB of
-  JavaScript on first load.
+- ~~Performance: the Word creator's Total Blocking Time and `/scan`'s 495 KB of JavaScript~~ done
+  2026-11-25: pdf-lib (scanner, print) and the .docx writer (Word creator) now load on demand.
+  Lab (mobile, 4x CPU, median of 5): `/scan` 495 → 290 KB JS, TBT 783 → 375 ms;
+  `/create-word-document` 509 → 396 KB, TBT 1,845 → 937 ms; LCP unchanged. Measure with
+  `npm run perf:vitals -- http://localhost:3000` and `npm run perf:profile -- http://localhost:3000 --page=/scan`.
+  Still to do: Protect PDF loads pdf-lib up front through its error/helper imports.
 - Consider whether the 8 near-duplicate tool URLs (`/tools/add-text`, `/tools/draw` …), which
   canonicalise to `/tools/annotate` and `/tools/sign-pdf`, should stay crawlable: Google showed
   `/tools/add-date` 5 times (with 1 click) despite the canonical. Leave as is unless they start

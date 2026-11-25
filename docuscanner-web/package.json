@@ -62,6 +62,8 @@
     "test:theme:visual": "node tests/ui/theme-visual.mjs",
     "test:theme:hydration": "node tests/ui/hydration-fallback.mjs",
     "test:perf:memory": "node tests/perf/repeat-memory.mjs",
+    "perf:vitals": "node tests/perf/web-vitals.mjs",
+    "perf:profile": "node tests/perf/load-profile.mjs",
     "test:filenames": "node --no-warnings tests/files/filename.mjs",
     "test:edge-inputs": "node tests/audit/edge-inputs.mjs",
     "audit:ui": "node tests/ui/audit.mjs",
