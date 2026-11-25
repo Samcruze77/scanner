@@ -5,6 +5,7 @@ import { CONVERT_TOOLS } from "@/components/convert/tools";
 import { HomeAuthCta } from "@/components/home/HomeAuthCta";
 import { VisitCounter } from "@/components/home/VisitCounter";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { PageTip } from "@/components/guidance/PageTip";
 import { Icon, type IconName } from "@/components/ui/icons";
 import { SUPPORTED_FORMATS } from "@/utils/scanner/documentTypes";
 import { RELATED, type RelatedLink } from "@/utils/seo/landing";
@@ -127,6 +128,7 @@ export default function Home() {
           </Link>
         </div>
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">{SUPPORTED_FORMATS}. Free to use, supported by ads.</p>
+        <PageTip id="page-home" className="mx-auto mt-6 max-w-xl text-left" />
       </section>
 
       <section aria-labelledby="goals-title" className="mx-auto w-full max-w-5xl px-4 pb-10 sm:px-6">

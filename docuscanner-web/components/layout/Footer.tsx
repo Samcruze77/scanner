@@ -3,7 +3,6 @@
 
 import Link from "next/link";
 import { CookieSettingsButton } from "@/components/consent/CookieSettingsButton";
-import { TipsToggle } from "@/components/guidance/TipsToggle";
 import { Logo } from "@/components/layout/Logo";
 import { FEATURES } from "@/utils/features/plans";
 import { GUIDES } from "@/utils/seo/guides";
@@ -90,8 +89,6 @@ export function Footer() {
             <a href="/licenses/third-party-notices.txt" className="underline hover:no-underline">
               Open-source notices
             </a>
-            {" · "}
-            <TipsToggle />
           </p>
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span className="muted">

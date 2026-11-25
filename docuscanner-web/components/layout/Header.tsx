@@ -7,6 +7,7 @@ import { Logo } from "@/components/layout/Logo";
 import { NAV_ITEMS, isNavActive } from "@/components/layout/nav";
 import { usePagePathname } from "@/components/layout/usePagePathname";
 import { ThemeMenu } from "@/components/theme/ThemeMenu";
+import { TipsToggle } from "@/components/guidance/TipsToggle";
 
 // Top bar: logo, the four places the product is organised around (see nav.ts), and
 // the account controls. Below `sm` the places move to the bottom bar
@@ -44,6 +45,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-1 sm:gap-2">
+          <TipsToggle />
           <ThemeMenu />
           {loading ? null : user ? (
             <AccountMenu />

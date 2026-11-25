@@ -332,8 +332,8 @@ const ENTRIES: HelpEntry[] = [
     kind: "faq",
     title: "Turn the help tips on or off",
     keywords: ["tips", "help tips", "turn off tips", "turn on tips", "stop showing tips", "hints", "stop the pop ups", "show me tips"],
-    summary: "Small tips can appear while you edit. You can turn them off or on again from the footer at the bottom of any page.",
-    steps: [{ text: "Scroll to the bottom of the page and choose Turn help tips off (or on).", target: "tips-toggle" }],
+    summary: "Small tips can appear while you edit. You can turn them off or on again with the Help tips switch at the top of any page.",
+    steps: [{ text: "At the top of the page, next to the theme button, choose the Help tips switch (the light bulb). It shows ON or OFF.", target: "tips-toggle" }],
     notes: ["The Ask me button stays available either way. Your choice is stored only in this browser."],
   },
   {

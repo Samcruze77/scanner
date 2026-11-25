@@ -13,6 +13,16 @@ import { getUserPlan, isFeatureAvailable } from "@/utils/features/plans";
 import { trackToolOpened } from "@/utils/analytics/events";
 import { useAuth } from "@/components/auth/AuthProvider";
 import type { ToolDef } from "@/utils/tools/registry";
+import { PageTip } from "@/components/guidance/PageTip";
+import type { PageTipId } from "@/components/guidance/pageTips";
+
+// The Help tips page tip for a tool (editor tools have the scanner's own step-by-step tips instead).
+function pageTipFor(tool: ToolDef): PageTipId | null {
+  if (tool.kind === "compress") return tool.compress === "pdf" ? "page-compress-pdf" : tool.compress === "image" ? "page-compress-image" : "page-compress-office";
+  if (tool.kind === "protect") return tool.focus === "pdf" ? "page-protect-pdf" : null;
+  if (tool.kind === "image-edit") return "page-edit-image";
+  return null;
+}
 
 // While a tool's code loads, its place is held at about the height of the tool's empty
 // state (measured at phone and desktop widths), so the explanation under it doesn't jump
@@ -69,6 +79,8 @@ export function ToolWorkspace({ tool, heading }: { tool: ToolDef; heading?: stri
         <h1 className="page-title">{heading ?? tool.title}</h1>
         <p className="muted mt-1 text-sm">{tool.body}</p>
       </div>
+
+      {available && pageTipFor(tool) && <PageTip id={pageTipFor(tool)!} />}
 
       {!available ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">This tool isn&apos;t available right now.</p>

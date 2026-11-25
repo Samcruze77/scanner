@@ -8,15 +8,17 @@ import Image from "next/image";
 // exactly one accessible name. next/image resizes each file per device.
 //
 // Below 480px the header has no room for the wordmark next to the Log in / Sign up buttons,
-// so it shows just the mark there; from 480px up it shows the full lockup. `variant="full"`
-// (footer) always shows the lockup.
+// so it shows just the mark there; from 480px it shows the full lockup. From 640 to 1023px the
+// header also carries the navigation links and the Help tips switch, so it shows the mark again;
+// from 1024px the full lockup returns. `variant="full"` (footer) always shows the lockup.
 type Variant = "responsive" | "full";
 
 const ALT = "FreePDFScanner logo";
 
 function Mark({ theme, responsive }: { theme: "light" | "dark"; responsive: boolean }) {
   const show = theme === "light" ? "dark:hidden" : "hidden dark:block";
-  const narrowOnly = responsive ? "min-[480px]:hidden!" : "hidden!";
+  // Shown below 480px and from 640 to 1023px.
+  const narrowOnly = responsive ? "min-[480px]:max-sm:hidden! lg:hidden!" : "hidden!";
   return (
     <Image
       src={`/brand/logo-mark-${theme}.png`}
@@ -30,7 +32,9 @@ function Mark({ theme, responsive }: { theme: "light" | "dark"; responsive: bool
 
 function Lockup({ theme, responsive }: { theme: "light" | "dark"; responsive: boolean }) {
   const show = theme === "light" ? "dark:hidden" : "hidden dark:block";
-  const wideOnly = responsive ? "max-[479px]:hidden!" : "";
+  // Shown from 480 to 639px and from 1024px. (`max-[480px]` means narrower than 480px; the old
+  // `max-[479px]` left a 1px band at 479px where the mark and the wordmark both showed.)
+  const wideOnly = responsive ? "max-[480px]:hidden! sm:max-lg:hidden!" : "";
   return (
     <Image
       src={`/brand/logo-horizontal-${theme}.png`}

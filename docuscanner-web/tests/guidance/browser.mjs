@@ -113,18 +113,22 @@ for (const layout of LAYOUTS.filter((l) => !l.label.startsWith("Wide"))) {
   assert.equal(await page.locator('[data-tip="workflow-edit"]').count(), 0, "a dismissed tip does not come back");
   ok("Yes turns tips on; a tip can be dismissed and then never returns");
 
-  // Footer switch.
-  const toggle = page.locator('[data-assistant-id="tips-toggle"]');
-  await toggle.scrollIntoViewIfNeeded();
-  assert.equal((await toggle.innerText()).trim(), "Turn help tips off");
+  // Help tips switch in the header (next to the theme button).
+  const toggle = page.locator('header [data-assistant-id="tips-toggle"]');
+  const badge = () => toggle.locator(".tips-badge").filter({ visible: true }).innerText();
+  assert.equal(await toggle.getAttribute("aria-pressed"), "true");
+  assert.equal(await badge(), "ON");
   await toggle.click();
   assert.equal((await stored(page)).tips, "off");
-  assert.equal((await toggle.innerText()).trim(), "Turn help tips on");
+  assert.equal(await toggle.getAttribute("aria-pressed"), "false");
+  assert.equal(await badge(), "OFF");
   await toggle.click();
   const afterOn = await stored(page);
   assert.equal(afterOn.tips, "on");
+  assert.equal(await badge(), "ON");
   assert.deepEqual(afterOn.dismissed, [], "turning tips back on lets them help again");
-  ok("tips can be turned off and on again from the footer");
+  assert.equal(await page.locator('footer [data-assistant-id="tips-toggle"]').count(), 0, "the switch moved out of the footer");
+  ok("tips can be turned off and on again from the header switch");
   allErrors.push(...errors);
   await context.close();
 }

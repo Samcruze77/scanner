@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
+import { PageTip } from "@/components/guidance/PageTip";
 import { PdfToWordTool } from "@/components/convert/PdfToWordTool";
 
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -26,6 +27,7 @@ export default function PdfToWordPage() {
       <PageHeader title={landing.h1}>
         Free, no account needed. The conversion happens in your browser, so your file is never uploaded.
       </PageHeader>
+      <PageTip id="page-pdf-to-word" className="mb-4" />
       <PdfToWordTool />
       <SeoContent page={landing} />
     </PageShell>

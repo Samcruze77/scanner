@@ -288,6 +288,39 @@ summary:focus-visible,
     @apply min-h-12 px-6 text-base;
   }
 
+  /* ---- Help tips switch (header): ON / OFF badge ---- */
+  .tips-badge {
+    @apply inline-flex min-w-9 items-center justify-center rounded-full px-1.5 text-[11px] leading-5 font-semibold;
+  }
+  .tips-badge-on {
+    background-color: var(--focus);
+    color: #fff;
+  }
+  /* Dark's focus blue is lighter (3.7:1 with white text); use the primary button's blue (5:1). */
+  :root[data-theme="dark"] .tips-badge-on {
+    background-color: #2563eb;
+  }
+  .tips-badge-off {
+    background-color: var(--selected);
+    /* Main text colour: secondary text on the selected grey was under 4.5:1 in Dark. */
+    color: var(--text);
+  }
+  /* Before React takes over, <html data-tips="on"> (set before the first paint) picks the badge. */
+  .tips-prepaint-on {
+    display: none;
+  }
+  :root[data-tips="on"] .tips-prepaint-on {
+    display: inline-flex;
+  }
+  :root[data-tips="on"] .tips-prepaint-off {
+    display: none;
+  }
+  /* Page tips are in the server HTML; before React takes over, hide them when tips are off. */
+  /* !important: the tip's own `flex` utility is in a later cascade layer and would win otherwise. */
+  :root:not([data-tips="on"]) [data-page-tip][data-prepaint] {
+    display: none !important;
+  }
+
   /* ---- form controls ---- */
   .field {
     @apply min-h-11 w-full rounded-lg border px-3 text-sm;

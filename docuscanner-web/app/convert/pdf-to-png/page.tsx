@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
+import { PageTip } from "@/components/guidance/PageTip";
 import { PdfToImageTool } from "@/components/convert/PdfToImageTool";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SeoContent } from "@/components/seo/SeoContent";
@@ -29,6 +30,7 @@ export default function PdfToPngPage() {
         )}
       />
       <PageHeader title={landing.h1}>{landing.intro}</PageHeader>
+      <PageTip id="page-pdf-to-image" className="mb-4" />
       <PdfToImageTool defaultFormat="png" />
       <SeoContent page={landing} />
     </PageShell>
